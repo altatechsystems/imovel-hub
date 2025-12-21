@@ -693,22 +693,236 @@ Whitelabel é a **alavanca de maior retorno** (26x ROI) e **maior impacto em LTV
 
 ---
 
-## 17. Regulação e PITD (Checagem de Coerência)
+## 17. Regulação e Conformidade Regulatória (CRECI/COFECI) ⭐ ATUALIZADO
 
-O modelo é desenhado para operar como **plataforma tecnológica (infraestrutura)**, preservando a autonomia dos corretores e imobiliárias na intermediação.
+### 17.1 Classificação da Plataforma
 
-### Para Manter Coerência com PITD:
+**Status Regulatório**: 🟢 **Provedor de Tecnologia** (NÃO sujeito a registro CRECI)
 
-1. ✅ Trilha de auditoria e rastreabilidade nativas
-2. ✅ Clareza sobre papéis e responsabilidades
-3. ✅ Separação entre funcionalidades tecnológicas e atividade-fim do corretor
-4. ✅ Evolução controlada para funcionalidades transacionais (em fases posteriores)
+A plataforma opera como **infraestrutura tecnológica** que conecta profissionais habilitados (corretores e imobiliárias com CRECI ativo), sem realizar intermediação imobiliária direta.
 
-### Escopo do MVP:
+**Base Legal**:
+- **Lei 6.530/78, Art. 3º**: Define intermediação imobiliária como atividade exclusiva de profissionais registrados no CRECI
+- **Precedentes de Mercado**:
+  - ZAP Imóveis, VivaReal, OLX: Não possuem CRECI (são provedores de tecnologia)
+  - Operação sem CRECI é legal desde que a plataforma NÃO pratique intermediação direta
 
-- ❌ **NÃO executa**: Split financeiro, pagamentos, custódia ou KYC
-- ✅ **Registra**: Eventos e acordos (comissões) para auditoria
-- ✅ **Prepara**: Contratos digitais e transações (ativação por fases com revisão regulatória)
+**Atividades da Plataforma** (NÃO configuram intermediação):
+- ✅ Hospedagem de anúncios de imóveis
+- ✅ Geração e distribuição de leads
+- ✅ Marketplace de co-corretagem entre profissionais habilitados
+- ✅ Ferramentas de gestão (CRM, contratos digitais, analytics)
+- ✅ Customização whitelabel (logo, cores, domínio)
+
+**Atividades VEDADAS** (configurariam intermediação e exigiriam CRECI):
+- ❌ Negociar preços ou condições de venda em nome do proprietário
+- ❌ Prospectar compradores ativamente para imóveis específicos
+- ❌ Assinar contratos de intermediação (exclusivo do corretor)
+- ❌ Receber comissão diretamente do proprietário (sem intermediação de corretor)
+
+---
+
+### 17.2 Responsabilidades Regulatórias
+
+**Quem NÃO possui CRECI e suas obrigações**:
+
+| Ator | CRECI | Responsabilidade Regulatória |
+|------|-------|------------------------------|
+| **Plataforma** | ❌ Não precisa | Infraestrutura tecnológica neutra |
+| **Corretor Autônomo** | ✅ Obrigatório | Intermediação imobiliária final |
+| **Imobiliária** | ✅ Obrigatório (PJ) | Intermediação + supervisão de equipe |
+| **Proprietário** | ❌ Não | Venda do imóvel |
+
+**Obrigações da Plataforma**:
+1. **Verificação de CRECI**: Validar CRECI ativo antes de habilitar cadastro (via API COFECI quando disponível, ou upload de documento)
+2. **Disclaimer**: "Todos os profissionais cadastrados possuem CRECI ativo. A plataforma não realiza intermediação imobiliária."
+3. **Auditoria**: Registrar todas as transações e acordos para conformidade regulatória
+4. **Transparência**: Exibir CRECI de forma visível em perfis de corretores e anúncios
+
+---
+
+### 17.3 Geração e Distribuição de Leads
+
+**Status**: 🟡 **Amarelo** - Conforme com esclarecimentos de limites
+
+**Modelo de Leads da Plataforma**:
+1. **Geração Orgânica**: SEO técnico (score 100%) atrai visitantes qualificados
+2. **Captura**: Formulários de contato no portal público
+3. **Distribuição**: Leads enviados ao corretor que anunciou o imóvel + opcionalmente para marketplace de co-corretagem
+
+**Conformidade com CRECI**:
+- ✅ **Geração de leads é LÍCITA**: Não configura intermediação (apenas marketing digital)
+- ✅ **Distribuição é LÍCITA**: Lead é enviado ao corretor habilitado, que assume a intermediação
+- ⚠️ **Limites a observar**:
+  - Plataforma NÃO pode negociar condições comerciais (preço, prazo, financiamento) em nome do corretor
+  - Plataforma NÃO pode se apresentar como intermediária (ex: "Somos a imobiliária XYZ")
+  - Lead deve ser qualificado e encaminhado ao corretor para follow-up profissional
+
+**Monetização de Leads**:
+- ✅ **Cobrar do corretor por leads qualificados é LÍCITO** (modelo SaaS comum em marketplace B2B)
+- Exemplo: R$ 20-30 por lead qualificado (contato com telefone + interesse demonstrado)
+
+---
+
+### 17.4 Co-Corretagem e Divisão de Comissões
+
+**Status**: 🟢 **Verde** - Totalmente conforme com Resolução COFECI 1.504/2023
+
+**Base Legal**:
+- **Resolução COFECI 1.504/2023**: Regulamenta divisão de comissão entre corretores (co-corretagem)
+- **Artigo 3º**: Exige contrato formal entre corretores participantes
+- **Artigo 5º**: Comissão deve ser dividida conforme acordo prévio e documentado
+
+**Implementação na Plataforma**:
+
+**Fase 1 - MVP (Registro e Transparência)**:
+- ✅ Marketplace de co-corretagem: Corretor A anuncia imóvel com % de divisão oferecido (ex: 40% da comissão)
+- ✅ Corretor B aceita co-corretagem e fecha negócio
+- ✅ Plataforma registra acordo de divisão (ActivityLog auditável)
+- ❌ **NÃO executa split financeiro** (corretor A recebe comissão total e repassa manualmente)
+
+**Fase 2 - MVP+2 (Automação Futura)**:
+- ✅ Split financeiro automatizado (integração com conta escrow ou PagSeguro/Stripe)
+- ✅ Retenção de % da plataforma como success fee (1-2% do valor do imóvel)
+- ⚠️ **Requisitos**: Contrato de adesão assinado por ambos corretores, compliance tributário (emissão de NF)
+
+**Conformidade**:
+- ✅ Acordo formal registrado (conforme Art. 3º)
+- ✅ Divisão pré-acordada e transparente (conforme Art. 5º)
+- ✅ Plataforma atua apenas como facilitadora (não como parte da intermediação)
+
+---
+
+### 17.5 Modelo Whitelabel
+
+**Status**: 🟢 **Verde** - Sem barreiras regulatórias
+
+**Conformidade**:
+- ✅ Imobiliária pode usar marca própria (logo, cores, domínio customizado)
+- ✅ Não há restrição CRECI para uso de ferramentas white-label
+- ✅ Imobiliária continua responsável pela intermediação (plataforma apenas fornece infraestrutura)
+
+**Obrigações da Imobiliária Tenant**:
+1. **Exibição de CRECI**: Manter CRECI visível em todas as páginas (Resolução 1.065/2007)
+2. **Publicidade**: Anúncios devem conter CRECI do corretor responsável
+3. **Contratos**: Assinados em nome da imobiliária (não da plataforma)
+
+**Obrigações da Plataforma**:
+- ✅ Garantir que templates de site whitelabel incluam campo para CRECI
+- ✅ Disclaimer: "Site powered by [Plataforma] - Tecnologia | Intermediação realizada por [Imobiliária] CRECI/XX 123456"
+
+---
+
+### 17.6 Transações Digitais (PITD)
+
+**Status**: 🔴 **Vermelho** - Resolução 1551/2025 SUSPENSA pelo COFECI
+
+**Situação Regulatória Atual** (Dezembro 2025):
+- **COFECI Resolução 1551/2025**: Criou sistema PITD (Plataformas de Intermediação de Transações Digitais)
+- **STATUS**: Resolução foi **SUSPENSA** e não possui efeito legal vigente
+- **Razão**: Questionamentos sobre competência regulatória do COFECI e impactos no mercado
+
+**Funcionalidades VEDADAS** (até regularização):
+- ❌ Tokenização de imóveis (TIDs - Tokens de Investimento Descentralizado)
+- ❌ Registro de transações em blockchain com valor jurídico
+- ❌ Credenciamento como PITD (sistema não está operacional)
+
+**Funcionalidades PERMITIDAS**:
+- ✅ Assinatura digital de contratos (DocuSign, Clicksign)
+- ✅ Trilha de auditoria com hash SHA-256 (blockchain-ready, sem registro on-chain)
+- ✅ Armazenamento de documentos digitalizados
+- ✅ Templates de contratos digitais (sem valor de registro oficial)
+
+**Estratégia de Mitigação**:
+1. **MVP**: Focar em gestão digital de documentos (PDFs assinados digitalmente)
+2. **Monitoramento**: Acompanhar regulamentação PITD e eventual reativação da Resolução 1551/2025
+3. **Preparação Técnica**: Arquitetura com campos reservados para blockchain (hash, timestamp) sem ativação
+4. **Pivot Condicional**: Se PITD for regulamentado, habilitar features de tokenização em MVP+3 (com revisão jurídica)
+
+**Referências**:
+- COFECI Nota Técnica 003/2025: Esclarecimentos sobre PITD
+- IRIB (Instituto de Registro Imobiliário do Brasil): Pareceres sobre tokenização
+
+---
+
+### 17.7 Modelo de Receita - Success Fee
+
+**Status**: 🟡 **Amarelo** - Lícito com estruturação cuidadosa
+
+**Cenário**: Plataforma cobra 1-2% do valor do imóvel como success fee ao corretor após fechamento
+
+**Riscos Regulatórios**:
+- ⚠️ **CRECI pode questionar**: Se a plataforma está atuando como "corretor de corretor" sem CRECI
+- ⚠️ **Precedente de mercado**: ZAP/VivaReal cobram por anúncios/leads, NÃO por comissão sobre venda
+
+**Mitigações Necessárias**:
+1. **Contrato de Adesão Claro**: Success fee deve ser definida como "taxa de tecnologia variável" (não comissão de intermediação)
+2. **Base de Cálculo Indireta**: Cobrar % sobre a comissão do corretor (ex: 20% da comissão), não % do valor do imóvel
+3. **Nota Fiscal**: Emitir NF como "Serviços de tecnologia SaaS - plano variável" (CNAE 6311-9/00)
+4. **Transparência**: Deixar claro que a plataforma NÃO participa da negociação (apenas fornece ferramentas)
+
+**Exemplo Conforme**:
+- ❌ **Evitar**: "Cobramos 1% do valor do imóvel como comissão"
+- ✅ **Preferir**: "Cobramos 20% da comissão do corretor como taxa de tecnologia por transação fechada"
+
+**Recomendação**: Implementar success fee apenas em **MVP+2**, após validar assinatura base e consultar advogado especializado em direito imobiliário.
+
+---
+
+### 17.8 Documentação e Auditoria
+
+**Obrigações de Compliance**:
+
+| Documento | Obrigatoriedade | Prazo de Guarda |
+|-----------|----------------|-----------------|
+| **Termo de Uso** | Obrigatório (LGPD + CRECI) | Permanente |
+| **Política de Privacidade** | Obrigatório (LGPD) | Permanente |
+| **Contrato de Adesão (SaaS)** | Obrigatório (CDC) | 5 anos após rescisão |
+| **Acordo de Co-Corretagem** | Obrigatório (Res. 1.504/2023) | 5 anos |
+| **ActivityLog (Auditoria)** | Recomendado | 5 anos |
+| **Verificação de CRECI** | Obrigatório | Anual (revalidação) |
+
+**ActivityLog (Trilha de Auditoria)**:
+```json
+{
+  "event": "lead_distributed",
+  "timestamp": "2025-12-21T10:30:00Z",
+  "lead_id": "uuid-123",
+  "corretor_origem": "João Silva (CRECI/SP 123456)",
+  "corretor_destino": "Maria Santos (CRECI/RJ 789012)",
+  "imovel_id": "uuid-456",
+  "aceite_co_corretagem": true,
+  "divisao_acordada": "40/60",
+  "hash": "sha256:abc123..."
+}
+```
+
+**Campos Reservados para Blockchain** (futuro):
+- `hash`: SHA-256 do evento (imutabilidade)
+- `prev_hash`: Hash do evento anterior (cadeia de blocos)
+- `blockchain_tx`: ID da transação on-chain (quando PITD estiver regulamentado)
+
+---
+
+### 17.9 Próximos Passos Regulatórios
+
+**Imediatos (MVP)**:
+1. ✅ Validar CRECI de corretores no cadastro (upload de documento ou API COFECI)
+2. ✅ Incluir disclaimer em rodapé: "Plataforma tecnológica. Intermediação por profissionais CRECI."
+3. ✅ Termos de Uso + Política de Privacidade (revisão jurídica obrigatória)
+4. ✅ ActivityLog com hash SHA-256 (auditoria)
+
+**Curto Prazo (MVP+1)**:
+5. ⏳ Validação anual de CRECI (renovação de cadastro)
+6. ⏳ Contrato de co-corretagem digital (template + assinatura eletrônica)
+7. ⏳ Monitorar regulamentação PITD (revisitar Resolução 1551/2025)
+
+**Médio Prazo (MVP+2)**:
+8. ⏳ Consulta jurídica para success fee (estruturação conforme)
+9. ⏳ Integração com sistema PITD (se regulamentação for reativada)
+10. ⏳ Split financeiro automatizado (escrow ou payment gateway)
+
+**Recomendação Final**: Contratar **advogado especializado em direito imobiliário** para revisão de Termos de Uso, Contratos e modelo de Success Fee antes do MVP em produção.
 
 ---
 
@@ -825,4 +1039,5 @@ O MVP é desenhado para **tracionar rápido e evoluir sem refatorações estrutu
 **Convertido para Markdown**: 2025-12-20
 **Atualizado com Seção 21**: 2025-12-20
 **Atualizado para v1.1**: 2025-12-21 (SEO 100% + Whitelabel + Timeline)
+**Atualizado para v1.2**: 2025-12-21 (Seção 17: Conformidade CRECI/COFECI)
 **Por**: Claude Code + Equipe Altatech Systems
