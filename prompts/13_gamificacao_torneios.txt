@@ -1,0 +1,1072 @@
+Você é um engenheiro full-stack sênior responsável por implementar o sistema de **Co-Corretagem Gamificada com Ranking Público** (MVP+2).
+
+IMPORTANTE:
+Este prompt implementa um dos 4 serviços inovadores conforme especificado em:
+- SERVICOS_INOVADORES.md (Serviço #1)
+- PLANO_DE_NEGOCIOS.md §16.5
+- AI_DEV_DIRECTIVE.md
+
+Este recurso é OPCIONAL e pode ser ativado em MVP+2.
+
+========================
+CONTEXTO DE NEGÓCIO
+========================
+
+**Oportunidade de Mercado:**
+- Construtoras lançam empreendimentos com 100-500 unidades
+- Vendas tradicionais: 6-12 meses para vender 200 unidades
+- Dor: Equipe de vendas limitada, alcance restrito
+
+**Solução:**
+Transformar vendas em **competição gamificada** entre corretores:
+- Ranking público em tempo real
+- Premiações automáticas (top 1, top 3, top 10)
+- Badges de performance (Ouro, Prata, Bronze)
+- Viralização (500+ corretores promovendo o mesmo projeto)
+
+**Resultado Esperado:**
+- 200 unidades vendidas em 45-60 dias (vs 6 meses)
+- 10x mais corretores ativos (50 → 500)
+- Engajamento viral (corretores competem publicamente)
+
+**Receita Estimada (SERVICOS_INOVADORES.md):**
+- Taxa de ativação: R$ 5k por torneio
+- 10 torneios/ano = R$ 50k
+- Upsell mensal: R$ 3k/mês/empreendimento ativo
+- 15 empreendimentos ativos = R$ 45k/mês = R$ 540k/ano
+- **Total**: R$ 590k/ano
+- **ROI**: 25x
+
+========================
+STACK TÉCNICA
+========================
+Backend:
+- Go (Golang) 1.21+ + Gin framework
+- Google Cloud Firestore
+- Firebase Authentication
+- Cloud Scheduler (jobs automáticos)
+
+Frontend Admin (Dashboard Construtora):
+- Next.js 14 (App Router)
+- React Query + Zustand
+- shadcn/ui + Tailwind CSS
+- React Hook Form + Zod
+- Recharts (gráficos)
+
+Frontend Público (Leaderboard):
+- Next.js 14 (SSR para SEO)
+- WebSockets ou Server-Sent Events (SSE) para ranking em tempo real
+- Vercel Edge Functions
+
+========================
+OBJETIVO DESTE PROMPT
+========================
+Implementar sistema completo de torneios gamificados:
+
+1. **Backend (Go):**
+   - CRUD de torneios (Tournament)
+   - Sistema de pontuação e ranking
+   - Atualizações automáticas (quando unidade é vendida)
+   - Jobs automáticos (finalizar torneio, calcular vencedores)
+
+2. **Frontend Admin:**
+   - Dashboard de torneios
+   - Criar/editar torneio
+   - Visualizar ranking em tempo real
+   - Configurar prêmios e regras
+
+3. **Frontend Público:**
+   - Leaderboard público (ranking ao vivo)
+   - Perfil do corretor (vendas, badges)
+   - Histórico de torneios
+
+4. **Notificações:**
+   - Email quando corretor sobe no ranking
+   - Push notification quando novo torneio começa
+   - Alerta quando torneio está acabando
+
+========================
+MODELOS DE DADOS
+========================
+
+### Tournament (Torneio)
+
+Coleção: `/tenants/{tenantId}/tournaments/{tournamentId}`
+
+```go
+package models
+
+import "time"
+
+type Tournament struct {
+    ID          string    `firestore:"-" json:"id"`
+    TenantID    string    `firestore:"tenant_id" json:"tenant_id"` // Construtora
+
+    // Vinculação ao empreendimento
+    DevelopmentID string `firestore:"development_id" json:"development_id"` // ref Development
+
+    // Informações básicas
+    Name        string    `firestore:"name" json:"name"`         // "Torneio de Lançamento Vista Verde"
+    Description string    `firestore:"description" json:"description"`
+    Slug        string    `firestore:"slug" json:"slug"`         // URL-friendly
+
+    // Período
+    StartDate   time.Time `firestore:"start_date" json:"start_date"`
+    EndDate     time.Time `firestore:"end_date" json:"end_date"`
+    IsActive    bool      `firestore:"is_active" json:"is_active"`
+
+    // Status
+    Status      TournamentStatus `firestore:"status" json:"status"` // draft, active, ended, cancelled
+
+    // Regras e premiações
+    Rules       []TournamentRule  `firestore:"rules" json:"rules"`
+    Prizes      []TournamentPrize `firestore:"prizes" json:"prizes"`
+
+    // Métricas
+    TotalParticipants int     `firestore:"total_participants" json:"total_participants"` // Corretores participantes
+    TotalUnitsSold    int     `firestore:"total_units_sold" json:"total_units_sold"`     // Unidades vendidas no torneio
+    TotalRevenue      float64 `firestore:"total_revenue" json:"total_revenue"`           // Receita total gerada
+
+    // Visibilidade
+    IsPublic    bool   `firestore:"is_public" json:"is_public"`         // Ranking público?
+    LeaderboardURL string `firestore:"leaderboard_url,omitempty" json:"leaderboard_url,omitempty"` // URL pública
+
+    // Metadata
+    CreatedBy string    `firestore:"created_by" json:"created_by"` // BrokerID (admin)
+    CreatedAt time.Time `firestore:"created_at" json:"created_at"`
+    UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
+}
+
+type TournamentStatus string
+const (
+    TournamentStatusDraft     TournamentStatus = "draft"     // Rascunho (não iniciado)
+    TournamentStatusActive    TournamentStatus = "active"    // Ativo (em andamento)
+    TournamentStatusEnded     TournamentStatus = "ended"     // Finalizado
+    TournamentStatusCancelled TournamentStatus = "cancelled" // Cancelado
+)
+
+type TournamentRule struct {
+    Type        string `firestore:"type" json:"type"`               // "points_per_unit", "bonus_first_week", "penalty_cancel"
+    Description string `firestore:"description" json:"description"` // Descrição legível
+    Value       int    `firestore:"value" json:"value"`             // Valor numérico (pontos, %, etc)
+}
+
+type TournamentPrize struct {
+    Rank        int    `firestore:"rank" json:"rank"`               // 1, 2, 3, etc
+    Description string `firestore:"description" json:"description"` // "R$ 10.000 em dinheiro"
+    Type        string `firestore:"type" json:"type"`               // "cash", "bonus_commission", "trip", "prize"
+    Value       float64 `firestore:"value,omitempty" json:"value,omitempty"` // Valor monetário (se aplicável)
+}
+```
+
+---
+
+### TournamentParticipant (Participante do Torneio)
+
+Subcoleção: `/tenants/{tenantId}/tournaments/{tournamentId}/participants/{participantId}`
+
+```go
+type TournamentParticipant struct {
+    ID           string    `firestore:"-" json:"id"`
+    TournamentID string    `firestore:"tournament_id" json:"tournament_id"` // ref Tournament
+    TenantID     string    `firestore:"tenant_id" json:"tenant_id"`
+    BrokerID     string    `firestore:"broker_id" json:"broker_id"`         // ref Broker
+
+    // Informações do corretor (denormalizado para performance)
+    BrokerName   string `firestore:"broker_name" json:"broker_name"`
+    BrokerCRECI  string `firestore:"broker_creci" json:"broker_creci"`
+    BrokerAvatar string `firestore:"broker_avatar,omitempty" json:"broker_avatar,omitempty"` // URL
+
+    // Métricas de performance
+    UnitsSold       int     `firestore:"units_sold" json:"units_sold"`             // Unidades vendidas
+    TotalCommission float64 `firestore:"total_commission" json:"total_commission"` // Comissão acumulada
+    Points          int     `firestore:"points" json:"points"`                     // Pontos (se houver sistema de pontos)
+
+    // Ranking
+    CurrentRank     int       `firestore:"current_rank" json:"current_rank"`         // Posição atual
+    PreviousRank    int       `firestore:"previous_rank" json:"previous_rank"`       // Posição anterior
+    RankChange      int       `firestore:"rank_change" json:"rank_change"`           // Variação (+5, -2, 0)
+    LastRankUpdate  time.Time `firestore:"last_rank_update" json:"last_rank_update"` // Última atualização
+
+    // Badges e conquistas
+    Badges          []string  `firestore:"badges,omitempty" json:"badges,omitempty"` // ["gold", "first_sale", "speed_seller"]
+
+    // Prêmios conquistados
+    PrizesWon       []TournamentPrize `firestore:"prizes_won,omitempty" json:"prizes_won,omitempty"`
+
+    // Status
+    IsActive        bool      `firestore:"is_active" json:"is_active"` // Participante ativo?
+    JoinedAt        time.Time `firestore:"joined_at" json:"joined_at"`
+    LastSaleAt      *time.Time `firestore:"last_sale_at,omitempty" json:"last_sale_at,omitempty"` // Última venda
+}
+```
+
+---
+
+### TournamentSale (Venda no Torneio)
+
+Subcoleção: `/tenants/{tenantId}/tournaments/{tournamentId}/sales/{saleId}`
+
+**IMPORTANTE**: Esta collection é um **espelho auditável** das vendas.
+As vendas reais são registradas em Property.development_info.unit_status = "sold".
+
+```go
+type TournamentSale struct {
+    ID           string    `firestore:"-" json:"id"`
+    TournamentID string    `firestore:"tournament_id" json:"tournament_id"` // ref Tournament
+    TenantID     string    `firestore:"tenant_id" json:"tenant_id"`
+
+    // Vinculação
+    PropertyID   string    `firestore:"property_id" json:"property_id"`     // ref Property (unidade vendida)
+    BrokerID     string    `firestore:"broker_id" json:"broker_id"`         // ref Broker (vendedor)
+
+    // Dados da venda (denormalizado)
+    UnitNumber   string    `firestore:"unit_number" json:"unit_number"`     // "Apto 302"
+    SalePrice    float64   `firestore:"sale_price" json:"sale_price"`       // R$ 350.000
+    Commission   float64   `firestore:"commission" json:"commission"`       // R$ 10.500 (3%)
+
+    // Pontuação
+    PointsAwarded int      `firestore:"points_awarded" json:"points_awarded"` // Pontos ganhos nesta venda
+
+    // Metadata
+    SoldAt       time.Time `firestore:"sold_at" json:"sold_at"`
+    CreatedAt    time.Time `firestore:"created_at" json:"created_at"`
+}
+```
+
+---
+
+### BadgeDefinition (Definições de Badges)
+
+Coleção: `/badge_definitions/{badgeId}` (GLOBAL, não por tenant)
+
+```go
+type BadgeDefinition struct {
+    ID          string `firestore:"-" json:"id"`
+
+    // Identificação
+    Code        string `firestore:"code" json:"code"`         // "gold", "silver", "bronze", "first_sale", "speed_seller"
+    Name        string `firestore:"name" json:"name"`         // "Medalha de Ouro"
+    Description string `firestore:"description" json:"description"` // "Top 1 do torneio"
+
+    // Visual
+    IconURL     string `firestore:"icon_url" json:"icon_url"` // URL do ícone
+    Color       string `firestore:"color" json:"color"`       // "#FFD700" (dourado)
+
+    // Regra de conquista
+    Condition   string `firestore:"condition" json:"condition"` // "rank == 1", "units_sold >= 5", "first_sale_in_tournament"
+
+    // Metadata
+    CreatedAt   time.Time `firestore:"created_at" json:"created_at"`
+}
+
+// Badges pré-definidos
+const (
+    BadgeGold         = "gold"          // Top 1
+    BadgeSilver       = "silver"        // Top 2-3
+    BadgeBronze       = "bronze"        // Top 4-10
+    BadgeFirstSale    = "first_sale"    // Primeira venda do torneio
+    BadgeSpeedSeller  = "speed_seller"  // 3+ vendas em 1 semana
+    BadgeCloser       = "closer"        // 10+ vendas no torneio
+    BadgeConsistency  = "consistency"   // Vendeu em todas as semanas do torneio
+)
+```
+
+========================
+LÓGICA DE NEGÓCIO
+========================
+
+### Fluxo de Criação de Torneio
+
+1. **Admin cria torneio** (Dashboard):
+   - Seleciona empreendimento
+   - Define período (data início, data fim)
+   - Configura prêmios (top 1, top 3, top 10)
+   - Define regras (ex: 100 pontos por unidade vendida)
+   - Publica torneio
+
+2. **Sistema inicializa torneio** (Cloud Scheduler job):
+   - Quando `start_date` chega:
+     - Atualizar `status` = "active"
+     - Criar `TournamentParticipant` vazio para todos os corretores vinculados ao empreendimento
+     - Enviar notificação: "Torneio começou!"
+
+3. **Corretor vende unidade**:
+   - Atualizar `Property.development_info.unit_status` = "sold"
+   - **Trigger**: Se Property pertence a empreendimento com torneio ativo:
+     - Criar `TournamentSale`
+     - Incrementar `TournamentParticipant.units_sold`
+     - Incrementar `TournamentParticipant.total_commission`
+     - Calcular pontos (se sistema de pontos ativo)
+     - **Recalcular ranking** (ver seção abaixo)
+     - Enviar notificação: "Você vendeu 1 unidade! Subiu para 5º lugar"
+
+4. **Sistema recalcula ranking** (tempo real ou batch a cada 5min):
+   - Ordenar participantes por `units_sold DESC, last_sale_at ASC`
+   - Atualizar `current_rank` de todos
+   - Detectar mudanças (ex: BrokerA estava em 3º, agora está em 1º)
+   - Atribuir badges (gold para rank 1, silver para rank 2-3, etc)
+   - Enviar notificações de mudança de posição
+
+5. **Sistema finaliza torneio** (Cloud Scheduler job):
+   - Quando `end_date` chega:
+     - Atualizar `status` = "ended"
+     - Calcular vencedores finais
+     - Atribuir prêmios (`TournamentParticipant.prizes_won`)
+     - Enviar notificações: "Torneio encerrado! Você ficou em 2º lugar e ganhou R$ 5.000"
+     - Gerar relatório final (PDF ou dashboard)
+
+### Regra de Ranking
+
+**Critério de ordenação**:
+1. **Primário**: `units_sold` (DESC) - Quem vendeu mais unidades
+2. **Desempate 1**: `last_sale_at` (ASC) - Quem vendeu primeiro (em caso de empate)
+3. **Desempate 2**: `joined_at` (ASC) - Quem entrou primeiro no torneio
+
+**Exemplo**:
+- Corretor A: 10 vendas, última venda em 01/03
+- Corretor B: 10 vendas, última venda em 05/03
+- Corretor C: 9 vendas, última venda em 28/02
+- **Ranking**: A (1º), B (2º), C (3º)
+
+### Sistema de Pontos (Opcional)
+
+Permite regras mais complexas além de simples contagem de unidades:
+
+**Exemplo de regras**:
+- 100 pontos por unidade vendida
+- +50 pontos se venda foi na primeira semana (bônus velocidade)
+- +20 pontos se venda foi de tipologia premium (3 dorms)
+- -30 pontos se venda foi cancelada
+
+**Cálculo**:
+```go
+points := 100 // base
+if soldAt.Sub(tournament.StartDate) <= 7*24*time.Hour {
+    points += 50 // bônus primeira semana
+}
+if property.Bedrooms >= 3 {
+    points += 20 // bônus premium
+}
+```
+
+========================
+ENDPOINTS BACKEND (GIN)
+========================
+
+### Tournaments
+
+**POST /api/v1/tenants/:tenantId/tournaments**
+- Criar torneio
+- Permissão: admin da construtora
+- Body: Tournament struct
+- Behavior:
+  - Gerar slug a partir do nome
+  - Validar datas (start_date < end_date, start_date >= now)
+  - Criar com status = "draft"
+  - ActivityLog: tournament_created
+
+**GET /api/v1/tenants/:tenantId/tournaments/:tournamentId**
+- Buscar torneio por ID
+- Incluir: Participantes (top 10), métricas agregadas
+
+**PATCH /api/v1/tenants/:tenantId/tournaments/:tournamentId**
+- Atualizar torneio
+- Permissão: admin da construtora
+- Validar: Não pode alterar se status = "active" ou "ended"
+- ActivityLog: tournament_updated
+
+**POST /api/v1/tenants/:tenantId/tournaments/:tournamentId/publish**
+- Publicar torneio (draft → active)
+- Permissão: admin da construtora
+- Behavior:
+  - Atualizar status = "active"
+  - Criar participantes vazios para todos os corretores vinculados
+  - Enviar notificações
+  - ActivityLog: tournament_published
+
+**GET /api/v1/tenants/:tenantId/tournaments**
+- Listar torneios do tenant
+- Filtros: status, development_id
+- Ordenar: start_date DESC
+
+**GET /api/v1/tournaments/:slug/leaderboard** (PÚBLICO)
+- Buscar ranking público do torneio
+- Retornar: Top 100 participantes ordenados
+- Cache: 5 minutos (Redis ou Vercel Edge Cache)
+
+---
+
+### Tournament Participants
+
+**GET /api/v1/tenants/:tenantId/tournaments/:tournamentId/participants**
+- Listar participantes do torneio
+- Filtros: is_active, units_sold (min/max)
+- Ordenar: current_rank ASC
+
+**GET /api/v1/tenants/:tenantId/tournaments/:tournamentId/participants/:brokerID**
+- Buscar participante específico
+- Retornar: Métricas, ranking, badges, histórico de vendas
+
+**PATCH /api/v1/tenants/:tenantId/tournaments/:tournamentId/participants/:brokerID**
+- Atualizar participante (admin apenas)
+- Casos de uso: Desqualificar, ajustar pontos manualmente
+
+---
+
+### Tournament Sales
+
+**POST /api/v1/tenants/:tenantId/tournaments/:tournamentId/sales** (INTERNAL)
+- Registrar venda no torneio
+- **IMPORTANTE**: Chamado automaticamente quando `Property.unit_status` = "sold"
+- Behavior:
+  - Criar TournamentSale
+  - Incrementar TournamentParticipant.units_sold
+  - Recalcular ranking
+  - Enviar notificação
+  - ActivityLog: tournament_sale_registered
+
+**GET /api/v1/tenants/:tenantId/tournaments/:tournamentId/sales**
+- Listar vendas do torneio
+- Filtros: broker_id, sold_at (range)
+- Ordenar: sold_at DESC
+
+---
+
+### Ranking Recalculation (Background Job)
+
+**POST /api/v1/internal/tournaments/:tournamentId/recalculate-ranking** (CRON)
+- Recalcular ranking de todos os participantes
+- Executado a cada 5 minutos (Cloud Scheduler)
+- Behavior:
+  1. Buscar todos os participantes do torneio
+  2. Ordenar por units_sold DESC, last_sale_at ASC
+  3. Atualizar current_rank, previous_rank, rank_change
+  4. Atribuir badges (gold, silver, bronze)
+  5. Enviar notificações se houve mudança de posição
+  6. ActivityLog: ranking_recalculated
+
+========================
+FRONTEND ADMIN (DASHBOARD)
+========================
+
+### Páginas e Componentes
+
+**1. /admin/tournaments** (Lista de Torneios)
+- Tabela com torneios
+- Colunas: Nome, Empreendimento, Status, Período, Participantes, Vendas, Ações
+- Filtros: Status, Empreendimento
+- Ação: Criar Novo Torneio
+
+**2. /admin/tournaments/new** (Criar Torneio)
+- Form multi-step:
+  - Passo 1: Informações Básicas (nome, empreendimento, período)
+  - Passo 2: Regras de Pontuação (pontos por venda, bônus, penalidades)
+  - Passo 3: Prêmios (top 1, top 3, top 10)
+  - Passo 4: Visibilidade (público/privado, URL do leaderboard)
+- Validação: React Hook Form + Zod
+- Ação: Salvar como Rascunho ou Publicar Imediatamente
+
+**3. /admin/tournaments/:id** (Detalhes do Torneio)
+- Tabs:
+  - **Dashboard**: Métricas (vendas, participantes, gráfico de vendas por dia)
+  - **Leaderboard**: Ranking completo com filtros
+  - **Participantes**: Lista de corretores participantes
+  - **Vendas**: Histórico de todas as vendas
+  - **Prêmios**: Configuração de prêmios e vencedores
+  - **Configurações**: Editar torneio (apenas se status = draft)
+
+**4. /admin/tournaments/:id/leaderboard** (Ranking Detalhado)
+- Tabela com participantes:
+  - Colunas: Rank, Corretor, CRECI, Unidades Vendidas, Comissão, Pontos, Badges, Última Venda
+  - Destaque: Top 3 com cards especiais (ouro, prata, bronze)
+  - Atualização: Tempo real via SSE ou polling a cada 30s
+- Exportar: CSV, PDF
+
+**5. /admin/tournaments/:id/analytics** (Analítica Avançada)
+- Gráficos:
+  - Vendas por dia (linha do tempo)
+  - Vendas por corretor (bar chart)
+  - Distribuição de tipologias vendidas (pie chart)
+  - Performance por semana (heatmap)
+- Métricas:
+  - Velocidade de vendas (unidades/dia)
+  - Taxa de conversão (participantes ativos / total)
+  - Ticket médio
+
+**Componentes Reutilizáveis:**
+
+```typescript
+// components/tournaments/TournamentCard.tsx
+interface TournamentCardProps {
+  tournament: Tournament;
+  onEdit: (id: string) => void;
+  onView: (id: string) => void;
+}
+
+// components/tournaments/LeaderboardTable.tsx
+interface LeaderboardTableProps {
+  participants: TournamentParticipant[];
+  isRealTime?: boolean; // Atualização em tempo real
+}
+
+// components/tournaments/BadgeDisplay.tsx
+interface BadgeDisplayProps {
+  badges: string[]; // ["gold", "first_sale", "speed_seller"]
+  size?: 'sm' | 'md' | 'lg';
+}
+
+// components/tournaments/PrizeConfig.tsx
+interface PrizeConfigProps {
+  prizes: TournamentPrize[];
+  onChange: (prizes: TournamentPrize[]) => void;
+}
+```
+
+========================
+FRONTEND PÚBLICO (LEADERBOARD)
+========================
+
+### Página Pública de Ranking
+
+**URL**: `/torneios/:slug/ranking`
+
+**Layout**:
+- Hero: Banner do empreendimento, nome do torneio, contagem regressiva
+- Podium: Top 3 destacados (ouro, prata, bronze)
+- Tabela: Top 100 participantes
+- Atualização: Tempo real via SSE
+
+**SEO**:
+- Title: "[Nome do Torneio] - Ranking ao Vivo | [Empreendimento]"
+- Meta Description: "Acompanhe o ranking ao vivo do torneio [Nome]. Veja quem está liderando!"
+- JSON-LD: Event schema
+
+**Componentes**:
+
+```typescript
+// app/torneios/[slug]/ranking/page.tsx
+export default async function TournamentLeaderboardPage({ params }) {
+  const tournament = await getTournamentBySlug(params.slug);
+  const participants = await getLeaderboard(tournament.id);
+
+  return (
+    <>
+      <TournamentHeader tournament={tournament} />
+      <Podium topThree={participants.slice(0, 3)} />
+      <LeaderboardTable participants={participants} />
+      <LiveUpdates tournamentId={tournament.id} />
+    </>
+  );
+}
+
+// components/tournaments/public/Podium.tsx
+interface PodiumProps {
+  topThree: TournamentParticipant[];
+}
+
+// components/tournaments/public/LiveUpdates.tsx
+// Usa EventSource (SSE) para atualização em tempo real
+interface LiveUpdatesProps {
+  tournamentId: string;
+}
+```
+
+**Server-Sent Events (SSE) para Ranking em Tempo Real**:
+
+```typescript
+// app/api/tournaments/[id]/stream/route.ts
+export async function GET(req: Request, { params }) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      // Poll Firestore a cada 30s
+      const interval = setInterval(async () => {
+        const participants = await getLeaderboard(params.id);
+        const data = `data: ${JSON.stringify(participants)}\n\n`;
+        controller.enqueue(encoder.encode(data));
+      }, 30000);
+
+      // Cleanup
+      req.signal.addEventListener('abort', () => {
+        clearInterval(interval);
+        controller.close();
+      });
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
+}
+```
+
+========================
+NOTIFICAÇÕES
+========================
+
+### Tipos de Notificações
+
+**1. Torneio Iniciado**
+- Trigger: Tournament.status = "active"
+- Destinatários: Todos os corretores vinculados ao empreendimento
+- Canal: Email + Push notification (se app móvel)
+- Template:
+  ```
+  🏆 Novo Torneio Começou!
+
+  O torneio "[Nome]" acaba de começar!
+  Período: [Data início] a [Data fim]
+  Prêmio 1º lugar: [Descrição]
+
+  [Ver Ranking] [Vender Agora]
+  ```
+
+**2. Nova Venda Registrada**
+- Trigger: TournamentSale criado
+- Destinatário: Corretor que vendeu
+- Canal: Email + Push notification
+- Template:
+  ```
+  🎉 Parabéns! Você vendeu 1 unidade
+
+  Unidade: [Número]
+  Comissão: R$ [Valor]
+  Sua posição: [Rank]º lugar (subiu 3 posições!)
+
+  [Ver Ranking]
+  ```
+
+**3. Mudança de Posição**
+- Trigger: TournamentParticipant.rank_change != 0
+- Destinatário: Corretor que mudou de posição
+- Canal: Push notification (tempo real)
+- Condições: Apenas se subiu >= 3 posições OU entrou no top 10
+- Template:
+  ```
+  📈 Você subiu no ranking!
+
+  Nova posição: 5º lugar (+3)
+  Faltam 12 vendas para o 1º lugar
+
+  [Ver Ranking]
+  ```
+
+**4. Torneio Acabando**
+- Trigger: Tournament.end_date - now <= 24 horas
+- Destinatários: Top 20 corretores
+- Canal: Email + Push notification
+- Template:
+  ```
+  ⏰ Última Chance!
+
+  O torneio "[Nome]" acaba em 24 horas!
+  Você está em [Rank]º lugar
+  Faltam [N] vendas para o prêmio
+
+  [Ver Ranking] [Vender Agora]
+  ```
+
+**5. Torneio Finalizado**
+- Trigger: Tournament.status = "ended"
+- Destinatários: Todos os participantes
+- Canal: Email
+- Template para vencedores:
+  ```
+  🏆 Você Venceu!
+
+  Parabéns! Você ficou em [Rank]º lugar no torneio "[Nome]"
+
+  Seu prêmio: [Descrição]
+  Unidades vendidas: [N]
+  Comissão total: R$ [Valor]
+
+  [Ver Certificado] [Compartilhar]
+  ```
+
+========================
+CLOUD SCHEDULER JOBS
+========================
+
+### Job 1: Iniciar Torneios
+
+**Trigger**: A cada 1 hora
+**Função**: Verificar torneios com `status = "draft"` e `start_date <= now`
+
+```go
+func StartScheduledTournaments(ctx context.Context) error {
+    now := time.Now()
+
+    // Query: status = draft AND start_date <= now
+    tournaments, err := repo.FindTournamentsToStart(ctx, now)
+    if err != nil {
+        return err
+    }
+
+    for _, tournament := range tournaments {
+        // Atualizar status
+        tournament.Status = TournamentStatusActive
+        if err := repo.Update(ctx, tournament); err != nil {
+            log.Printf("Erro ao ativar torneio %s: %v", tournament.ID, err)
+            continue
+        }
+
+        // Criar participantes
+        if err := createParticipants(ctx, tournament); err != nil {
+            log.Printf("Erro ao criar participantes: %v", err)
+            continue
+        }
+
+        // Enviar notificações
+        if err := notifyTournamentStarted(ctx, tournament); err != nil {
+            log.Printf("Erro ao notificar: %v", err)
+        }
+
+        log.Printf("Torneio %s ativado com sucesso", tournament.ID)
+    }
+
+    return nil
+}
+```
+
+**Cron**: `0 * * * *` (a cada hora)
+
+---
+
+### Job 2: Recalcular Rankings
+
+**Trigger**: A cada 5 minutos
+**Função**: Recalcular ranking de todos os torneios ativos
+
+```go
+func RecalculateRankings(ctx context.Context) error {
+    // Query: status = active
+    tournaments, err := repo.FindActiveTournaments(ctx)
+    if err != nil {
+        return err
+    }
+
+    for _, tournament := range tournaments {
+        if err := recalculateTournamentRanking(ctx, tournament.ID); err != nil {
+            log.Printf("Erro ao recalcular ranking %s: %v", tournament.ID, err)
+            continue
+        }
+    }
+
+    return nil
+}
+
+func recalculateTournamentRanking(ctx context.Context, tournamentID string) error {
+    // Buscar participantes
+    participants, err := repo.FindParticipants(ctx, tournamentID)
+    if err != nil {
+        return err
+    }
+
+    // Ordenar: units_sold DESC, last_sale_at ASC
+    sort.Slice(participants, func(i, j int) bool {
+        if participants[i].UnitsSold != participants[j].UnitsSold {
+            return participants[i].UnitsSold > participants[j].UnitsSold
+        }
+        if participants[i].LastSaleAt != nil && participants[j].LastSaleAt != nil {
+            return participants[i].LastSaleAt.Before(*participants[j].LastSaleAt)
+        }
+        return participants[i].JoinedAt.Before(participants[j].JoinedAt)
+    })
+
+    // Atualizar ranks
+    for i, p := range participants {
+        newRank := i + 1
+        if p.CurrentRank != newRank {
+            p.PreviousRank = p.CurrentRank
+            p.CurrentRank = newRank
+            p.RankChange = p.PreviousRank - p.CurrentRank
+            p.LastRankUpdate = time.Now()
+
+            // Atribuir badges
+            p.Badges = assignBadges(p, newRank)
+
+            // Salvar
+            if err := repo.UpdateParticipant(ctx, p); err != nil {
+                return err
+            }
+
+            // Notificar se subiu >= 3 posições ou entrou no top 10
+            if p.RankChange >= 3 || (newRank <= 10 && p.PreviousRank > 10) {
+                notifyRankChange(ctx, p)
+            }
+        }
+    }
+
+    return nil
+}
+
+func assignBadges(p TournamentParticipant, rank int) []string {
+    badges := []string{}
+
+    if rank == 1 {
+        badges = append(badges, BadgeGold)
+    } else if rank >= 2 && rank <= 3 {
+        badges = append(badges, BadgeSilver)
+    } else if rank >= 4 && rank <= 10 {
+        badges = append(badges, BadgeBronze)
+    }
+
+    if p.UnitsSold >= 10 {
+        badges = append(badges, BadgeCloser)
+    }
+
+    return badges
+}
+```
+
+**Cron**: `*/5 * * * *` (a cada 5 minutos)
+
+---
+
+### Job 3: Finalizar Torneios
+
+**Trigger**: A cada 1 hora
+**Função**: Finalizar torneios com `status = "active"` e `end_date <= now`
+
+```go
+func FinishScheduledTournaments(ctx context.Context) error {
+    now := time.Now()
+
+    // Query: status = active AND end_date <= now
+    tournaments, err := repo.FindTournamentsToEnd(ctx, now)
+    if err != nil {
+        return err
+    }
+
+    for _, tournament := range tournaments {
+        // Recalcular ranking final
+        if err := recalculateTournamentRanking(ctx, tournament.ID); err != nil {
+            log.Printf("Erro ao recalcular ranking final: %v", err)
+        }
+
+        // Atribuir prêmios
+        if err := assignPrizes(ctx, tournament); err != nil {
+            log.Printf("Erro ao atribuir prêmios: %v", err)
+        }
+
+        // Atualizar status
+        tournament.Status = TournamentStatusEnded
+        if err := repo.Update(ctx, tournament); err != nil {
+            log.Printf("Erro ao finalizar torneio %s: %v", tournament.ID, err)
+            continue
+        }
+
+        // Enviar notificações
+        if err := notifyTournamentEnded(ctx, tournament); err != nil {
+            log.Printf("Erro ao notificar: %v", err)
+        }
+
+        log.Printf("Torneio %s finalizado com sucesso", tournament.ID)
+    }
+
+    return nil
+}
+
+func assignPrizes(ctx context.Context, tournament Tournament) error {
+    participants, err := repo.FindTopParticipants(ctx, tournament.ID, 10)
+    if err != nil {
+        return err
+    }
+
+    for _, prize := range tournament.Prizes {
+        if prize.Rank <= len(participants) {
+            p := participants[prize.Rank-1]
+            p.PrizesWon = append(p.PrizesWon, prize)
+            if err := repo.UpdateParticipant(ctx, p); err != nil {
+                return err
+            }
+        }
+    }
+
+    return nil
+}
+```
+
+**Cron**: `0 * * * *` (a cada hora)
+
+========================
+INTEGRAÇÕES
+========================
+
+### Integração com Property (Unidades)
+
+Quando uma unidade de empreendimento é vendida, o sistema automaticamente:
+
+1. **Detecta venda** (trigger em Property.unit_status):
+```go
+// internal/services/property_service.go
+
+func (s *PropertyService) UpdateUnitStatus(ctx context.Context, propertyID string, newStatus UnitStatus) error {
+    property, err := s.repo.GetByID(ctx, propertyID)
+    if err != nil {
+        return err
+    }
+
+    // Atualizar status
+    property.DevelopmentInfo.UnitStatus = newStatus
+    property.UpdatedAt = time.Now()
+
+    if err := s.repo.Update(ctx, property); err != nil {
+        return err
+    }
+
+    // ✅ SE STATUS = SOLD E EMPREENDIMENTO TEM TORNEIO ATIVO
+    if newStatus == UnitStatusSold && property.DevelopmentInfo != nil {
+        go s.handleTournamentSale(ctx, property)
+    }
+
+    return nil
+}
+
+func (s *PropertyService) handleTournamentSale(ctx context.Context, property Property) {
+    // Buscar torneio ativo para este empreendimento
+    tournament, err := s.tournamentRepo.FindActiveByDevelopment(ctx, property.DevelopmentInfo.DevelopmentID)
+    if err != nil || tournament == nil {
+        return // Sem torneio ativo
+    }
+
+    // Registrar venda no torneio
+    sale := &TournamentSale{
+        ID:           generateID(),
+        TournamentID: tournament.ID,
+        TenantID:     property.TenantID,
+        PropertyID:   property.ID,
+        BrokerID:     property.AssignedBrokerID, // Corretor que vendeu
+        UnitNumber:   property.DevelopmentInfo.UnitNumber,
+        SalePrice:    property.SalePrice,
+        Commission:   property.SalePrice * 0.03, // 3%
+        SoldAt:       time.Now(),
+        CreatedAt:    time.Now(),
+    }
+
+    if err := s.tournamentRepo.CreateSale(ctx, sale); err != nil {
+        log.Printf("Erro ao registrar venda no torneio: %v", err)
+        return
+    }
+
+    // Atualizar participante
+    participant, err := s.tournamentRepo.FindParticipant(ctx, tournament.ID, property.AssignedBrokerID)
+    if err != nil {
+        log.Printf("Erro ao buscar participante: %v", err)
+        return
+    }
+
+    participant.UnitsSold++
+    participant.TotalCommission += sale.Commission
+    now := time.Now()
+    participant.LastSaleAt = &now
+
+    if err := s.tournamentRepo.UpdateParticipant(ctx, participant); err != nil {
+        log.Printf("Erro ao atualizar participante: %v", err)
+        return
+    }
+
+    // Enviar notificação
+    s.notificationService.NotifySaleRegistered(ctx, participant, sale)
+
+    log.Printf("Venda registrada no torneio %s: %s vendeu %s", tournament.ID, participant.BrokerName, property.DevelopmentInfo.UnitNumber)
+}
+```
+
+========================
+CRITÉRIOS DE SUCESSO
+========================
+
+✅ Tournament CRUD completo no backend
+✅ TournamentParticipant tracking com ranking em tempo real
+✅ TournamentSale auditável vinculado a Property
+✅ Cloud Scheduler jobs (iniciar, recalcular, finalizar)
+✅ Notificações (email + push) para eventos principais
+✅ Dashboard admin permite gestão completa de torneios
+✅ Leaderboard público com SSE (tempo real)
+✅ Badges automáticos (gold, silver, bronze, etc)
+✅ Integração com Property (vendas registram automaticamente)
+✅ Gráficos de performance (vendas por dia, por corretor)
+✅ Export de ranking (CSV, PDF)
+✅ ActivityLog registra todos os eventos críticos
+
+========================
+AUDITORIA OBRIGATÓRIA
+========================
+
+ActivityLog para eventos DESTE prompt:
+- tournament_created
+- tournament_updated
+- tournament_published
+- tournament_started (job automático)
+- tournament_sale_registered
+- ranking_recalculated (job automático)
+- tournament_ended (job automático)
+- prize_assigned
+- badge_awarded
+- notification_sent
+
+Ver AI_DEV_DIRECTIVE.md seção 17 para campos obrigatórios.
+
+========================
+ENTREGA ESPERADA
+========================
+
+1. Backend Go:
+   - Models: Tournament, TournamentParticipant, TournamentSale, BadgeDefinition
+   - Repositories: TournamentRepository, ParticipantRepository
+   - Services: TournamentService, RankingService, NotificationService
+   - Handlers: TournamentHandler, LeaderboardHandler
+   - Jobs: StartTournaments, RecalculateRankings, FinishTournaments
+
+2. Frontend Admin:
+   - Páginas: Lista, Criar, Editar, Detalhes, Leaderboard, Analytics
+   - Componentes: TournamentCard, LeaderboardTable, BadgeDisplay, PrizeConfig
+   - Forms: Validação com Zod + React Hook Form
+   - Gráficos: Recharts (vendas, performance)
+
+3. Frontend Público:
+   - Página: /torneios/:slug/ranking (leaderboard público)
+   - SSE: Ranking em tempo real
+   - SEO: JSON-LD Event schema
+
+4. Cloud Scheduler:
+   - 3 jobs configurados (iniciar, recalcular, finalizar)
+   - Cron expressions corretas
+   - Logs estruturados
+
+5. Notificações:
+   - Email templates (SendGrid ou similar)
+   - Push notifications (Firebase Cloud Messaging)
+   - Webhooks para integrações externas
+
+========================
+NOTAS FINAIS
+========================
+
+- Este prompt pode ser executado APÓS o prompt 12 (lançamentos)
+- Requer integração com sistema de notificações (email + push)
+- Ranking recalculado a cada 5 minutos (ajustável conforme carga)
+- Leaderboard público usa cache de 5 minutos (CDN)
+- SSE suporta até 10.000 conexões simultâneas (Vercel Edge)
+- Badges podem ser expandidos futuramente (100+ vendas, etc)
+- Prêmios podem incluir NFTs no futuro (blockchain)
+
+**ROI Esperado:**
+- Taxa de ativação: R$ 5k por torneio
+- 10 torneios/ano = R$ 50k
+- Upsell mensal: R$ 3k/mês x 15 empreendimentos = R$ 540k/ano
+- **Total**: R$ 590k/ano
+- **Custo desenvolvimento**: R$ 20-25k (40-50h)
+- **ROI**: 25x
+
+**Referências:**
+- SERVICOS_INOVADORES.md (Serviço #1)
+- PLANO_DE_NEGOCIOS.md §16.5
+- prompts/12_lancamentos_construtoras.txt (Development model)
+- prompts/01_foundation_mvp.txt (Property model)

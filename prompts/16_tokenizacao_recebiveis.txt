@@ -1,0 +1,628 @@
+Você é um engenheiro blockchain sênior responsável por implementar o sistema de **Tokenização de Recebíveis de Comissão** (MVP+2).
+
+IMPORTANTE:
+Este prompt implementa um dos 4 serviços inovadores conforme especificado em:
+- SERVICOS_INOVADORES.md (Serviço #4)
+- PLANO_DE_NEGOCIOS.md §16.5 e §16.6
+- AI_DEV_DIRECTIVE.md
+
+Este recurso é OPCIONAL e pode ser ativado em MVP+2/MVP+3.
+
+========================
+CONTEXTO DE NEGÓCIO
+========================
+
+**Problema do Corretor:**
+- Comissões parceladas em 6-12 meses
+- Fluxo de caixa comprometido
+- Risco de inadimplência da construtora
+- Necessidade de capital de giro
+
+**Solução:**
+Tokenizar recebíveis de comissão permitindo venda antecipada:
+- Corretor recebe 90% à vista (10% de desconto)
+- Investidores compram tokens (rentabilidade ~12-15% a.a.)
+- Smart contract garante transparência e segurança
+- Liquidação automática na blockchain (Polygon)
+
+**Receita Estimada:**
+- Taxa de emissão: 2% do valor tokenizado
+- 100 emissões/ano x R$ 50k médio = R$ 5M tokenizados
+- Taxa: R$ 100k/ano
+- Upsell marketplace: R$ 50k/ano (0.5% de transação secundária)
+- **Total**: R$ 150k/ano inicialmente, escalando para R$ 1.08M/ano
+
+========================
+STACK TÉCNICA
+========================
+Blockchain:
+- Polygon (Mainnet) - baixo custo de gas (~$0.01/tx)
+- Solidity 0.8.20
+- Hardhat (desenvolvimento e testes)
+- OpenZeppelin Contracts (ERC-20, Ownable, Pausable)
+
+Backend:
+- Go (Golang) + Gin
+- Web3 integration (go-ethereum)
+- Firestore (off-chain metadata)
+- IPFS (documentos de comissão)
+
+Frontend:
+- Next.js 14 + wagmi + viem
+- RainbowKit (wallet connection)
+- shadcn/ui + Tailwind CSS
+
+========================
+MODELOS DE DADOS
+========================
+
+### TokenizationOffer (Off-Chain - Firestore)
+
+Coleção: `/tenants/{tenantId}/tokenization_offers/{offerID}`
+
+```go
+type TokenizationOffer struct {
+    ID        string    `firestore:"-" json:"id"`
+    TenantID  string    `firestore:"tenant_id" json:"tenant_id"`
+    BrokerID  string    `firestore:"broker_id" json:"broker_id"` // Corretor cedente
+
+    // Vinculação
+    PropertyID     *string `firestore:"property_id,omitempty" json:"property_id,omitempty"`         // Se venda individual
+    DevelopmentID  *string `firestore:"development_id,omitempty" json:"development_id,omitempty"`   // Se lançamento
+
+    // Comissão original
+    TotalCommission   float64   `firestore:"total_commission" json:"total_commission"`     // R$ 50.000
+    Installments      int       `firestore:"installments" json:"installments"`             // 10 parcelas
+    InstallmentValue  float64   `firestore:"installment_value" json:"installment_value"`   // R$ 5.000/mês
+    FirstPaymentDate  time.Time `firestore:"first_payment_date" json:"first_payment_date"` // 2025-02-01
+    LastPaymentDate   time.Time `firestore:"last_payment_date" json:"last_payment_date"`   // 2025-11-01
+
+    // Tokenização
+    PercentTokenized  int     `firestore:"percent_tokenized" json:"percent_tokenized"` // 50% (R$ 25.000)
+    TokenizedValue    float64 `firestore:"tokenized_value" json:"tokenized_value"`     // R$ 25.000
+    Discount          int     `firestore:"discount" json:"discount"`                   // 10%
+    BrokerReceives    float64 `firestore:"broker_receives" json:"broker_receives"`     // R$ 22.500 (90%)
+
+    // Blockchain
+    SmartContractAddr   string  `firestore:"smart_contract_addr,omitempty" json:"smart_contract_addr,omitempty"`   // 0xabc...
+    TokenSymbol         string  `firestore:"token_symbol" json:"token_symbol"`                                     // RECV-001
+    TotalSupply         int64   `firestore:"total_supply" json:"total_supply"`                                     // 25000 tokens (1 token = R$ 1)
+    MinInvestment       float64 `firestore:"min_investment" json:"min_investment"`                                 // R$ 1.000 (1000 tokens)
+
+    // Status
+    Status TokenizationStatus `firestore:"status" json:"status"` // pending, active, funded, liquidating, completed, cancelled
+
+    // Progresso
+    TokensSold     int64   `firestore:"tokens_sold" json:"tokens_sold"`         // 15000 tokens vendidos
+    AmountRaised   float64 `firestore:"amount_raised" json:"amount_raised"`     // R$ 15.000 arrecadados
+    FundingPercent int     `firestore:"funding_percent" json:"funding_percent"` // 60%
+
+    // Documentos
+    CommissionProof string `firestore:"commission_proof" json:"commission_proof"` // URL IPFS do contrato
+    PaymentSchedule string `firestore:"payment_schedule" json:"payment_schedule"` // URL IPFS do cronograma
+
+    // Metadata
+    CreatedAt time.Time `firestore:"created_at" json:"created_at"`
+    UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
+}
+
+type TokenizationStatus string
+const (
+    TokenizationStatusPending     TokenizationStatus = "pending"     // Aguardando aprovação
+    TokenizationStatusActive      TokenizationStatus = "active"      // Captando investidores
+    TokenizationStatusFunded      TokenizationStatus = "funded"      // 100% captado
+    TokenizationStatusLiquidating TokenizationStatus = "liquidating" // Recebendo parcelas
+    TokenizationStatusCompleted   TokenizationStatus = "completed"   // Finalizado
+    TokenizationStatusCancelled   TokenizationStatus = "cancelled"   // Cancelado
+)
+```
+
+### TokenInvestor (Investidor Off-Chain)
+
+Subcoleção: `/tenants/{tenantId}/tokenization_offers/{offerID}/investors/{investorID}`
+
+```go
+type TokenInvestor struct {
+    ID      string `firestore:"-" json:"id"`
+    OfferID string `firestore:"offer_id" json:"offer_id"` // ref TokenizationOffer
+
+    // Identificação do investidor
+    WalletAddress string `firestore:"wallet_address" json:"wallet_address"` // 0x123...
+    Name          string `firestore:"name,omitempty" json:"name,omitempty"` // Se KYC
+    Email         string `firestore:"email,omitempty" json:"email,omitempty"`
+
+    // Investimento
+    TokensPurchased int64   `firestore:"tokens_purchased" json:"tokens_purchased"` // 5000 tokens
+    AmountInvested  float64 `firestore:"amount_invested" json:"amount_invested"`   // R$ 5.000
+    InvestedAt      time.Time `firestore:"invested_at" json:"invested_at"`
+
+    // Retorno
+    ExpectedReturn   float64 `firestore:"expected_return" json:"expected_return"`     // R$ 5.555 (11.1%)
+    ReceivedPayments float64 `firestore:"received_payments" json:"received_payments"` // R$ 3.000 (até agora)
+    PendingPayments  float64 `firestore:"pending_payments" json:"pending_payments"`   // R$ 2.555
+
+    // Status
+    IsActive bool `firestore:"is_active" json:"is_active"` // Ainda possui tokens?
+}
+```
+
+========================
+SMART CONTRACT (SOLIDITY)
+========================
+
+### ReceivableToken.sol
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+
+/**
+ * @title ReceivableToken
+ * @dev Token ERC-20 representando recebíveis de comissão imobiliária
+ *
+ * Funcionalidades:
+ * - 1 token = R$ 1 de recebível
+ * - Liquidação automática (owner envia BRL.e mensalmente)
+ * - Transferível (mercado secundário)
+ * - Pausável (emergência)
+ */
+contract ReceivableToken is ERC20, Ownable, Pausable {
+    // Metadados
+    uint256 public immutable totalReceivable;    // R$ 25.000 (em centavos: 2.500.000)
+    uint256 public immutable installments;       // 5 parcelas
+    uint256 public immutable installmentValue;   // R$ 5.000 por parcela
+    uint256 public firstPaymentDate;             // Timestamp da 1ª parcela
+    uint256 public constant PAYMENT_INTERVAL = 30 days;
+
+    // Estado
+    uint256 public currentInstallment;           // Parcela atual (0-4)
+    uint256 public totalDistributed;             // Total distribuído (em centavos)
+
+    // Mapeamento: installment => totalPaid
+    mapping(uint256 => uint256) public installmentPaid;
+
+    // Eventos
+    event InstallmentPaid(uint256 installment, uint256 amount, uint256 timestamp);
+    event Withdrawal(address indexed investor, uint256 amount);
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint256 _totalReceivable,
+        uint256 _installments,
+        uint256 _firstPaymentDate
+    ) ERC20(name, symbol) Ownable(msg.sender) {
+        require(_totalReceivable > 0, "Invalid receivable");
+        require(_installments > 0, "Invalid installments");
+        require(_firstPaymentDate > block.timestamp, "Invalid payment date");
+
+        totalReceivable = _totalReceivable;
+        installments = _installments;
+        installmentValue = _totalReceivable / _installments;
+        firstPaymentDate = _firstPaymentDate;
+
+        // Mint total supply (1 token = 1 centavo)
+        _mint(msg.sender, _totalReceivable);
+    }
+
+    /**
+     * @dev Owner deposita parcela mensal
+     * @param amount Valor da parcela (em centavos, ex: 500000 = R$ 5.000)
+     */
+    function depositInstallment(uint256 amount) external onlyOwner whenNotPaused {
+        require(currentInstallment < installments, "All installments paid");
+        require(block.timestamp >= firstPaymentDate + (currentInstallment * PAYMENT_INTERVAL), "Too early");
+        require(amount == installmentValue, "Invalid amount");
+
+        installmentPaid[currentInstallment] = amount;
+        totalDistributed += amount;
+        currentInstallment++;
+
+        emit InstallmentPaid(currentInstallment - 1, amount, block.timestamp);
+    }
+
+    /**
+     * @dev Investidor saca sua parte proporcional
+     */
+    function withdraw() external whenNotPaused {
+        uint256 balance = balanceOf(msg.sender);
+        require(balance > 0, "No tokens");
+
+        uint256 claimable = getClaimableAmount(msg.sender);
+        require(claimable > 0, "Nothing to claim");
+
+        // Queima tokens
+        _burn(msg.sender, balance);
+
+        // Transfere BRL.e (ou stablecoin)
+        // Nota: Implementação real precisa de stablecoin como BRZ ou USDC
+        // Aqui assume que owner depositou BRL.e antes de chamar depositInstallment
+        payable(msg.sender).transfer(claimable);
+
+        emit Withdrawal(msg.sender, claimable);
+    }
+
+    /**
+     * @dev Calcula quanto o investidor pode sacar
+     * @param investor Endereço do investidor
+     * @return Valor em centavos
+     */
+    function getClaimableAmount(address investor) public view returns (uint256) {
+        uint256 balance = balanceOf(investor);
+        if (balance == 0) return 0;
+
+        // Proporção: (tokens do investidor / total supply) * total distribuído
+        uint256 proportion = (balance * 1e18) / totalSupply();
+        uint256 entitled = (totalDistributed * proportion) / 1e18;
+
+        return entitled;
+    }
+
+    /**
+     * @dev Próxima data de pagamento
+     */
+    function nextPaymentDate() public view returns (uint256) {
+        if (currentInstallment >= installments) return 0;
+        return firstPaymentDate + (currentInstallment * PAYMENT_INTERVAL);
+    }
+
+    /**
+     * @dev Pause em emergência
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /**
+     * @dev Override para bloquear transfers quando pausado
+     */
+    function _update(address from, address to, uint256 value)
+        internal
+        override
+        whenNotPaused
+    {
+        super._update(from, to, value);
+    }
+}
+```
+
+### Deploy Script (Hardhat)
+
+```javascript
+// scripts/deploy-receivable.js
+const hre = require("hardhat");
+
+async function main() {
+  const [deployer] = await hre.ethers.getSigners();
+
+  console.log("Deploying ReceivableToken with account:", deployer.address);
+
+  // Parâmetros do token
+  const name = "Recebível Comissão #001";
+  const symbol = "RECV-001";
+  const totalReceivable = 2500000; // R$ 25.000 (em centavos)
+  const installments = 5;
+  const firstPaymentDate = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60); // +30 dias
+
+  const ReceivableToken = await hre.ethers.getContractFactory("ReceivableToken");
+  const token = await ReceivableToken.deploy(
+    name,
+    symbol,
+    totalReceivable,
+    installments,
+    firstPaymentDate
+  );
+
+  await token.waitForDeployment();
+
+  const address = await token.getAddress();
+  console.log("ReceivableToken deployed to:", address);
+
+  // Verificar no Polygonscan
+  console.log("Verify with:");
+  console.log(`npx hardhat verify --network polygon ${address} "${name}" "${symbol}" ${totalReceivable} ${installments} ${firstPaymentDate}`);
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+```
+
+========================
+ENDPOINTS BACKEND (GIN)
+========================
+
+**POST /api/v1/tenants/:tenantId/tokenization/offers**
+- Criar oferta de tokenização
+- Permissão: broker (próprio) ou admin
+- Body: TokenizationOffer struct
+- Behavior:
+  1. Validar comissão existe e não está tokenizada
+  2. Validar percentual (max 80%)
+  3. Upload documentos para IPFS
+  4. Criar registro com status = "pending"
+  5. ActivityLog: tokenization_offer_created
+
+**POST /api/v1/tenants/:tenantId/tokenization/offers/:offerID/deploy**
+- Deploy smart contract (admin aprova e publica)
+- Permissão: admin
+- Behavior:
+  1. Validar oferta status = "pending"
+  2. Deploy ReceivableToken contract na Polygon
+  3. Atualizar smart_contract_addr
+  4. Atualizar status = "active"
+  5. Enviar notificação ao corretor
+  6. ActivityLog: token_deployed
+
+**POST /api/v1/tokenization/offers/:offerID/invest** (PÚBLICO com wallet)
+- Investidor compra tokens
+- Autenticação: Carteira Web3 (sign message)
+- Body: { amount_brl: 5000, wallet_address: "0x123..." }
+- Behavior:
+  1. Validar oferta status = "active"
+  2. Validar amount >= min_investment
+  3. Transferir tokens ERC-20 para investidor
+  4. Criar TokenInvestor record
+  5. Incrementar tokens_sold, amount_raised
+  6. Se funding_percent >= 100%: status = "funded"
+  7. ActivityLog: tokens_purchased
+
+**GET /api/v1/tokenization/offers/:offerID**
+- Buscar detalhes da oferta (público)
+- Retornar: Metadados, progresso, investidores (count), documentos IPFS
+
+**GET /api/v1/tokenization/my-investments** (wallet auth)
+- Listar investimentos do usuário
+- Filtros: status
+- Retornar: Ofertas investidas, tokens, retorno esperado/recebido
+
+========================
+FRONTEND (Dashboard Corretor)
+========================
+
+**Página: /dashboard/tokenization**
+
+Seções:
+1. **Minhas Comissões Disponíveis**
+   - Lista de propriedades com comissão pendente
+   - Botão: Tokenizar
+
+2. **Ofertas Ativas**
+   - Tabela: Oferta, Valor, Progresso, Status
+   - Ações: Ver Detalhes, Cancelar
+
+3. **Histórico**
+   - Ofertas concluídas
+   - Total recebido à vista
+
+**Modal: Criar Tokenização**
+
+Form:
+- Selecionar comissão (dropdown)
+- Percentual a tokenizar (slider 20-80%)
+- Desconto oferecido (slider 5-15%)
+- Documentos (upload contrato de comissão)
+- Visualização:
+  - Valor total: R$ 50.000
+  - Tokenizar: 50% = R$ 25.000
+  - Desconto: 10% = -R$ 2.500
+  - Você recebe à vista: R$ 22.500
+  - Investidores recebem: R$ 25.000 em 10 meses (~12% a.a.)
+
+========================
+FRONTEND PÚBLICO (Marketplace)
+========================
+
+**Página: /investimentos/recebiveis**
+
+Layout:
+- Hero: "Invista em Recebíveis Imobiliários"
+- Filtros: Valor mín/máx, Prazo, Rentabilidade
+- Grid de cards: Ofertas ativas
+
+**Card de Oferta**:
+```
+┌────────────────────────────────┐
+│ RECV-001                       │
+│ Comissão Apt. 302 - Vista Verde│
+├────────────────────────────────┤
+│ Valor: R$ 25.000               │
+│ Prazo: 5 meses                 │
+│ Rentabilidade: ~11% a.a.       │
+│ Progresso: 60% captado         │
+│ Mín. investimento: R$ 1.000    │
+│                                │
+│ [Investir Agora]               │
+└────────────────────────────────┘
+```
+
+**Página: /investimentos/recebiveis/:offerID**
+
+Detalhes:
+- Informações da comissão
+- Cronograma de pagamento (tabela)
+- Documentos (IPFS links)
+- Smart contract (Polygonscan)
+- Investidores (count, sem nomes)
+- Histórico de transações
+
+**Componente: Investir**
+
+```typescript
+'use client'
+
+import { useAccount, useWriteContract } from 'wagmi'
+import { parseUnits } from 'viem'
+
+export function InvestButton({ offer }) {
+  const { address } = useAccount()
+  const { writeContract } = useWriteContract()
+
+  async function handleInvest(amount: number) {
+    const tokens = parseUnits(amount.toString(), 2) // 2 decimals (centavos)
+
+    await writeContract({
+      address: offer.smart_contract_addr,
+      abi: RECEIVABLE_TOKEN_ABI,
+      functionName: 'transfer',
+      args: [address, tokens],
+    })
+
+    // Backend registra investimento
+    await fetch(`/api/tokenization/offers/${offer.id}/invest`, {
+      method: 'POST',
+      body: JSON.stringify({ amount_brl: amount, wallet_address: address }),
+    })
+  }
+
+  return <InvestModal onInvest={handleInvest} />
+}
+```
+
+========================
+JOBS AUTOMÁTICOS
+========================
+
+### Job 1: Liquidar Parcelas
+
+**Trigger**: Diariamente (verifica parcelas vencidas)
+**Função**: Chamar `depositInstallment()` quando parcela vence
+
+```go
+func LiquidateInstallments(ctx context.Context) error {
+    now := time.Now()
+
+    // Query: status = funded OR liquidating AND next_payment <= now
+    offers, err := repo.FindOffersToLiquidate(ctx, now)
+    if err != nil {
+        return err
+    }
+
+    for _, offer := range offers {
+        // Calcular parcela atual
+        installmentNum := calculateCurrentInstallment(offer, now)
+
+        // Já foi pago?
+        if offer.InstallmentsPaid[installmentNum] {
+            continue
+        }
+
+        // Depositar na blockchain
+        if err := depositToContract(ctx, offer, installmentNum); err != nil {
+            log.Printf("Erro ao depositar parcela: %v", err)
+            continue
+        }
+
+        // Marcar como pago
+        offer.InstallmentsPaid[installmentNum] = true
+        offer.Status = TokenizationStatusLiquidating
+        if err := repo.Update(ctx, offer); err != nil {
+            return err
+        }
+
+        // Se última parcela: status = completed
+        if installmentNum == offer.Installments - 1 {
+            offer.Status = TokenizationStatusCompleted
+            repo.Update(ctx, offer)
+        }
+
+        // Notificar investidores
+        notifyInstallmentPaid(ctx, offer, installmentNum)
+    }
+
+    return nil
+}
+```
+
+========================
+INTEGRAÇÕES
+========================
+
+### IPFS (Documentos)
+
+```go
+import "github.com/ipfs/go-ipfs-api"
+
+func UploadToIPFS(file []byte) (string, error) {
+    sh := shell.NewShell("https://ipfs.infura.io:5001")
+
+    hash, err := sh.Add(bytes.NewReader(file))
+    if err != nil {
+        return "", err
+    }
+
+    return "https://ipfs.io/ipfs/" + hash, nil
+}
+```
+
+### Web3 (Blockchain)
+
+```go
+import (
+    "github.com/ethereum/go-ethereum/ethclient"
+    "github.com/ethereum/go-ethereum/accounts/abi/bind"
+)
+
+func DeployReceivableToken(
+    ctx context.Context,
+    auth *bind.TransactOpts,
+    name string,
+    symbol string,
+    totalReceivable *big.Int,
+    installments *big.Int,
+    firstPaymentDate *big.Int,
+) (common.Address, *types.Transaction, *ReceivableToken, error) {
+    client, err := ethclient.Dial("https://polygon-rpc.com")
+    if err != nil {
+        return common.Address{}, nil, nil, err
+    }
+
+    address, tx, contract, err := DeployReceivableToken(
+        auth, client, name, symbol, totalReceivable, installments, firstPaymentDate,
+    )
+    if err != nil {
+        return common.Address{}, nil, nil, err
+    }
+
+    return address, tx, contract, nil
+}
+```
+
+========================
+CRITÉRIOS DE SUCESSO
+========================
+
+✅ Smart contract ReceivableToken (ERC-20) deployado na Polygon
+✅ TokenizationOffer CRUD completo
+✅ IPFS upload para documentos
+✅ Web3 integration (deploy, transfer, liquidação)
+✅ Dashboard corretor (criar tokenização)
+✅ Marketplace público (investir)
+✅ Wallet connection (RainbowKit + wagmi)
+✅ Jobs automáticos (liquidação de parcelas)
+✅ Notificações (parcela paga, investimento concluído)
+✅ ActivityLog blockchain-aware
+
+========================
+REFERÊNCIAS
+========================
+
+- SERVICOS_INOVADORES.md (Serviço #4)
+- PLANO_DE_NEGOCIOS.md §16.5 e §16.6
+- prompts/01_foundation_mvp.txt (ActivityLog blockchain-ready)
+- OpenZeppelin Contracts: https://docs.openzeppelin.com/contracts
+- Polygon Docs: https://docs.polygon.technology
+- Hardhat: https://hardhat.org
+- wagmi: https://wagmi.sh
+- IPFS: https://docs.ipfs.tech
