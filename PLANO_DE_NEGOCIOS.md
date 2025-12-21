@@ -3,9 +3,9 @@
 
 **Brasil x EUA • Concorrência • Casos de Uso • Unit Economics • PITD • Co-corretagem • Blockchain-ready**
 
-**Versão**: 1.4
+**Versão**: 1.5
 **Data**: 2025-12-21
-**Status**: SEO 100% + Whitelabel (26x ROI) + Conformidade CRECI/COFECI + Tokenização Factível (3 Modelos)
+**Status**: SEO 100% + Whitelabel (26x ROI) + Lançamentos (27x ROI) + Tokenização Factível (3 Modelos) + Conformidade CRECI/COFECI
 
 ---
 
@@ -666,7 +666,153 @@ Whitelabel é a **alavanca de maior retorno** (26x ROI) e **maior impacto em LTV
 
 ---
 
-### 16.4 MVP+2 a MVP+3 (4-9 meses): Tokenização & Blockchain ⭐ ATUALIZADO
+### 16.4 MVP+2 (Mês 4-6): Vertical Lançamentos (Construtoras/Loteadoras) ⭐ NOVO
+
+**Mudança Estratégica**: Expandir para **construtoras e loteadoras** com vertical de lançamentos imobiliários, capturando um mercado de **ticket 10-15x maior** que corretores autônomos.
+
+---
+
+#### Análise de Mercado (Lançamentos)
+
+**Ticket Mensal por Segmento**:
+| Segmento | MRR | Volume Imóveis | Potencial |
+|----------|-----|----------------|-----------|
+| Corretor Autônomo | R$ 200-350 | 10-50 | Base |
+| Imobiliária Pequena | R$ 600-1.200 | 50-200 | 2-3x corretor |
+| **Construtora/Loteadora** | **R$ 2.000-5.000** | **50-500 unidades** | **10-15x corretor** |
+
+**Precedentes de Mercado**:
+- **ZAP Imóveis**: Seção "Lançamentos" dedicada (filtro ativo)
+- **VivaReal**: Categoria "Lançamento" + destaque premium
+- **Imovelweb**: Vertical específica para empreendimentos
+
+**Conclusão**: Lançamentos é um **recurso esperado** em plataformas consolidadas.
+
+---
+
+#### Preparação Técnica (Já Implementada no MVP)
+
+**Campos Reservados no Schema** (custo: 2-4h):
+- ✅ `property_type` expandido com: `new_development`, `condo_lot`, `building_lot`
+- ✅ `development_info` struct (NULL no MVP, ativo em MVP+2)
+- ✅ Campos: `developer_id`, `project_name`, `total_units`, `construction_status`, `amenities`, etc.
+
+**Benefício**: Schema preparado desde dia 1, **zero refatoração futura**.
+
+---
+
+#### Implementação MVP+2 (60-80h)
+
+**Backend** (30-40h):
+- Endpoints CRUD para `DevelopmentInfo`
+- Validações: `total_units >= units_sold + units_available`
+- Filtro de busca por `construction_status` (plant, foundation, structure, ready)
+- Agregação de unidades disponíveis por empreendimento
+- Dashboard de vendas (unidades vendidas/disponíveis por projeto)
+
+**Frontend Público** (20-30h):
+- Página `/lancamentos` (lista de empreendimentos)
+- Página `/lancamento/[project-slug]` (detalhes do projeto)
+- Galeria de plantas (floor plans) + tour 360°
+- Filtros: cidade, status da obra, entrada mínima, parcelas
+- Simulador de financiamento (opcional)
+
+**Frontend Admin** (10h):
+- CRUD de empreendimentos (construtoras)
+- Dashboard de vendas (unidades vendidas/disponíveis)
+- Upload de plantas, master plan e brochure
+
+**Firestore Indexes**:
+```json
+{
+  "collectionGroup": "properties",
+  "fields": [
+    { "fieldPath": "property_type", "order": "ASCENDING" },
+    { "fieldPath": "development_info.construction_status", "order": "ASCENDING" },
+    { "fieldPath": "created_at", "order": "DESCENDING" }
+  ]
+}
+```
+
+---
+
+#### Revenue Model (Lançamentos)
+
+**Pricing Premium**:
+- Construtora: R$ 2.000-5.000/mês (plano Enterprise)
+- Lead qualificado: R$ 50-100 (vs R$ 20-30 de imóveis tradicionais)
+- Taxa de destaque: R$ 500-1.000/mês por empreendimento
+
+**Projeção Conservadora (Ano 1)**:
+| Período | Construtoras | MRR Construtoras | Leads Premium | **MRR Total** |
+|---------|--------------|------------------|---------------|---------------|
+| Mês 1-3 | 2 | R$ 6.000 | R$ 2.000 | **R$ 8.000** |
+| Mês 4-6 | 5 | R$ 15.000 | R$ 5.000 | **R$ 20.000** |
+| Mês 7-12 | 10 | R$ 30.000 | R$ 10.000 | **R$ 40.000** |
+| **Ano 1** | **10** | **R$ 30.000** | **R$ 10.000** | **R$ 40.000** |
+
+**Receita Anual Projetada**: R$ 225.000 (média R$ 18.750/mês)
+
+---
+
+#### ROI Estimado
+
+**Investimento**:
+- Preparação schema (MVP): R$ 200-400 (2-4h) ✅ **JÁ FEITO**
+- Implementação MVP+2: R$ 6.000-8.000 (60-80h)
+- **Total**: R$ 6.200-8.400
+
+**Retorno**:
+- Receita ano 1: R$ 225.000
+- **ROI**: 27x (R$ 225.000 / R$ 8.400)
+- **Payback**: 11 dias (R$ 8.400 / R$ 750/dia = 11 dias)
+
+**Comparação com Outras Alavancas**:
+| Alavanca | Investimento | ROI Ano 1 | Payback | Prioridade |
+|----------|--------------|-----------|---------|------------|
+| SEO 100% | R$ 800 | 37x | 7 dias | 🔴 P0 |
+| Whitelabel | R$ 2.300 | 26x | 14 dias | 🔴 P0 |
+| **Lançamentos** | **R$ 8.400** | **27x** | **11 dias** | 🟡 **P1** |
+| Tokenização (Recebíveis) | R$ 6.000 | 18x | 2 meses | 🟢 P2 |
+
+**Conclusão**: Lançamentos tem **ROI comparável a Whitelabel** (27x vs 26x), mas vem **DEPOIS** de validar MVP com corretores.
+
+---
+
+#### Diferencial Competitivo
+
+**ZAP/VivaReal**:
+- ❌ NÃO integram CRM para construtoras (apenas vitrine)
+- ❌ NÃO rastreiam unidades vendidas/disponíveis em tempo real
+- ❌ NÃO oferecem dashboard de vendas para construtoras
+
+**Nossa Plataforma**:
+- ✅ **CRM integrado**: Construtora gerencia vendas + leads na mesma plataforma
+- ✅ **Dashboard de vendas**: Unidades vendidas/disponíveis em tempo real
+- ✅ **Whitelabel**: Construtora pode ter site próprio do empreendimento
+- ✅ **Efeito de rede**: Leads orgânicos (SEO 100%) + marketplace de co-corretagem
+
+---
+
+#### Segmento-Alvo (MVP+2)
+
+**Perfil Ideal**:
+- Construtoras locais/regionais (50-200 unidades/empreendimento)
+- Loteadoras de médio porte (100-500 lotes)
+- Incorporadoras iniciantes (primeiro empreendimento)
+
+**Não é target inicial**:
+- ❌ Grandes construtoras (> 1.000 unidades/ano) - já têm CRM enterprise
+- ❌ Mega incorporadoras (MRV, Cyrela) - vertical específica necessária
+
+**Go-to-Market**:
+- Piloto com 2-3 construtoras locais (mês 4-5)
+- Validar PMF (product-market fit) antes de escalar
+- Refinar pricing (R$ 2k-5k/mês pode ser ajustado conforme mercado)
+
+---
+
+### 16.5 MVP+2 a MVP+3 (4-9 meses): Tokenização & Blockchain ⭐ ATUALIZADO
 
 **Mudança Estratégica Crítica**: O mercado de tokenização imobiliária **JÁ EXISTE** no Brasil, operando independente da Resolução COFECI 1551/2025 (suspensa). Empresas como **PeerBR (GCB)**, **BlockBR**, **Propriedade Digital** e **ReitBZ** já tokenizam ativos há anos usando estruturas jurídicas alternativas (CVM, SPE, Condomínio).
 
@@ -1256,4 +1402,6 @@ O MVP é desenhado para **tracionar rápido e evoluir sem refatorações estrutu
 **Atualizado para v1.1**: 2025-12-21 (SEO 100% + Whitelabel + Timeline)
 **Atualizado para v1.2**: 2025-12-21 (Seção 17: Conformidade CRECI/COFECI)
 **Atualizado para v1.3**: 2025-12-21 (Seção 16.4: Estratégia Blockchain-Ready)
+**Atualizado para v1.4**: 2025-12-21 (Seção 16.4: Tokenização Factível com 3 Modelos de Mercado)
+**Atualizado para v1.5**: 2025-12-21 (Seção 16.4: Vertical Lançamentos - Construtoras/Loteadoras, ROI 27x)
 **Por**: Claude Code + Equipe Altatech Systems

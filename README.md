@@ -378,6 +378,6 @@ Para dúvidas sobre implementação, consultar:
 
 ---
 
-**Versão**: 1.4
+**Versão**: 1.5
 **Data**: 2025-12-21
-**Status**: 🚀 Pronto para Implementação | SEO 100% | Whitelabel (ROI 26x) | Tokenização Factível
+**Status**: 🚀 Pronto para Implementação | SEO 100% | Whitelabel (ROI 26x) | Lançamentos (ROI 27x) | Tokenização Factível

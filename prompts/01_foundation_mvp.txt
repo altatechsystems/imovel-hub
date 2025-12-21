@@ -192,6 +192,10 @@ type Property struct {
     PossibleDuplicate  bool   `firestore:"possible_duplicate" json:"possible_duplicate"`
     DataCompleteness   string `firestore:"data_completeness" json:"data_completeness"` // complete, incomplete, partial
 
+    // ✅ PREPARAÇÃO: Lançamentos imobiliários (NULL no MVP, ativa em MVP+2)
+    // Construtoras e loteadoras terão campos específicos para empreendimentos
+    DevelopmentInfo *DevelopmentInfo `firestore:"development_info,omitempty" json:"development_info,omitempty"`
+
     // Metadata
     CreatedAt time.Time `firestore:"created_at" json:"created_at"`
     UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
@@ -199,10 +203,14 @@ type Property struct {
 
 type PropertyType string
 const (
-    PropertyTypeApartment  PropertyType = "apartment"
-    PropertyTypeHouse      PropertyType = "house"
-    PropertyTypeLand       PropertyType = "land"
-    PropertyTypeCommercial PropertyType = "commercial"
+    PropertyTypeApartment      PropertyType = "apartment"
+    PropertyTypeHouse          PropertyType = "house"
+    PropertyTypeLand           PropertyType = "land"
+    PropertyTypeCommercial     PropertyType = "commercial"
+    // ✅ NOVOS: Lançamentos (MVP+2)
+    PropertyTypeNewDevelopment PropertyType = "new_development" // Apartamento em lançamento
+    PropertyTypeCondoLot       PropertyType = "condo_lot"       // Lote em condomínio
+    PropertyTypeBuildingLot    PropertyType = "building_lot"    // Terreno para construção
 )
 
 type PropertyStatus string
@@ -223,6 +231,55 @@ const (
     // DEPRECATED (manter por compatibilidade temporária)
     PropertyVisibilityHiddenStale      PropertyVisibility = "hidden_stale"
     PropertyVisibilityHiddenUnavailable PropertyVisibility = "hidden_unavailable"
+)
+
+// ✅ NOVO: DevelopmentInfo para lançamentos imobiliários (MVP+2)
+// Usado por construtoras e loteadoras para empreendimentos
+type DevelopmentInfo struct {
+    // Identificação da construtora/loteadora
+    DeveloperID    string `firestore:"developer_id" json:"developer_id"`       // Tenant da construtora
+    DeveloperName  string `firestore:"developer_name" json:"developer_name"`
+    DeveloperCRECI string `firestore:"developer_creci" json:"developer_creci"` // CRECI PJ
+
+    // Informações do empreendimento
+    ProjectName        string `firestore:"project_name" json:"project_name"`               // "Residencial Vista Verde"
+    ProjectSlug        string `firestore:"project_slug" json:"project_slug"`               // URL do empreendimento
+    ProjectDescription string `firestore:"project_description" json:"project_description"`
+
+    // Unidades
+    TotalUnits      int `firestore:"total_units" json:"total_units"`           // 200 unidades
+    UnitsAvailable  int `firestore:"units_available" json:"units_available"`   // Unidades disponíveis
+    UnitsSold       int `firestore:"units_sold" json:"units_sold"`             // Unidades vendidas
+    UnitsReserved   int `firestore:"units_reserved" json:"units_reserved"`     // Unidades reservadas
+
+    // Datas e status da obra
+    LaunchDate         time.Time `firestore:"launch_date" json:"launch_date"`                 // Data de lançamento
+    DeliveryDate       time.Time `firestore:"delivery_date" json:"delivery_date"`             // Previsão de entrega
+    ConstructionStatus string    `firestore:"construction_status" json:"construction_status"` // plant, foundation, structure, finishing, ready
+
+    // Financiamento
+    AcceptsFinancing   bool    `firestore:"accepts_financing" json:"accepts_financing"`       // Aceita financiamento
+    DownPaymentMin     float64 `firestore:"down_payment_min" json:"down_payment_min"`         // Entrada mínima (% do valor)
+    InstallmentsDuring int     `firestore:"installments_during" json:"installments_during"`   // Parcelas durante obra
+    InstallmentsAfter  int     `firestore:"installments_after" json:"installments_after"`     // Parcelas após entrega
+
+    // Mídia e documentos
+    MasterPlanURL   string   `firestore:"master_plan_url,omitempty" json:"master_plan_url,omitempty"`     // Planta geral do empreendimento
+    FloorPlansURLs  []string `firestore:"floor_plans_urls,omitempty" json:"floor_plans_urls,omitempty"`   // Plantas por tipologia
+    Video360URL     string   `firestore:"video_360_url,omitempty" json:"video_360_url,omitempty"`         // Tour virtual 360°
+    BrochureURL     string   `firestore:"brochure_url,omitempty" json:"brochure_url,omitempty"`           // Folder do empreendimento
+
+    // Amenidades do condomínio
+    Amenities []string `firestore:"amenities,omitempty" json:"amenities,omitempty"` // ["piscina", "quadra", "salao_festas", "playground"]
+}
+
+type ConstructionStatus string
+const (
+    ConstructionStatusPlant      ConstructionStatus = "plant"      // Na planta
+    ConstructionStatusFoundation ConstructionStatus = "foundation" // Fundação
+    ConstructionStatusStructure  ConstructionStatus = "structure"  // Estrutura
+    ConstructionStatusFinishing  ConstructionStatus = "finishing"  // Acabamento
+    ConstructionStatusReady      ConstructionStatus = "ready"      // Pronto
 )
 ```
 
