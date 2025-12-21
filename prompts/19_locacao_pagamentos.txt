@@ -1,0 +1,250 @@
+Você é um engenheiro backend/fintech responsável por implementar Gestão de Pagamentos e Manutenção (MVP+5).
+
+IMPORTANTE:
+- Referências: ANALISE_MERCADO_ALUGUEL_BRASIL.md, PLANO_DE_NEGOCIOS.md §16.7
+- Modelos: RentalPayment, MaintenanceRequest (ver ANALISE_MERCADO_ALUGUEL_BRASIL.md)
+- Integração: Stripe, PagSeguro ou Pix API
+
+========================
+CONTEXTO
+========================
+
+**Fase**: MVP+5 (após MVP+4 - contratos)
+**Objetivo**: Gestão financeira completa + ordem de serviço de manutenção
+**Receita**: Incluída nos R$ 186k/ano + possível taxa de transação (1-2%)
+
+========================
+MÓDULO 1: PAGAMENTOS
+========================
+
+### RentalPayment (Firestore)
+
+```go
+type RentalPayment struct {
+    ID         string  `firestore:"-" json:"id"`
+    ContractID string  `firestore:"contract_id" json:"contract_id"`
+
+    // Valores
+    MonthlyRent float64 `firestore:"monthly_rent" json:"monthly_rent"`
+    CondoFee    float64 `firestore:"condo_fee" json:"condo_fee"`
+    IPTUMonthly float64 `firestore:"iptu_monthly" json:"iptu_monthly"`
+    TotalAmount float64 `firestore:"total_amount" json:"total_amount"`
+
+    // Datas
+    DueDate    time.Time  `firestore:"due_date" json:"due_date"`     // Vencimento
+    PaidAt     *time.Time `firestore:"paid_at,omitempty" json:"paid_at,omitempty"`
+    LateDays   int        `firestore:"late_days" json:"late_days"`   // Dias de atraso
+
+    // Multa/Juros
+    LateFee    float64 `firestore:"late_fee" json:"late_fee"`       // 2% + 0.033%/dia
+    FinalAmount float64 `firestore:"final_amount" json:"final_amount"` // Total com multa
+
+    // Status
+    Status PaymentStatus `firestore:"status" json:"status"`
+
+    // Pagamento
+    PaymentMethod string `firestore:"payment_method,omitempty" json:"payment_method,omitempty"` // pix, boleto, card
+    TransactionID string `firestore:"transaction_id,omitempty" json:"transaction_id,omitempty"`
+
+    CreatedAt time.Time `firestore:"created_at" json:"created_at"`
+}
+
+type PaymentStatus string
+const (
+    PaymentStatusPending   PaymentStatus = "pending"
+    PaymentStatusPaid      PaymentStatus = "paid"
+    PaymentStatusOverdue   PaymentStatus = "overdue"
+    PaymentStatusCancelled PaymentStatus = "cancelled"
+)
+```
+
+### Funcionalidades
+
+**1. Geração Automática de Cobranças** (Cloud Scheduler - mensal)
+
+```go
+func GenerateMonthlyPayments(ctx context.Context) {
+    // Para cada contrato ativo
+    contracts := repo.FindActiveContracts(ctx)
+
+    for _, contract := range contracts {
+        // Criar payment para próximo mês
+        dueDate := time.Now().AddDate(0, 1, 5) // Dia 5 do mês seguinte
+
+        payment := &RentalPayment{
+            ContractID:  contract.ID,
+            MonthlyRent: contract.MonthlyRent,
+            CondoFee:    contract.CondoFee,
+            IPTUMonthly: contract.IPTUMonthly,
+            TotalAmount: contract.TotalMonthlyCost,
+            DueDate:     dueDate,
+            Status:      PaymentStatusPending,
+        }
+
+        repo.CreatePayment(ctx, payment)
+
+        // Enviar boleto/pix automaticamente
+        sendPaymentLink(payment)
+    }
+}
+```
+
+**2. Split de Pagamento** (8% imobiliária, 92% proprietário)
+
+```go
+func ProcessPayment(payment *RentalPayment) {
+    // Total pago
+    total := payment.FinalAmount
+
+    // Split
+    realEstateFee := total * 0.08  // 8% para imobiliária
+    landlordAmount := total * 0.92 // 92% para proprietário
+
+    // Transferências (Stripe Connect ou similar)
+    stripe.Transfer(realEstateAccount, realEstateFee)
+    stripe.Transfer(landlordAccount, landlordAmount)
+}
+```
+
+**3. Notificações**
+
+- 5 dias antes: "Seu aluguel vence em 5 dias"
+- No vencimento: "Boleto disponível"
+- 1 dia após: "Pagamento em atraso - multa de 2%"
+- 5 dias após: "Atraso de 5 dias - contate a imobiliária"
+
+========================
+MÓDULO 2: MANUTENÇÃO
+========================
+
+### MaintenanceRequest (Firestore)
+
+```go
+type MaintenanceRequest struct {
+    ID         string `firestore:"-" json:"id"`
+    PropertyID string `firestore:"property_id" json:"property_id"`
+    ContractID string `firestore:"contract_id" json:"contract_id"`
+
+    // Solicitação
+    ReportedBy string    `firestore:"reported_by" json:"reported_by"` // renter ou landlord
+    Category   string    `firestore:"category" json:"category"`       // plumbing, electrical, etc
+    Description string   `firestore:"description" json:"description"`
+    Priority   Priority  `firestore:"priority" json:"priority"`       // low, medium, high, urgent
+
+    // Fotos
+    PhotoURLs  []string  `firestore:"photo_urls" json:"photo_urls"`
+
+    // Responsável
+    ResponsibleParty string `firestore:"responsible_party" json:"responsible_party"` // landlord, renter, building
+
+    // Prestador de serviço
+    AssignedTo string     `firestore:"assigned_to,omitempty" json:"assigned_to,omitempty"`
+    ScheduledFor *time.Time `firestore:"scheduled_for,omitempty" json:"scheduled_for,omitempty"`
+
+    // Custo
+    EstimatedCost float64 `firestore:"estimated_cost,omitempty" json:"estimated_cost,omitempty"`
+    FinalCost     float64 `firestore:"final_cost,omitempty" json:"final_cost,omitempty"`
+
+    // Status
+    Status MaintenanceStatus `firestore:"status" json:"status"`
+
+    CreatedAt  time.Time  `firestore:"created_at" json:"created_at"`
+    ResolvedAt *time.Time `firestore:"resolved_at,omitempty" json:"resolved_at,omitempty"`
+}
+
+type MaintenanceStatus string
+const (
+    MaintenanceStatusOpen       MaintenanceStatus = "open"
+    MaintenanceStatusAssigned   MaintenanceStatus = "assigned"
+    MaintenanceStatusInProgress MaintenanceStatus = "in_progress"
+    MaintenanceStatusResolved   MaintenanceStatus = "resolved"
+    MaintenanceStatusCancelled  MaintenanceStatus = "cancelled"
+)
+```
+
+### Funcionalidades
+
+**1. Portal do Locatário** (app mobile ou web)
+
+- Abrir solicitação de manutenção
+- Upload de fotos
+- Acompanhar status
+- Histórico de solicitações
+
+**2. Histórico Público** (diferencial competitivo)
+
+Exibir no anúncio do imóvel:
+- Quantidade de manutenções nos últimos 12 meses
+- Tempo médio de resolução
+- Qualidade score (baseado em feedback)
+
+Exemplo:
+```
+📊 Histórico de Manutenção
+- 3 solicitações nos últimos 12 meses
+- Tempo médio de resolução: 2 dias
+- Satisfação: 4.5/5.0 ⭐
+```
+
+**3. Marketplace de Prestadores** (futuro)
+
+- Cadastro de encanadores, eletricistas, etc
+- Rating por serviço
+- Cotação automática (3 orçamentos)
+
+========================
+ENDPOINTS
+========================
+
+**Pagamentos**:
+- GET /api/v1/contracts/:id/payments - Histórico
+- POST /api/v1/payments/:id/pay - Processar pagamento
+- GET /api/v1/payments/:id/boleto - Gerar boleto
+
+**Manutenção**:
+- POST /api/v1/properties/:id/maintenance - Abrir solicitação
+- GET /api/v1/contracts/:id/maintenance - Listar por contrato
+- PATCH /api/v1/maintenance/:id/status - Atualizar status
+
+========================
+INTEGRAÇÃO PAGAMENTOS
+========================
+
+**Opções**:
+1. Stripe (internacional)
+2. PagSeguro/PagBank (Brasil)
+3. Pix API do Banco Central
+
+**Recomendado**: Pix + Boleto (Brasil)
+
+```go
+import "github.com/pix-api/pix-go"
+
+func GeneratePixPayment(payment *RentalPayment) (string, error) {
+    pix := pixgo.NewClient(os.Getenv("PIX_KEY"))
+
+    charge, err := pix.CreateCharge(pixgo.Charge{
+        Amount:      payment.TotalAmount,
+        Description: fmt.Sprintf("Aluguel - Contrato %s", payment.ContractID),
+        DueDate:     payment.DueDate,
+    })
+
+    return charge.QRCode, nil // QR Code para pagamento
+}
+```
+
+========================
+CRITÉRIOS DE SUCESSO
+========================
+
+✅ RentalPayment gerado automaticamente (mensal)
+✅ Split de pagamento funcional (8/92%)
+✅ Integração Pix/Boleto
+✅ MaintenanceRequest CRUD completo
+✅ Portal do locatário funcional
+✅ Histórico público de manutenção no anúncio
+✅ Notificações automáticas (pagamento + manutenção)
+
+**Diferencial**: Somos os únicos no Brasil com histórico público de manutenção
+
+Referência: ANALISE_MERCADO_ALUGUEL_BRASIL.md (RentalPayment: 18 campos, MaintenanceRequest: 20 campos)

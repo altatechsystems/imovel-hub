@@ -1,0 +1,137 @@
+Você é um engenheiro full-stack responsável por implementar Anúncios de Locação/Aluguel (MVP+3).
+
+IMPORTANTE:
+- Referências: ANALISE_MERCADO_ALUGUEL_BRASIL.md, PLANO_DE_NEGOCIOS.md §16.7
+- RentalInfo struct JÁ PREPARADA em prompts/01_foundation_mvp.txt (linhas 199-359)
+- Schema backward-compatible (NULL no MVP, ativa em MVP+3)
+
+========================
+CONTEXTO
+========================
+
+**Mercado**: 5.5M contratos, R$ 165B/ano, 60-65% das transações imobiliárias
+**Dores**: Custos ocultos, garantias confusas, falta de transparência
+**Solução**: Anúncios de aluguel com custo total transparente (aluguel + condomínio + IPTU)
+**Receita**: R$ 186k/ano (15x ROI)
+
+========================
+IMPLEMENTAÇÃO MVP+3
+========================
+
+### 1. Ativar RentalInfo (Backend)
+
+```go
+// Ao criar Property para locação
+property := &Property{
+    // ... campos existentes
+    TransactionType: TransactionTypeRent, // ou TransactionTypeBoth
+    RentalInfo: &RentalInfo{
+        MonthlyRent:      2500.00,
+        CondoFee:         800.00,
+        IPTUMonthly:      150.00,
+        TotalMonthlyCost: 3450.00, // CALCULADO automaticamente
+
+        DepositMonths:      3,
+        AcceptedGuarantees: []string{"fiador", "caucao", "seguro_fianca"},
+
+        RentalType:      RentalTypeTraditional,
+        MinRentalPeriod: 12,
+        Furnished:       false,
+
+        AcceptsPets:     true,
+        PetRestrictions: "Cães até 10kg",
+
+        ImmediateOccupancy: true,
+    },
+}
+```
+
+### 2. Frontend - Filtros de Busca
+
+Adicionar filtros específicos de locação:
+- Aluguel mín/máx
+- Custo total mín/máx
+- Tipo de garantia (fiador, caução, seguro)
+- Aceita pets (sim/não)
+- Mobiliado (sim/não/semi)
+- Tipo de locação (tradicional, temporada, corporativo)
+
+### 3. Exibição Transparente
+
+**Card de Anúncio**:
+```
+┌─────────────────────────────┐
+│ Apto 2 Dorms - Jardins      │
+├─────────────────────────────┤
+│ Aluguel: R$ 2.500          │
+│ Condomínio: R$ 800         │
+│ IPTU: R$ 150               │
+│ ─────────────────          │
+│ TOTAL: R$ 3.450/mês        │
+│                            │
+│ ✓ Aceita pets              │
+│ ✓ 3 tipos de garantia      │
+│ [Ver Detalhes]             │
+└─────────────────────────────┘
+```
+
+### 4. Firestore Indexes (já em firestore.indexes.json)
+
+```json
+{
+  "collectionGroup": "properties",
+  "fields": [
+    {"fieldPath": "tenant_id", "order": "ASCENDING"},
+    {"fieldPath": "transaction_type", "order": "ASCENDING"},
+    {"fieldPath": "rental_info.total_monthly_cost", "order": "ASCENDING"}
+  ]
+}
+```
+
+========================
+DIFERENCIAIS
+========================
+
+**vs ZAP/VivaReal**:
+- ✅ Custo total transparente (nosso) vs custos ocultos (deles)
+- ✅ Filtro por tipo de garantia (nosso) vs genérico (deles)
+- ✅ Histórico público de manutenção (futuro MVP+5)
+
+**vs QuintoAndar**:
+- ✅ Marketplace aberto (nosso) vs fechado (deles)
+- ✅ Múltiplas imobiliárias (nosso) vs só QA (deles)
+
+========================
+ENDPOINTS
+========================
+
+**GET /api/v1/properties?transaction_type=rent**
+- Filtros: rent_min, rent_max, accepts_pets, guarantee_type, furnished
+- Ordenar: total_monthly_cost ASC
+
+**POST /api/v1/properties (modificado)**
+- Validar RentalInfo se transaction_type = rent
+- Calcular total_monthly_cost automaticamente
+
+========================
+SEO
+========================
+
+**Title**: "Apartamentos para Alugar em [Cidade] | Custo Total Transparente"
+**H1**: "Aluguel em [Cidade] - Sem Custos Ocultos"
+**JSON-LD**: RealEstateListing com rentPrice
+
+========================
+CRITÉRIOS DE SUCESSO
+========================
+
+✅ Property.transaction_type = rent funcional
+✅ RentalInfo.total_monthly_cost calculado automaticamente
+✅ Filtros específicos de locação
+✅ Exibição transparente de custos
+✅ SEO otimizado para "aluguel + cidade"
+✅ Firestore indexes deployados
+
+**Próximo**: MVP+4 (prompts/18 - Gestão de Contratos)
+
+Referência completa: ANALISE_MERCADO_ALUGUEL_BRASIL.md (100+ páginas)

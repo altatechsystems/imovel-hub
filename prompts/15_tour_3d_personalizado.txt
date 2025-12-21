@@ -1,0 +1,21 @@
+Você é um engenheiro frontend 3D responsável por implementar Tours Virtuais 3D Personalizados (MVP+2).
+
+Referências: SERVICOS_INOVADORES.md, PLANO_DE_NEGOCIOS.md §16.5
+
+========================
+CONTEXTO
+========================
+
+**Problema**: Visitas presenciais custam tempo, fotos estáticas não engajam
+**Solução**: Tour 3D interativo com personalização em tempo real
+**Resultado**: +300% tempo na página, -50% visitas desnecessárias
+**Receita**: R$ 80k/ano, ROI: 15-20x
+
+========================
+STACK
+========================
+- Three.js + React Three Fiber
+- Blender (modelos 3D)
+- Next.js 14, Cloud Storage
+
+Ver SERVICOS_INOVADORES.md para implementação completa (45+ páginas).

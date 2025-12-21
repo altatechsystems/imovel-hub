@@ -1,0 +1,251 @@
+Você é um engenheiro de ML/IA responsável por implementar o sistema de Lead Scoring Preditivo com IA (MVP+2).
+
+IMPORTANTE:
+Implementa Serviço Inovador #2 conforme SERVICOS_INOVADORES.md e PLANO_DE_NEGOCIOS.md §16.5
+Recurso OPCIONAL, ativável em MVP+2
+
+========================
+CONTEXTO
+========================
+
+**Problema**: Corretores perdem tempo com leads não qualificados (taxa de conversão ~2-5%)
+**Solução**: IA classifica leads automaticamente (score 0-100) baseado em 15+ features comportamentais
+**Resultado**: Corretores focam em leads quentes (score >70), conversão sobe para 15-25%
+
+**Receita**: R$ 275k/ano (R$ 50/lead qualificado x 5.500 leads/ano)
+**ROI**: 22-30x
+
+========================
+STACK
+========================
+- Python 3.11 (scikit-learn, pandas)
+- Cloud Functions (processamento assíncrono)
+- Firestore (features + scores)
+- Go backend (orquestração)
+
+========================
+FEATURES (15)
+========================
+
+1. **Demográficas** (peso 20%):
+   - Renda declarada vs preço imóvel (ratio)
+   - Localização (mesmo estado/cidade)
+   - Histórico de compras (se disponível)
+
+2. **Comportamentais** (peso 50%):
+   - Tempo na página (>5min = +30 pontos)
+   - Scroll depth (100% = +20 pontos)
+   - Cliques no simulador financiamento (+25 pontos)
+   - Visualizações de fotos (>10 = +15 pontos)
+   - Retorno ao site (2+ visitas = +20 pontos)
+
+3. **Engajamento** (peso 30%):
+   - Rapidez do contato (<24h = +30 pontos)
+   - Qualidade da mensagem (>50 chars = +10 pontos)
+   - WhatsApp vs formulário (WhatsApp = +15 pontos)
+   - Horário do contato (comercial = +10 pontos)
+
+========================
+MODELO ML
+========================
+
+```python
+# ml/lead_scoring_model.py
+from sklearn.ensemble import RandomForestClassifier
+import pandas as pd
+import numpy as np
+
+class LeadScoringModel:
+    def __init__(self):
+        self.model = RandomForestClassifier(
+            n_estimators=100,
+            max_depth=10,
+            random_state=42
+        )
+        
+    def extract_features(self, lead_data):
+        """Extrai 15 features do lead"""
+        return {
+            # Demográficas
+            'income_to_price_ratio': lead_data.get('income', 0) / lead_data.get('property_price', 1),
+            'same_city': 1 if lead_data.get('city') == lead_data.get('property_city') else 0,
+            
+            # Comportamentais
+            'time_on_page_seconds': lead_data.get('time_on_page', 0),
+            'scroll_depth_percent': lead_data.get('scroll_depth', 0),
+            'used_financing_simulator': 1 if lead_data.get('used_simulator') else 0,
+            'photo_views': lead_data.get('photo_views', 0),
+            'return_visits': lead_data.get('visit_count', 1),
+            
+            # Engajamento
+            'contact_speed_hours': lead_data.get('hours_since_view', 999),
+            'message_length': len(lead_data.get('message', '')),
+            'channel_whatsapp': 1 if lead_data.get('channel') == 'whatsapp' else 0,
+            'business_hours': 1 if 9 <= lead_data.get('contact_hour', 0) <= 18 else 0,
+            
+            # Extras
+            'mobile_device': 1 if lead_data.get('device') == 'mobile' else 0,
+            'referrer_organic': 1 if 'google' in lead_data.get('referrer', '') else 0,
+            'has_preapproval': 1 if lead_data.get('has_preapproval') else 0,
+        }
+    
+    def predict_score(self, lead_data):
+        """Retorna score 0-100"""
+        features = self.extract_features(lead_data)
+        X = pd.DataFrame([features])
+        
+        # Probabilidade de conversão (0-1)
+        proba = self.model.predict_proba(X)[0][1]
+        
+        # Converter para score 0-100
+        score = int(proba * 100)
+        
+        # Classificação
+        if score >= 80:
+            category = 'hot'
+        elif score >= 50:
+            category = 'warm'
+        else:
+            category = 'cold'
+        
+        return {
+            'score': score,
+            'category': category,
+            'confidence': proba
+        }
+```
+
+========================
+ENDPOINTS
+========================
+
+**POST /api/v1/leads (modificado)**
+- Ao criar lead, calcular score automaticamente
+- Behavior:
+  1. Criar Lead (status quo)
+  2. Chamar Cloud Function /ml/score-lead
+  3. Atualizar Lead.ai_score
+  4. Se score >= 70: enviar notificação urgente ao corretor
+
+**GET /api/v1/tenants/:id/leads?sort=score**
+- Listar leads ordenados por score DESC
+- Filtros: category (hot/warm/cold)
+
+========================
+CLOUD FUNCTION (Python)
+========================
+
+```python
+# functions/score_lead/main.py
+from google.cloud import firestore
+import functions_framework
+from lead_scoring_model import LeadScoringModel
+
+model = LeadScoringModel()
+db = firestore.Client()
+
+@functions_framework.http
+def score_lead(request):
+    data = request.get_json()
+    
+    # Calcular score
+    result = model.predict_score(data)
+    
+    # Salvar no Firestore
+    lead_ref = db.collection('tenants').document(data['tenant_id']) \
+                 .collection('leads').document(data['lead_id'])
+    
+    lead_ref.update({
+        'ai_score': result['score'],
+        'ai_category': result['category'],
+        'ai_confidence': result['confidence'],
+        'scored_at': firestore.SERVER_TIMESTAMP
+    })
+    
+    return {'score': result['score'], 'category': result['category']}
+```
+
+**Deploy**:
+```bash
+gcloud functions deploy score-lead \
+  --runtime=python311 \
+  --trigger-http \
+  --region=us-central1 \
+  --allow-unauthenticated
+```
+
+========================
+FRONTEND (Dashboard)
+========================
+
+**Componente: LeadScoreBadge**
+```typescript
+export function LeadScoreBadge({ score, category }) {
+  const colors = {
+    hot: 'bg-red-100 text-red-800',
+    warm: 'bg-yellow-100 text-yellow-800',
+    cold: 'bg-blue-100 text-blue-800',
+  }
+  
+  return (
+    <span className={`px-2 py-1 rounded ${colors[category]}`}>
+      {score} - {category.toUpperCase()}
+    </span>
+  )
+}
+```
+
+**Dashboard: Lista de Leads com Score**
+- Ordenar por score (default)
+- Filtro rápido: Apenas Hot (>80)
+- Badge colorido por categoria
+- Última ação do corretor
+
+========================
+TREINAMENTO DO MODELO
+========================
+
+```python
+# scripts/train_model.py
+import pandas as pd
+from lead_scoring_model import LeadScoringModel
+
+# Carregar dados históricos (Firestore export)
+leads = pd.read_csv('leads_historical.csv')
+
+# Features
+X = leads[['income_to_price_ratio', 'time_on_page_seconds', ...]]
+
+# Label: 1 = converteu, 0 = não converteu
+y = leads['converted']
+
+# Split
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+# Treinar
+model = LeadScoringModel()
+model.model.fit(X_train, y_train)
+
+# Avaliar
+from sklearn.metrics import accuracy_score, roc_auc_score
+y_pred = model.model.predict(X_test)
+print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
+print(f"ROC-AUC: {roc_auc_score(y_test, y_pred)}")
+
+# Salvar modelo
+import joblib
+joblib.dump(model.model, 'model.pkl')
+```
+
+========================
+CRITÉRIOS DE SUCESSO
+========================
+✅ Cloud Function Python deployada
+✅ Modelo ML treinado (accuracy >75%)
+✅ Lead.ai_score atualizado automaticamente
+✅ Dashboard filtra por score
+✅ Notificações para leads quentes
+✅ Métricas: conversão leads hot vs cold
+
+ROI: 22-30x

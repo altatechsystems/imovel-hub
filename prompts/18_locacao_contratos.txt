@@ -1,0 +1,154 @@
+Você é um engenheiro backend responsável por implementar Gestão de Contratos de Locação (MVP+4).
+
+IMPORTANTE:
+- Referências: ANALISE_MERCADO_ALUGUEL_BRASIL.md, PLANO_DE_NEGOCIOS.md §16.7
+- Modelos: RentalContract, RentalPayment (ver ANALISE_MERCADO_ALUGUEL_BRASIL.md)
+- Frontend separado: frontend-admin-rentals (ver docs/DECISAO_ARQUITETURA_FRONTENDS.md)
+
+========================
+CONTEXTO
+========================
+
+**Fase**: MVP+4 (após MVP+3 - anúncios)
+**Objetivo**: Gestão completa do ciclo de vida do contrato de aluguel
+**Receita**: Incluída nos R$ 186k/ano da vertical locação
+
+========================
+MODELOS (Firestore)
+========================
+
+### RentalContract
+
+Coleção: `/tenants/{tenantId}/rental_contracts/{contractId}`
+
+```go
+type RentalContract struct {
+    ID         string `firestore:"-" json:"id"`
+    TenantID   string `firestore:"tenant_id" json:"tenant_id"`
+    PropertyID string `firestore:"property_id" json:"property_id"` // ref Property
+
+    // Partes
+    LandlordID string `firestore:"landlord_id" json:"landlord_id"` // Proprietário
+    RenterID   string `firestore:"renter_id" json:"renter_id"`     // Locatário
+
+    // Valores
+    MonthlyRent      float64 `firestore:"monthly_rent" json:"monthly_rent"`
+    CondoFee         float64 `firestore:"condo_fee" json:"condo_fee"`
+    IPTUMonthly      float64 `firestore:"iptu_monthly" json:"iptu_monthly"`
+    TotalMonthlyCost float64 `firestore:"total_monthly_cost" json:"total_monthly_cost"`
+
+    // Garantia
+    GuaranteeType  GuaranteeType `firestore:"guarantee_type" json:"guarantee_type"`
+    DepositAmount  float64       `firestore:"deposit_amount,omitempty" json:"deposit_amount,omitempty"`
+
+    // Período
+    StartDate      time.Time `firestore:"start_date" json:"start_date"`
+    EndDate        time.Time `firestore:"end_date" json:"end_date"`
+    Duration       int       `firestore:"duration_months" json:"duration_months"`
+
+    // Reajuste
+    IndexationType  IndexationType `firestore:"indexation_type" json:"indexation_type"`
+    AdjustmentMonth int            `firestore:"adjustment_month" json:"adjustment_month"`
+    NextAdjustment  time.Time      `firestore:"next_adjustment" json:"next_adjustment"`
+
+    // Status
+    Status ContractStatus `firestore:"status" json:"status"`
+
+    // Documentos
+    ContractPDF string `firestore:"contract_pdf" json:"contract_pdf"` // URL GCS
+
+    CreatedAt time.Time `firestore:"created_at" json:"created_at"`
+    UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
+}
+
+type ContractStatus string
+const (
+    ContractStatusActive    ContractStatus = "active"
+    ContractStatusExpired   ContractStatus = "expired"
+    ContractStatusTerminated ContractStatus = "terminated"
+)
+```
+
+========================
+FUNCIONALIDADES
+========================
+
+### 1. Criar Contrato
+
+**POST /api/v1/tenants/:id/contracts**
+- Gerar PDF automaticamente (template + dados)
+- Enviar para assinatura digital (DocuSign ou similar)
+- Atualizar Property.current_contract_id
+
+### 2. Gestão de Reajuste
+
+**Cloud Scheduler Job** (mensal):
+- Verificar contratos com next_adjustment <= hoje
+- Calcular novo valor (IGPM, IPCA, INPC)
+- Atualizar monthly_rent
+- Gerar aditivo contratual
+- Notificar proprietário e locatário
+
+```go
+func AdjustRent(contract *RentalContract) float64 {
+    var index float64
+    switch contract.IndexationType {
+    case IndexationTypeIGPM:
+        index = getIGPMIndex() // API Banco Central
+    case IndexationTypeIPCA:
+        index = getIPCAIndex()
+    }
+
+    newRent := contract.MonthlyRent * (1 + index/100)
+    return newRent
+}
+```
+
+### 3. Renovação/Término
+
+**30 dias antes do fim**:
+- Notificar ambas as partes
+- Opções: Renovar (novo contrato) ou Encerrar
+- Se encerrar: Property.status = available
+
+========================
+FRONTEND ADMIN LOCAÇÃO
+========================
+
+**Domínio**: admin-locacao.example.com (separado)
+
+**Páginas**:
+1. /contratos - Lista de contratos ativos
+2. /contratos/novo - Criar contrato
+3. /contratos/:id - Detalhes + histórico de pagamentos
+4. /contratos/:id/reajustar - Aplicar reajuste manual
+
+**Permissão**: BrokerRole = rental_manager ou both
+
+========================
+INTEGRAÇÕES
+========================
+
+**Assinatura Digital**:
+- DocuSign API
+- Ou: Adobe Sign
+- Ou: Clicksign (Brasil)
+
+**Índices Econômicos**:
+- API Banco Central do Brasil
+- Endpoint: https://api.bcb.gov.br/dados/serie/bcdata.sgs.189/dados
+
+========================
+CRITÉRIOS DE SUCESSO
+========================
+
+✅ RentalContract CRUD completo
+✅ Geração automática de PDF
+✅ Integração assinatura digital
+✅ Reajuste automático (job mensal)
+✅ Notificações de renovação
+✅ Frontend admin-locacao funcional
+
+**Próximo**: MVP+5 (prompts/19 - Pagamentos e Manutenção)
+
+Referência: ANALISE_MERCADO_ALUGUEL_BRASIL.md (RentalContract, 26 campos)

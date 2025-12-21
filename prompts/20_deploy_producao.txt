@@ -1,0 +1,336 @@
+Você é um engenheiro DevOps responsável pelo deploy em produção do ecossistema imobiliário.
+
+IMPORTANTE:
+- Referências: AI_DEV_DIRECTIVE.md (stack), firestore.indexes.json
+- Executar APÓS validar MVP em desenvolvimento
+- Custo estimado: R$ 40-55/mês (MVP), R$ 140-240/mês (escala)
+
+========================
+STACK DE PRODUÇÃO
+========================
+
+**Backend**: Google Cloud Run (container Docker)
+**Frontend**: Vercel (deploy automático via GitHub)
+**Database**: Firestore (Google Cloud)
+**Storage**: Cloud Storage (GCS) para mídia
+**Jobs**: Cloud Scheduler (cron)
+**Domínios**:
+- www.example.com → Frontend público
+- admin.example.com → Frontend admin vendas
+- admin-locacao.example.com → Frontend admin locação (MVP+4)
+- api.example.com → Backend Go
+
+========================
+BACKEND DEPLOY (CLOUD RUN)
+========================
+
+### 1. Dockerfile
+
+```dockerfile
+# backend/Dockerfile
+FROM golang:1.21-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server cmd/api/main.go
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/server .
+EXPOSE 8080
+CMD ["./server"]
+```
+
+### 2. Deploy Commands
+
+```bash
+# Configurar projeto
+gcloud config set project YOUR_PROJECT_ID
+
+# Build e deploy
+cd backend
+gcloud builds submit --config cloudbuild.yaml
+
+# Mapear domínio
+gcloud run domain-mappings create \
+  --service=imob-backend \
+  --domain=api.example.com \
+  --region=us-central1
+```
+
+========================
+FRONTEND DEPLOY (VERCEL)
+========================
+
+### Environment Variables (Vercel Dashboard)
+
+```bash
+NEXT_PUBLIC_API_URL=https://api.example.com
+NEXT_PUBLIC_FIREBASE_API_KEY=AIza...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=project-id
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+```
+
+### Deploy
+
+```bash
+# Push para main → deploy automático
+git push origin main
+
+# Ou manualmente:
+vercel --prod
+```
+
+### Custom Domains (Vercel Dashboard)
+
+- www.example.com → frontend-public
+- admin.example.com → frontend-admin-sales
+- admin-locacao.example.com → frontend-admin-rentals (MVP+4)
+
+**DNS (Cloudflare)**:
+```
+www.example.com CNAME cname.vercel-dns.com
+admin.example.com CNAME cname.vercel-dns.com
+```
+
+========================
+FIRESTORE SETUP
+========================
+
+### 1. Deploy Indexes
+
+```bash
+firebase deploy --only firestore:indexes
+```
+
+### 2. Security Rules
+
+```javascript
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /tenants/{tenantId} {
+      allow read: if request.auth != null &&
+                     request.auth.token.tenant_id == tenantId;
+
+      match /properties/{propertyId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null &&
+                        request.auth.token.tenant_id == tenantId;
+      }
+    }
+  }
+}
+```
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+========================
+CLOUD SCHEDULER (JOBS)
+========================
+
+```bash
+# Recalcular rankings (torneios)
+gcloud scheduler jobs create http recalculate-rankings \
+  --schedule="*/5 * * * *" \
+  --uri="https://api.example.com/internal/tournaments/recalculate" \
+  --http-method=POST
+
+# Liquidar parcelas (tokenização)
+gcloud scheduler jobs create http liquidate-installments \
+  --schedule="0 0 * * *" \
+  --uri="https://api.example.com/internal/tokenization/liquidate" \
+  --http-method=POST
+
+# Gerar pagamentos mensais (locação)
+gcloud scheduler jobs create http generate-monthly-payments \
+  --schedule="0 0 1 * *" \
+  --uri="https://api.example.com/internal/rentals/generate-payments" \
+  --http-method=POST
+
+# Backup Firestore
+gcloud scheduler jobs create http backup-firestore \
+  --schedule="0 2 * * *" \
+  --uri="https://api.example.com/internal/backup" \
+  --http-method=POST
+```
+
+========================
+MONITORING
+========================
+
+### Cloud Run Logs
+
+```bash
+# Tail logs
+gcloud run services logs tail imob-backend --region=us-central1
+
+# Filtrar erros
+gcloud run services logs read imob-backend \
+  --region=us-central1 \
+  --filter="severity>=ERROR" \
+  --limit=50
+```
+
+### Uptime Monitoring
+
+```bash
+# Health check
+gcloud compute health-checks create https backend-health \
+  --port=8080 \
+  --request-path=/health \
+  --check-interval=60s
+```
+
+### Vercel Analytics
+
+- Ativar em Dashboard → Analytics
+- Monitorar: Core Web Vitals, Page Views
+
+========================
+SEGURANÇA
+========================
+
+### 1. Secrets (GCP Secret Manager)
+
+```bash
+# Criar secret
+gcloud secrets create firebase-sa \
+  --data-file=./firebase-service-account.json
+
+# Permitir acesso ao Cloud Run
+gcloud secrets add-iam-policy-binding firebase-sa \
+  --member=serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com \
+  --role=roles/secretmanager.secretAccessor
+```
+
+### 2. CORS (Backend)
+
+```go
+func CORS() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        c.Writer.Header().Set("Access-Control-Allow-Origin", "https://www.example.com")
+        c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+
+        if c.Request.Method == "OPTIONS" {
+            c.AbortWithStatus(204)
+            return
+        }
+        c.Next()
+    }
+}
+```
+
+========================
+BACKUP & RECOVERY
+========================
+
+```bash
+# Exportar Firestore (diário via Cloud Scheduler)
+gcloud firestore export gs://PROJECT_ID-backups/firestore-$(date +%Y%m%d)
+
+# Importar backup
+gcloud firestore import gs://PROJECT_ID-backups/firestore-20250121
+
+# Replicar Cloud Storage
+gsutil -m rsync -r gs://PROJECT_ID-media gs://PROJECT_ID-media-backup
+```
+
+========================
+CI/CD (GITHUB ACTIONS)
+========================
+
+```yaml
+# .github/workflows/backend-deploy.yml
+name: Deploy Backend to Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+      - run: |
+          cd backend
+          gcloud builds submit --config cloudbuild.yaml
+```
+
+========================
+CUSTOS ESTIMADOS
+========================
+
+**MVP (100k requests/mês)**:
+- Cloud Run: ~$10-20
+- Firestore: ~$5-10 (5GB, 100k reads/day)
+- Cloud Storage: ~$2 (10GB)
+- Cloud Scheduler: $0.30 (3 jobs)
+- Vercel Pro: $20 (2 projetos)
+- **Total**: R$ 200-275/mês
+
+**Escala (1M requests/mês, 1k usuários/dia)**:
+- Cloud Run: ~$50-100
+- Firestore: ~$50-100
+- Cloud Storage: ~$20
+- Vercel: $20
+- **Total**: R$ 700-1.200/mês
+
+========================
+CHECKLIST FINAL
+========================
+
+**Backend**:
+- [ ] Dockerfile testado
+- [ ] Environment variables configuradas
+- [ ] Secrets no Secret Manager
+- [ ] Health check endpoint (/health)
+- [ ] CORS configurado
+
+**Frontend**:
+- [ ] Build de produção testado (npm run build)
+- [ ] Environment variables no Vercel
+- [ ] Custom domains configurados
+- [ ] SEO validado (Lighthouse 100)
+
+**Database**:
+- [ ] Firestore indexes deployados
+- [ ] Security rules deployadas
+- [ ] Backup automático configurado
+
+**Monitoring**:
+- [ ] Cloud Run logs funcionando
+- [ ] Uptime checks criados
+- [ ] Alertas de downtime
+
+**DNS**:
+- [ ] www, admin, api domains configurados
+- [ ] SSL/TLS válido (Let's Encrypt)
+
+**Jobs**:
+- [ ] Cloud Scheduler jobs criados
+- [ ] Testados manualmente
+
+========================
+REFERÊNCIAS
+========================
+
+- AI_DEV_DIRECTIVE.md (stack)
+- firestore.indexes.json (56 indexes)
+- Google Cloud Run: https://cloud.google.com/run/docs
+- Vercel: https://vercel.com/docs
+- Firebase: https://firebase.google.com/docs
