@@ -3,9 +3,9 @@
 
 **Brasil x EUA • Concorrência • Casos de Uso • Unit Economics • PITD • Co-corretagem • Blockchain-ready**
 
-**Versão**: 1.6
+**Versão**: 1.7
 **Data**: 2025-12-21
-**Status**: SEO 100% + Whitelabel (26x ROI) + Lançamentos (27x ROI) + Serviços Inovadores (R$ 2.3M/ano) + Tokenização Factível + Conformidade CRECI/COFECI
+**Status**: SEO 100% + Whitelabel (26x ROI) + Lançamentos (27x ROI) + Serviços Inovadores (R$ 2.3M/ano) + Locação/Aluguel (15x ROI, R$ 186k/ano) + Tokenização Factível + Conformidade CRECI/COFECI
 
 ---
 
@@ -1167,6 +1167,395 @@ contract CoCorretagemNFT {
 
 ---
 
+### 16.7 MVP+3 a MVP+5 (7-15 meses): Vertical Locação/Aluguel ⭐ NOVO
+
+**Mudança Estratégica**: O mercado de locação representa **60-65% do volume de transações imobiliárias** no Brasil, mas possui dores estruturais que nenhuma plataforma resolve completamente.
+
+**Insight**: QuintoAndar domina gestão mas verticalizou (fechou marketplace). ZAP/VivaReal são apenas vitrines. **Nossa oportunidade**: marketplace aberto + gestão end-to-end.
+
+---
+
+#### Análise do Mercado de Locação
+
+**Volume de Mercado**:
+- **5,5 milhões** de contratos de aluguel ativos no Brasil (IBGE 2023)
+- **R$ 165 bilhões/ano** em aluguéis pagos
+- Ticket médio: R$ 2.500/mês (grandes cidades)
+- Comissão média: 1 mês de aluguel (R$ 2.500) + taxa mensal 8-10% (R$ 200-250/mês)
+
+**Competidores e Gaps**:
+
+| Plataforma | Anúncios | Gestão Contratos | Pagamentos | Manutenção | Nossa Vantagem |
+|------------|----------|------------------|------------|------------|----------------|
+| **QuintoAndar** | ✅ Sim | ✅ Sim (excelente) | ✅ Sim | ✅ Sim | ❌ Verticalizou (não aceita imóveis externos) |
+| **ZAP/VivaReal** | ✅ Sim | ❌ Não | ❌ Não | ❌ Não | Apenas classificados (não gerenciam) |
+| **CRMs (Kenlo/Jetimob)** | ⚠️ Limitado | ⚠️ Básico | ❌ Não | ❌ Não | Sem SEO, sem portal público |
+| **Loft** | - | - | - | - | Desistiu de locação em 2022 (margens baixas) |
+| **Nossa Plataforma** | ✅ Sim | ✅ Sim (MVP+4) | ✅ Sim (MVP+4) | ✅ Sim (MVP+5) | **Marketplace aberto + gestão completa** |
+
+**Dores Identificadas** (detalhadas em [ANALISE_MERCADO_ALUGUEL_BRASIL.md](ANALISE_MERCADO_ALUGUEL_BRASIL.md)):
+
+1. **Anúncios de Aluguel**:
+   - ❌ Custos ocultos (anúncio mostra R$ 2k, total é R$ 3.5k com condomínio + IPTU)
+   - ❌ Falta de transparência sobre garantias aceitas (fiador, caução, seguro fiança)
+   - ❌ Informações desatualizadas (70-80% dos anúncios)
+
+2. **Gestão de Contratos**:
+   - ❌ Contratos manuais (Word + assinatura física)
+   - ❌ Rastreamento de pagamentos caótico (planilhas Excel)
+   - ❌ Reajustes anuais esquecidos (IGPM/IPCA)
+
+3. **Gestão de Manutenção**:
+   - ❌ Solicitações por WhatsApp perdidas
+   - ❌ Sem SLA (urgente vs baixa prioridade)
+   - ❌ Sem histórico de manutenções do imóvel
+
+---
+
+#### MVP+3 (Mês 7-9): Anúncios de Aluguel
+
+**Objetivo**: Adicionar suporte básico a anúncios de locação (sem gestão de contrato ainda).
+
+**Investimento**: R$ 6-8k (30-40h)
+
+**Implementação**:
+
+1. **Schema Preparation** (já feito em `prompts/01_foundation_mvp.txt`):
+```go
+// Property model
+TransactionType *TransactionType // "sale", "rent", "both"
+RentalInfo *RentalInfo // Informações de locação
+```
+
+2. **RentalInfo Struct** (26 campos):
+   - **Valores**: `monthly_rent`, `condo_fee`, `iptu_monthly`, `total_monthly_cost`
+   - **Garantias**: `deposit_months`, `accepted_guarantees[]` (fiador, caução, seguro)
+   - **Tipo**: `rental_type` (traditional, corporate, short_term, vacation)
+   - **Políticas**: `accepts_pets`, `furnished`, `utilities_included[]`
+   - **Indexação**: `indexation_type` (IGPM, IPCA, INPC)
+
+3. **Frontend Público** (15-20h):
+   - Filtros de busca específicos para locação:
+     - Faixa de aluguel total (slider R$ 1k-10k)
+     - Tipo de garantia aceita (checkbox)
+     - Mobiliado/Semi-mobiliado (toggle)
+     - Aceita pets (toggle)
+   - Card de anúncio mostra custo TOTAL (destaque):
+     ```
+     R$ 2.500/mês + R$ 800 condomínio + R$ 150 IPTU
+     = R$ 3.450/mês TOTAL
+     ```
+   - Badge de garantias aceitas (ícones: 💰 Caução, 👤 Fiador, 🛡️ Seguro)
+
+4. **Backend API** (10-15h):
+   - Validação de campos obrigatórios (rental_info se transaction_type = "rent")
+   - Cálculo automático de `total_monthly_cost`
+   - Índices Firestore para busca por locação
+
+**Diferencial Competitivo**:
+- ✅ **Custo total transparente** (única plataforma a calcular automaticamente)
+- ✅ **Filtro por tipo de garantia** (nenhum portal faz isso!)
+- ✅ **Imóveis para venda E aluguel** no mesmo anúncio (transaction_type = "both")
+
+**Revenue Model**:
+- Mesmo modelo de vendas (SaaS R$ 200-350/mês por corretor)
+- Adicional: R$ 50/mês para imobiliárias com gestão de contratos (MVP+4)
+
+**Receita Estimada (MVP+3)**:
+- 10% dos corretores atuais passam a anunciar aluguéis
+- 5 corretores × R$ 250/mês = R$ 1.250/mês = **R$ 15k/ano**
+
+**ROI**: R$ 15k / R$ 8k = **1.9x** (baixo, mas prepara terreno para MVP+4)
+
+---
+
+#### MVP+4 (Mês 10-12): Gestão de Contratos e Pagamentos
+
+**Objetivo**: Plataforma gerencia contratos de locação e rastreia pagamentos automaticamente.
+
+**Investimento**: R$ 10-12k (50-60h)
+
+**Implementação**:
+
+1. **Novos Modelos** (30-40h):
+
+**RentalContract** (26 campos):
+```go
+type RentalContract struct {
+    ID          string
+    PropertyID  string
+    TenantID    string  // CPF do locatário
+    LandlordID  string  // CPF do proprietário
+    BrokerID    string  // CRECI do corretor responsável
+    GuarantorID *string // CPF do fiador (se aplicável)
+
+    // Datas
+    StartDate    time.Time
+    EndDate      time.Time
+    SignedAt     *time.Time
+    RenewalCount int
+
+    // Valores
+    MonthlyRent     float64
+    CondoFee        float64
+    IPTUMonthly     float64
+    DepositPaid     float64
+    IndexationType  IndexationType // IGPM, IPCA, INPC
+    AdjustmentMonth int
+
+    // Status
+    Status ContractStatus // draft, pending_signatures, active, expired, renewed, terminated
+
+    // Documentos
+    ContractPDFURL    string
+    SignedPDFURL      *string
+    AdditionalDocs    []string
+
+    CreatedAt time.Time
+    UpdatedAt time.Time
+}
+```
+
+**RentalPayment** (18 campos):
+```go
+type RentalPayment struct {
+    ID             string
+    ContractID     string
+    ReferenceMonth time.Time // 2025-01-01 (primeiro dia do mês)
+
+    // Valores
+    MonthlyRent    float64
+    CondoFee       float64
+    IPTUMonthly    float64
+    TotalAmount    float64
+
+    // Multa e juros
+    DueDate        time.Time
+    PaidAt         *time.Time
+    LateFee        float64 // 2% após vencimento
+    Interest       float64 // 1% ao mês pro-rata
+
+    // Split de pagamento
+    LandlordShare  float64 // 92% do aluguel
+    RealEstateShare float64 // 8% taxa de administração
+    PlatformFee    float64 // 2% da plataforma
+
+    // Status
+    Status PaymentStatus // pending, paid, late, partially_paid, waived
+
+    // Integração de pagamento
+    PaymentMethod  string // boleto, pix, credit_card
+    TransactionID  *string
+    BoletoURL      *string
+    PixQRCode      *string
+}
+```
+
+2. **Funcionalidades** (20-25h):
+   - **Geração automática de contratos** (template PDF editável)
+   - **Assinatura eletrônica** (integração DocuSign ou Clicksign)
+   - **Geração automática de cobranças** mensais (Cloud Scheduler)
+   - **Cálculo automático** de multa (2%) + juros (1%/mês) após vencimento
+   - **Split automático** de pagamento:
+     - 92% para proprietário
+     - 8% para imobiliária (taxa de administração)
+     - 2% para plataforma
+   - **Renovação automática** (alerta D-90, D-60, D-30 antes do vencimento)
+   - **Reajuste anual automático** (IGPM/IPCA/INPC via API Banco Central)
+
+3. **Integrações** (10-15h):
+   - **Pagamento**: PagSeguro ou Stripe (boleto + Pix + cartão)
+   - **Assinatura**: Clicksign (R$ 0,50/assinatura) ou DocuSign
+   - **Índices**: API Banco Central (IGPM/IPCA/INPC grátis)
+
+**Diferencial Competitivo**:
+- ✅ **Split automático** (proprietário recebe líquido, imobiliária recebe taxa, sem planilhas!)
+- ✅ **Reajuste automático** (nenhum CRM faz isso!)
+- ✅ **Alerta de renovação** (evita vacância não planejada)
+
+**Revenue Model**:
+- Taxa de administração: **8%** do aluguel mensal
+- Exemplo: Aluguel R$ 2.500 → R$ 200/mês para imobiliária, **R$ 50/mês para plataforma** (25% da taxa)
+- Setup contrato: R$ 150 (one-time por contrato novo)
+
+**Receita Estimada (Ano 1)**:
+| Trimestre | Contratos Ativos | Taxa Mensal (R$ 50) | Setup (R$ 150) | **Receita** |
+|-----------|------------------|---------------------|----------------|-------------|
+| Q1 | 10 | R$ 500 | R$ 1.500 | R$ 3.000 |
+| Q2 | 25 | R$ 1.250 | R$ 2.250 | R$ 6.000 |
+| Q3 | 50 | R$ 2.500 | R$ 3.750 | R$ 11.250 |
+| Q4 | 100 | R$ 5.000 | R$ 7.500 | R$ 22.500 |
+| **Total** | **100** | **R$ 9.250** | **R$ 15k** | **R$ 180k** |
+
+**ROI**: R$ 180k / R$ 12k = **15x**
+
+---
+
+#### MVP+5 (Mês 13-15): Gestão de Manutenção
+
+**Objetivo**: Rastreamento de solicitações de manutenção com SLA, marketplace de prestadores e histórico público do imóvel.
+
+**Investimento**: R$ 8-10k (40-50h)
+
+**Implementação**:
+
+1. **Novo Modelo**:
+
+**MaintenanceRequest** (20 campos):
+```go
+type MaintenanceRequest struct {
+    ID         string
+    PropertyID string
+    ContractID string
+    TenantID   string
+    BrokerID   string
+
+    // Solicitação
+    Category     MaintenanceCategory // plumbing, electrical, locksmith, appliance, other
+    Priority     Priority            // urgent, high, medium, low
+    Description  string
+    PhotoURLs    []string
+
+    // SLA
+    CreatedAt      time.Time
+    SLADeadline    time.Time
+    FirstResponseAt *time.Time
+    ResolvedAt     *time.Time
+
+    // Prestador
+    ProviderID     *string
+    EstimatedCost  *float64
+    ActualCost     *float64
+
+    // Status
+    Status MaintenanceStatus // pending, assigned, in_progress, awaiting_approval, resolved, cancelled
+
+    // Avaliação
+    TenantRating   *int // 1-5 estrelas
+    TenantFeedback *string
+}
+```
+
+2. **Funcionalidades** (25-30h):
+   - **Portal do locatário**: Solicitação de manutenção com fotos
+   - **Dashboard corretor**: Triagem de prioridade (urgente: 4h, alta: 24h, média: 48h, baixa: 7 dias)
+   - **Marketplace de prestadores**: Encanadores, eletricistas, chaveiros cadastrados
+   - **SLA tracking**: Alerta automático se deadline ultrapassado
+   - **Histórico público**: Imóvel mostra todas as manutenções (score de qualidade do imóvel!)
+   - **NPS do prestador**: Locatário avalia prestador (1-5 estrelas)
+
+3. **Integrações** (10-15h):
+   - WhatsApp API para notificações (Twilio)
+   - Upload de fotos (GCS)
+
+**Diferencial Competitivo**:
+- ✅ **Histórico público de manutenção** (ÚNICO NO BRASIL!) → score de qualidade do imóvel
+- ✅ **SLA automático** (urgente: 4h, alta: 24h) → nenhum CRM faz
+- ✅ **Avaliação de proprietário** (locatário avalia proprietário no fim do contrato) → transparência total
+
+**Revenue Model**:
+- Taxa de manutenção: **10%** do valor da manutenção
+- Exemplo: Encaneiro cobra R$ 300 → plataforma retém R$ 30
+- Potencial: 2 manutenções/ano por contrato × 100 contratos × R$ 30 = **R$ 6k/ano**
+
+**Receita Total MVP+5**:
+- Contratos: R$ 180k/ano (MVP+4)
+- Manutenções: R$ 6k/ano (MVP+5)
+- **Total**: **R$ 186k/ano**
+
+---
+
+#### Resumo Comparativo (Vertical Locação)
+
+| Fase | Timeline | Investimento | ROI | Receita Ano 1 | Features |
+|------|----------|--------------|-----|---------------|----------|
+| **MVP+3** | Mês 7-9 | R$ 8k | 1.9x | R$ 15k | Anúncios de aluguel, filtros, custos transparentes |
+| **MVP+4** | Mês 10-12 | R$ 12k | 15x | R$ 180k | Contratos, pagamentos, split, renovações, reajustes |
+| **MVP+5** | Mês 13-15 | R$ 10k | 18x | R$ 186k | Manutenção, SLA, prestadores, histórico público |
+| **Total** | 9 meses | **R$ 30k** | **12-18x** | **R$ 186k** | **Gestão completa de locação** |
+
+**Diferenciais Únicos no Brasil**:
+1. ✅ **Custo total transparente** (aluguel + condomínio + IPTU)
+2. ✅ **Filtro por tipo de garantia** (fiador, caução, seguro)
+3. ✅ **Split automático** de pagamento (92% proprietário, 8% imobiliária)
+4. ✅ **Reajuste anual automático** (IGPM/IPCA/INPC via API Banco Central)
+5. ✅ **Histórico público de manutenção** (score de qualidade do imóvel)
+6. ✅ **Avaliação de proprietário** (locatário avalia proprietário)
+
+**Comparação com QuintoAndar**:
+
+| Feature | QuintoAndar | Nossa Plataforma |
+|---------|-------------|------------------|
+| **Modelo** | Verticalizado (fechado) | Marketplace aberto |
+| **Taxa** | 8-10% do aluguel | 8% do aluguel |
+| **Aceita imóveis externos** | ❌ Não | ✅ Sim |
+| **Co-corretagem** | ❌ Não | ✅ Sim |
+| **Leads orgânicos (SEO)** | ⚠️ Limitado | ✅ SEO 100% |
+| **Gestão de contratos** | ✅ Sim | ✅ Sim (MVP+4) |
+| **Gestão de pagamentos** | ✅ Sim | ✅ Sim (MVP+4) |
+| **Gestão de manutenção** | ✅ Sim | ✅ Sim (MVP+5) |
+| **Histórico público** | ❌ Não | ✅ Sim (inovação!) |
+| **Avaliação de proprietário** | ❌ Não | ✅ Sim (inovação!) |
+
+**Vantagem Competitiva**: Combinamos a gestão completa do QuintoAndar com marketplace aberto + SEO 100% + co-corretagem.
+
+---
+
+#### Firestore Indexes (Criar Agora - Custo $0 se Não Usado)
+
+```yaml
+# firestore.indexes.json (adicionar)
+indexes:
+  - collectionGroup: properties
+    queryScope: COLLECTION
+    fields:
+      - fieldPath: transaction_type
+        order: ASCENDING
+      - fieldPath: rental_info.total_monthly_cost
+        order: ASCENDING
+      - fieldPath: created_at
+        order: DESCENDING
+
+  - collectionGroup: properties
+    queryScope: COLLECTION
+    fields:
+      - fieldPath: transaction_type
+        order: ASCENDING
+      - fieldPath: rental_info.rental_type
+        order: ASCENDING
+      - fieldPath: city
+        order: ASCENDING
+
+  - collectionGroup: properties
+    queryScope: COLLECTION
+    fields:
+      - fieldPath: rental_info.furnished
+        order: ASCENDING
+      - fieldPath: rental_info.accepts_pets
+        order: ASCENDING
+      - fieldPath: created_at
+        order: DESCENDING
+```
+
+---
+
+#### Próximos Passos (Preparação Imediata)
+
+**Ações para Esta Semana**:
+1. ✅ Adicionar `RentalInfo` struct ao Property model (JÁ FEITO em `prompts/01_foundation_mvp.txt`)
+2. ✅ Deploy Firestore indexes para rentals (custo zero se não usado)
+3. ✅ Criar arquivos placeholder para modelos futuros:
+   - `backend/internal/models/rental_contract.go` (comentado, MVP+4)
+   - `backend/internal/models/rental_payment.go` (comentado, MVP+4)
+   - `backend/internal/models/maintenance_request.go` (comentado, MVP+5)
+
+**Benefícios**:
+- ✅ **Zero refactoring** quando adicionar locação em MVP+3
+- ✅ **Backward compatibility** (imóveis existentes continuam funcionando)
+- ✅ **Future-proof** (campos reservados, prontos para ativar)
+
+---
+
 ## 17. Regulação e Conformidade Regulatória (CRECI/COFECI) ⭐ ATUALIZADO
 
 ### 17.1 Classificação da Plataforma
@@ -1518,4 +1907,5 @@ O MVP é desenhado para **tracionar rápido e evoluir sem refatorações estrutu
 **Atualizado para v1.4**: 2025-12-21 (Seção 16.4: Tokenização Factível com 3 Modelos de Mercado)
 **Atualizado para v1.5**: 2025-12-21 (Seção 16.4: Vertical Lançamentos - Construtoras/Loteadoras, ROI 27x)
 **Atualizado para v1.6**: 2025-12-21 (Seção 16.5: Serviços Inovadores - Gamificação, Lead Scoring IA, Tour 3D, Tokenização de Recebíveis)
+**Atualizado para v1.7**: 2025-12-21 (Seção 16.7: Vertical Locação/Aluguel - Schema Preparado, MVP+3 a MVP+5, ROI 15x)
 **Por**: Claude Code + Equipe Altatech Systems
