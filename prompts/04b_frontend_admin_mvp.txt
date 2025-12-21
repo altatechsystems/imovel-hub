@@ -1,0 +1,3212 @@
+Você é um engenheiro frontend React/Next.js sênior responsável EXCLUSIVAMENTE por implementar
+o FRONTEND ADMIN (Dashboard) conforme `AI_DEV_DIRECTIVE.md` e PROMPT 01.
+
+STACK TÉCNICA:
+- Framework: Next.js 14+ (App Router)
+- Linguagem: TypeScript 5+
+- UI: shadcn/ui + Tailwind CSS
+- Estado: React Query (TanStack Query) + Zustand
+- Autenticação: Firebase Auth SDK (obrigatório)
+- Deploy: Vercel
+
+IMPORTANTE:
+- Este é o FRONTEND ADMIN - área privada para corretores/imobiliárias
+- NÃO criar rotas públicas (homepage, busca, detalhes de imóvel)
+- NÃO implementar backend (API Go já existe)
+- Executar APÓS PROMPT 01, PROMPT 02, PROMPT 09 (backend + auth funcionais)
+- Firebase Auth é OBRIGATÓRIO - todas as rotas protegidas (exceto /login)
+
+========================
+OBJETIVO
+========================
+Criar dashboard Next.js para corretores/imobiliárias gerenciarem:
+- Imóveis (CRUD completo com visibilidade escalonada)
+- Busca Interna de Imóveis (network, marketplace) - "Tenho um Cliente"
+- Solicitações de Parceria (aprovar/rejeitar selling_brokers)
+- Leads (visualização filtrada por PropertyBrokerRole)
+- Importação de XML/XLS (upload, status, erros)
+- Autenticação Firebase (login, logout, proteção de rotas)
+
+Acesso:
+- URL: app.example.com ou admin.example.com
+- Usuários: corretores e admins da imobiliária (tenant)
+- Autenticação: Firebase Auth (email/senha no MVP)
+
+**IMPORTANTE**: Implementa regras de co-corretagem da Seção 20 do AI_DEV_DIRECTIVE:
+- Visibilidade escalonada (private, network, marketplace, public)
+- Fluxo "Tenho um Cliente" com aprovação manual do captador
+- Permissões de visualização de leads por PropertyBrokerRole
+- Primary broker selection e mudança
+
+========================
+ESTRUTURA DO PROJETO NEXT.JS ADMIN
+========================
+
+**IMPORTANTE**: O frontend admin Next.js fica na pasta `/frontend-admin` na raiz do projeto.
+O backend Go fica em `/backend`.
+O frontend público fica em `/frontend-public`.
+
+```
+frontend-admin/                     # Projeto Next.js Admin
+├── app/
+│   ├── login/
+│   │   └── page.tsx               # Página de login (Firebase Auth)
+│   ├── (dashboard)/               # Grupo de rotas protegidas
+│   │   ├── layout.tsx             # Layout do dashboard (Sidebar + Header)
+│   │   ├── page.tsx               # Overview/Dashboard inicial
+│   │   ├── imoveis/
+│   │   │   ├── page.tsx           # Lista de imóveis (meus imóveis)
+│   │   │   ├── novo/
+│   │   │   │   └── page.tsx       # Criar imóvel
+│   │   │   └── [id]/
+│   │   │       └── page.tsx       # Editar imóvel
+│   │   ├── buscar-imoveis/        # 🆕 BUSCA INTERNA (Seção 20.3)
+│   │   │   └── page.tsx           # Busca network/marketplace + "Tenho um cliente"
+│   │   ├── parcerias/             # 🆕 SOLICITAÇÕES DE PARCERIA (Seção 20.3)
+│   │   │   └── page.tsx           # Aprovar/Rejeitar selling_brokers
+│   │   ├── leads/
+│   │   │   ├── page.tsx           # Lista de leads (filtrado por PropertyBrokerRole)
+│   │   │   └── [id]/
+│   │   │       └── page.tsx       # Detalhes do lead
+│   │   └── importacao/
+│   │       ├── page.tsx           # Upload XML/XLS
+│   │       └── [batchId]/
+│   │           └── page.tsx       # Status + erros do batch
+│   └── api/                       # API routes (opcional para proxy)
+├── components/
+│   ├── ui/                        # shadcn/ui base components
+│   │   ├── button.tsx
+│   │   ├── input.tsx
+│   │   ├── table.tsx
+│   │   ├── dialog.tsx
+│   │   ├── form.tsx
+│   │   ├── select.tsx
+│   │   ├── badge.tsx
+│   │   ├── card.tsx
+│   │   ├── sheet.tsx
+│   │   ├── tabs.tsx
+│   │   ├── dropdown-menu.tsx
+│   │   └── ...
+│   ├── dashboard/
+│   │   ├── Sidebar.tsx            # Sidebar de navegação
+│   │   ├── DashboardHeader.tsx    # Header com user menu
+│   │   ├── OverviewCard.tsx       # Cards de métricas
+│   │   └── RecentActivity.tsx     # Lista de atividades recentes
+│   ├── properties/
+│   │   ├── PropertyForm.tsx       # Formulário de criar/editar imóvel
+│   │   ├── PropertyTable.tsx      # Tabela de imóveis (meus imóveis)
+│   │   ├── PropertyFilters.tsx    # Filtros de busca
+│   │   ├── PropertyStatusBadge.tsx # Badge de status
+│   │   ├── VisibilityBadge.tsx    # 🆕 Badge de visibilidade
+│   │   ├── PropertySearchCard.tsx # 🆕 Card de imóvel na busca interna
+│   │   └── BrokerRoleManager.tsx  # 🆕 Gerenciar corretores do imóvel
+│   ├── partnerships/              # 🆕 PARCERIAS (Seção 20.3)
+│   │   ├── PartnershipRequestCard.tsx # Card de solicitação pendente
+│   │   ├── PartnershipTable.tsx   # Tabela de parcerias ativas
+│   │   └── ApprovalDialog.tsx     # Dialog de aprovação/rejeição
+│   ├── leads/
+│   │   ├── LeadTable.tsx          # Tabela de leads (filtrado por PropertyBrokerRole)
+│   │   ├── LeadFilters.tsx        # Filtros de leads
+│   │   ├── LeadDetails.tsx        # Detalhes do lead
+│   │   └── LeadStatusBadge.tsx    # Badge de status
+│   └── import/
+│       ├── ImportUploader.tsx     # Upload XML/XLS (drag & drop)
+│       ├── ImportStatus.tsx       # Status do batch
+│       ├── ImportErrors.tsx       # Lista de erros
+│       └── ImportHistory.tsx      # Histórico de importações
+├── contexts/
+│   └── AuthContext.tsx            # Firebase Auth provider
+├── hooks/
+│   ├── use-auth.ts                # Hook de autenticação
+│   ├── use-properties.ts          # React Query hooks (imóveis)
+│   ├── use-property-search.ts     # 🆕 React Query hooks (busca interna)
+│   ├── use-partnerships.ts        # 🆕 React Query hooks (parcerias)
+│   ├── use-leads.ts               # React Query hooks (leads)
+│   └── use-imports.ts             # React Query hooks (importações)
+├── lib/
+│   ├── api.ts                     # API client (backend)
+│   ├── firebase.ts                # Firebase Auth config
+│   └── utils.ts                   # Utilitários (cn, formatters)
+├── types/
+│   ├── property.ts
+│   ├── lead.ts
+│   ├── import.ts
+│   └── user.ts
+├── middleware.ts                  # Proteção de rotas (Firebase Auth)
+├── public/
+├── .env.local                     # Env vars (Firebase, API URL)
+├── next.config.js
+├── tailwind.config.ts
+├── components.json                # shadcn/ui config
+├── tsconfig.json
+├── package.json
+└── README.md
+```
+
+========================
+FIREBASE AUTH - CONFIGURAÇÃO
+========================
+
+### 1. Instalação
+```bash
+npm install firebase firebase-admin
+```
+
+### 2. Configuração Firebase (lib/firebase.ts)
+```typescript
+import { initializeApp, getApps } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+}
+
+// Evitar múltiplas instâncias
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+const auth = getAuth(app)
+
+export { auth }
+```
+
+### 3. AuthContext (contexts/AuthContext.tsx)
+```typescript
+'use client'
+
+import { createContext, useContext, useEffect, useState } from 'react'
+import {
+  User,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut
+} from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import { useRouter } from 'next/navigation'
+
+interface AuthContextType {
+  user: User | null
+  loading: boolean
+  signIn: (email: string, password: string) => Promise<void>
+  signOut: () => Promise<void>
+  tenantId: string | null
+  role: string | null
+}
+
+const AuthContext = createContext<AuthContextType>({} as AuthContextType)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [role, setRole] = useState<string | null>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setUser(user)
+
+      if (user) {
+        // Extrair custom claims (tenant_id, role)
+        const idTokenResult = await user.getIdTokenResult()
+        setTenantId(idTokenResult.claims.tenant_id as string || null)
+        setRole(idTokenResult.claims.role as string || null)
+      } else {
+        setTenantId(null)
+        setRole(null)
+      }
+
+      setLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const signIn = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password)
+    router.push('/') // Redirecionar para dashboard
+  }
+
+  const signOut = async () => {
+    await firebaseSignOut(auth)
+    router.push('/login')
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, tenantId, role }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export const useAuth = () => useContext(AuthContext)
+```
+
+### 4. Middleware de Proteção (middleware.ts)
+```typescript
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  // Extrair token do cookie (Firebase Auth)
+  const token = request.cookies.get('__session')?.value
+
+  // Rotas públicas (apenas /login)
+  const isPublicRoute = request.nextUrl.pathname === '/login'
+
+  // Se não autenticado e tentando acessar rota protegida
+  if (!token && !isPublicRoute) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Se autenticado e tentando acessar /login, redirecionar para dashboard
+  if (token && isPublicRoute) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)']
+}
+```
+
+### 5. Página de Login (app/login/page.tsx)
+```typescript
+'use client'
+
+import { useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const { signIn } = useAuth()
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      await signIn(email, password)
+    } catch (err: any) {
+      setError('Email ou senha incorretos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Login</CardTitle>
+          <CardDescription>Acesse o painel administrativo</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-11"
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-600">{error}</p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Entrando...' : 'Entrar'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+```
+
+========================
+DASHBOARD LAYOUT
+========================
+
+### Layout Principal (app/(dashboard)/layout.tsx)
+```typescript
+import { Sidebar } from '@/components/dashboard/Sidebar'
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex h-screen">
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <DashboardHeader />
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
+          {children}
+        </main>
+      </div>
+    </div>
+  )
+}
+```
+
+### Sidebar (components/dashboard/Sidebar.tsx)
+```typescript
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { cn } from '@/lib/utils'
+import {
+  Home,
+  Building2,
+  Users,
+  Upload,
+  Settings
+} from 'lucide-react'
+
+const navigation = [
+  { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'Meus Imóveis', href: '/imoveis', icon: Building2 },
+  { name: 'Buscar Imóveis', href: '/buscar-imoveis', icon: Search }, // 🆕 Seção 20.3
+  { name: 'Parcerias', href: '/parcerias', icon: Handshake },      // 🆕 Seção 20.3
+  { name: 'Leads', href: '/leads', icon: Users },
+  { name: 'Importação', href: '/importacao', icon: Upload },
+  { name: 'Configurações', href: '/configuracoes', icon: Settings },
+]
+
+// 🆕 Adicionar imports:
+// import { Search, Handshake } from 'lucide-react'
+
+export function Sidebar() {
+  const pathname = usePathname()
+
+  return (
+    <div className="w-64 bg-gray-900 text-white flex flex-col">
+      {/* Logo */}
+      <div className="h-16 flex items-center px-6 border-b border-gray-800">
+        <h1 className="text-xl font-bold">Imobiliária</h1>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-4 py-6 space-y-1">
+        {navigation.map((item) => {
+          const isActive = pathname === item.href ||
+                          (item.href !== '/' && pathname.startsWith(item.href))
+
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-gray-800 text-white'
+                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.name}
+            </Link>
+          )
+        })}
+      </nav>
+    </div>
+  )
+}
+```
+
+### Header (components/dashboard/DashboardHeader.tsx)
+```typescript
+'use client'
+
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { LogOut, User } from 'lucide-react'
+
+export function DashboardHeader() {
+  const { user, signOut } = useAuth()
+
+  const initials = user?.email?.substring(0, 2).toUpperCase() || 'U'
+
+  return (
+    <header className="h-16 border-b bg-white flex items-center justify-between px-6">
+      <div>
+        {/* Breadcrumb ou título da página pode ir aqui */}
+      </div>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+            <Avatar>
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium">{user?.email}</p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>
+            <User className="mr-2 h-4 w-4" />
+            Perfil
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => signOut()}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </header>
+  )
+}
+```
+
+========================
+GESTÃO DE IMÓVEIS
+========================
+
+### Lista de Imóveis (app/(dashboard)/imoveis/page.tsx)
+```typescript
+'use client'
+
+import { useProperties } from '@/hooks/use-properties'
+import { PropertyTable } from '@/components/properties/PropertyTable'
+import { PropertyFilters } from '@/components/properties/PropertyFilters'
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
+import Link from 'next/link'
+
+export default function PropertiesPage() {
+  const { data: properties, isLoading } = useProperties()
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Imóveis</h1>
+        <Link href="/imoveis/novo">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Imóvel
+          </Button>
+        </Link>
+      </div>
+
+      {/* Filters */}
+      <PropertyFilters />
+
+      {/* Table */}
+      <PropertyTable properties={properties || []} isLoading={isLoading} />
+    </div>
+  )
+}
+```
+
+### Criar Imóvel (app/(dashboard)/imoveis/novo/page.tsx)
+```typescript
+'use client'
+
+import { useCreateProperty } from '@/hooks/use-properties'
+import { PropertyForm } from '@/components/properties/PropertyForm'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+
+export default function NovoImovelPage() {
+  const router = useRouter()
+  const createProperty = useCreateProperty()
+
+  async function handleSubmit(data: any) {
+    try {
+      await createProperty.mutateAsync(data)
+      toast.success('Imóvel criado com sucesso!')
+      router.push('/imoveis')
+    } catch (error) {
+      toast.error('Erro ao criar imóvel')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Novo Imóvel</h1>
+        <p className="text-muted-foreground mt-1">
+          Preencha as informações do imóvel
+        </p>
+      </div>
+
+      <PropertyForm onSubmit={handleSubmit} />
+    </div>
+  )
+}
+```
+
+### Editar Imóvel (app/(dashboard)/imoveis/[id]/page.tsx)
+```typescript
+'use client'
+
+import { useProperty, useUpdateProperty } from '@/hooks/use-properties'
+import { PropertyForm } from '@/components/properties/PropertyForm'
+import { useParams, useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+
+export default function EditarImovelPage() {
+  const params = useParams()
+  const propertyId = params.id as string
+  const router = useRouter()
+
+  const { data: property, isLoading } = useProperty(propertyId)
+  const updateProperty = useUpdateProperty()
+
+  async function handleSubmit(data: any) {
+    try {
+      await updateProperty.mutateAsync({ propertyId, data })
+      toast.success('Imóvel atualizado com sucesso!')
+      router.push('/imoveis')
+    } catch (error) {
+      toast.error('Erro ao atualizar imóvel')
+    }
+  }
+
+  if (isLoading) {
+    return <div>Carregando...</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Editar Imóvel</h1>
+        <p className="text-muted-foreground mt-1">
+          Atualize as informações do imóvel
+        </p>
+      </div>
+
+      <PropertyForm onSubmit={handleSubmit} defaultValues={property} />
+    </div>
+  )
+}
+```
+
+### Tabela de Imóveis (components/properties/PropertyTable.tsx)
+```typescript
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { PropertyStatusBadge } from './PropertyStatusBadge'
+import { Button } from '@/components/ui/button'
+import { Edit, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+
+interface PropertyTableProps {
+  properties: any[]
+  isLoading: boolean
+}
+
+export function PropertyTable({ properties, isLoading }: PropertyTableProps) {
+  if (isLoading) {
+    return <div>Carregando...</div>
+  }
+
+  return (
+    <div className="border rounded-lg bg-white">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Referência</TableHead>
+            <TableHead>Tipo</TableHead>
+            <TableHead>Endereço</TableHead>
+            <TableHead>Preço</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {properties.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
+                Nenhum imóvel encontrado
+              </TableCell>
+            </TableRow>
+          ) : (
+            properties.map((property) => (
+              <TableRow key={property.id}>
+                <TableCell className="font-medium">{property.reference}</TableCell>
+                <TableCell>{property.property_type}</TableCell>
+                <TableCell>
+                  {property.street}, {property.neighborhood}
+                </TableCell>
+                <TableCell>
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(property.price_amount)}
+                </TableCell>
+                <TableCell>
+                  <PropertyStatusBadge status={property.status} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Link href={`/imoveis/${property.id}`}>
+                      <Button variant="ghost" size="sm">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Button variant="ghost" size="sm">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+```
+
+### VisibilityBadge (components/properties/VisibilityBadge.tsx)
+```typescript
+import { Badge } from '@/components/ui/badge'
+import { Lock, Building, Store, Globe } from 'lucide-react'
+
+interface VisibilityBadgeProps {
+  visibility: 'private' | 'network' | 'marketplace' | 'public'
+}
+
+export function VisibilityBadge({ visibility }: VisibilityBadgeProps) {
+  const config = {
+    private: {
+      label: 'Privado',
+      icon: Lock,
+      variant: 'secondary' as const,
+      className: 'bg-gray-100 text-gray-700'
+    },
+    network: {
+      label: 'Rede',
+      icon: Building,
+      variant: 'secondary' as const,
+      className: 'bg-blue-100 text-blue-700'
+    },
+    marketplace: {
+      label: 'Marketplace',
+      icon: Store,
+      variant: 'default' as const,
+      className: 'bg-green-100 text-green-700'
+    },
+    public: {
+      label: 'Público',
+      icon: Globe,
+      variant: 'default' as const,
+      className: 'bg-purple-100 text-purple-700'
+    }
+  }
+
+  const { label, icon: Icon, className } = config[visibility]
+
+  return (
+    <Badge className={className}>
+      <Icon className="h-3 w-3 mr-1" />
+      {label}
+    </Badge>
+  )
+}
+```
+
+### Formulário de Imóvel (components/properties/PropertyForm.tsx)
+```typescript
+'use client'
+
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import { Button } from '@/components/ui/button'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+const propertySchema = z.object({
+  property_type: z.string().min(1, 'Tipo é obrigatório'),
+  street: z.string().min(1, 'Endereço é obrigatório'),
+  number: z.string(),
+  neighborhood: z.string().min(1, 'Bairro é obrigatório'),
+  city: z.string().min(1, 'Cidade é obrigatória'),
+  state: z.string().min(2, 'Estado é obrigatório'),
+  zip_code: z.string(),
+  bedrooms: z.coerce.number().min(0),
+  bathrooms: z.coerce.number().min(0),
+  parking_spaces: z.coerce.number().min(0),
+  total_area: z.coerce.number().min(0),
+  price_amount: z.coerce.number().min(0, 'Preço é obrigatório'),
+  description: z.string().optional(),
+  // 🆕 Seção 20: Visibilidade e Co-corretagem
+  visibility: z.enum(['private', 'network', 'marketplace', 'public']),
+  co_broker_commission: z.coerce.number().min(0).max(100).optional(),
+})
+
+export function PropertyForm({
+  onSubmit,
+  defaultValues
+}: {
+  onSubmit: (data: any) => void
+  defaultValues?: any
+}) {
+  const form = useForm({
+    resolver: zodResolver(propertySchema),
+    defaultValues: defaultValues || {}
+  })
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Tipo de Imóvel */}
+        <FormField
+          control={form.control}
+          name="property_type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tipo de Imóvel</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="apartamento">Apartamento</SelectItem>
+                  <SelectItem value="casa">Casa</SelectItem>
+                  <SelectItem value="terreno">Terreno</SelectItem>
+                  <SelectItem value="comercial">Comercial</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Grid de 2 colunas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Endereço */}
+          <FormField
+            control={form.control}
+            name="street"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Endereço</FormLabel>
+                <FormControl>
+                  <Input {...field} className="h-11" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Número */}
+          <FormField
+            control={form.control}
+            name="number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Número</FormLabel>
+                <FormControl>
+                  <Input {...field} className="h-11" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Bairro */}
+          <FormField
+            control={form.control}
+            name="neighborhood"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Bairro</FormLabel>
+                <FormControl>
+                  <Input {...field} className="h-11" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Cidade */}
+          <FormField
+            control={form.control}
+            name="city"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cidade</FormLabel>
+                <FormControl>
+                  <Input {...field} className="h-11" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Quartos */}
+          <FormField
+            control={form.control}
+            name="bedrooms"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Quartos</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} className="h-11" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Vagas */}
+          <FormField
+            control={form.control}
+            name="parking_spaces"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Vagas</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} className="h-11" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Área */}
+          <FormField
+            control={form.control}
+            name="total_area"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Área (m²)</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} className="h-11" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Preço */}
+          <FormField
+            control={form.control}
+            name="price_amount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Preço (R$)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    {...field}
+                    className="h-11"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Descrição */}
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Descrição</FormLabel>
+              <FormControl>
+                <Textarea {...field} rows={5} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* 🆕 VISIBILIDADE (Seção 20.2) */}
+        <FormField
+          control={form.control}
+          name="visibility"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Visibilidade</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Quem pode ver este imóvel?" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="private">
+                    Privado - Apenas eu
+                  </SelectItem>
+                  <SelectItem value="network">
+                    Rede - Minha imobiliária
+                  </SelectItem>
+                  <SelectItem value="marketplace">
+                    Marketplace - Todos os corretores
+                  </SelectItem>
+                  <SelectItem value="public">
+                    Público - Internet (site + SEO)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* 🆕 COMISSÃO DE CO-CORRETAGEM (Seção 20.2) */}
+        {form.watch('visibility') === 'marketplace' && (
+          <FormField
+            control={form.control}
+            name="co_broker_commission"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Comissão Oferecida ao Vendedor (%)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="40"
+                    {...field}
+                    className="h-11"
+                  />
+                </FormControl>
+                <p className="text-sm text-muted-foreground">
+                  Percentual da comissão total que será pago ao corretor vendedor
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        <div className="flex gap-4">
+          <Button type="submit">Salvar</Button>
+          <Button type="button" variant="outline">Cancelar</Button>
+        </div>
+      </form>
+    </Form>
+  )
+}
+```
+
+========================
+🆕 GESTÃO DE FOTOS E VÍDEOS (Seção 23)
+========================
+
+**IMPORTANTE**: Este módulo implementa a Seção 23 do AI_DEV_DIRECTIVE:
+- Upload de fotos com preview
+- Upload de vídeos (direto + YouTube/Instagram)
+- Drag-and-drop para ordenação manual
+- Indicadores de qualidade (Vision API)
+- Badges de tipo de cômodo (living_room, kitchen, bedroom, etc.)
+- Botão "Aplicar Sugestão de IA" para ordenação automática
+- Thumbnails de vídeos gerados automaticamente
+
+### PhotoVideoManager (components/properties/PhotoVideoManager.tsx)
+```typescript
+'use client'
+
+import { useState, useCallback } from 'react'
+import { useDropzone } from 'react-dropzone'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PhotoGrid } from './PhotoGrid'
+import { VideoGrid } from './VideoGrid'
+import { VideoEmbedForm } from './VideoEmbedForm'
+import { Upload, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '@/contexts/AuthContext'
+
+interface Photo {
+  id: string
+  url: string
+  thumbURL: string
+  order: number
+  // 🆕 Vision API fields (AI_DEV_DIRECTIVE Seção 23)
+  room_type?: string // "living_room", "kitchen", "bedroom", "bathroom", "exterior"
+  quality?: number // 0.0 - 1.0
+  suggested_order?: number
+}
+
+interface Video {
+  id: string
+  url: string
+  thumbnailURL: string
+  duration: number
+  source: 'upload' | 'youtube' | 'instagram'
+  sourceURL?: string
+  order: number
+}
+
+interface PhotoVideoManagerProps {
+  propertyId: string
+  photos: Photo[]
+  videos: Video[]
+  onPhotosChange: (photos: Photo[]) => void
+  onVideosChange: (videos: Video[]) => void
+}
+
+export function PhotoVideoManager({
+  propertyId,
+  photos,
+  videos,
+  onPhotosChange,
+  onVideosChange
+}: PhotoVideoManagerProps) {
+  const { tenantId } = useAuth()
+  const [uploading, setUploading] = useState(false)
+
+  // 🆕 UPLOAD DE FOTOS
+  const onPhotoDrop = useCallback(async (acceptedFiles: File[]) => {
+    setUploading(true)
+    const formData = new FormData()
+    acceptedFiles.forEach(file => formData.append('photos', file))
+
+    try {
+      const token = await auth.currentUser?.getIdToken()
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/tenants/${tenantId}/properties/${propertyId}/photos`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        }
+      )
+
+      if (response.ok) {
+        const newPhotos = await response.json()
+        onPhotosChange([...photos, ...newPhotos])
+        toast.success(`${acceptedFiles.length} foto(s) enviada(s)! Analisando qualidade...`)
+      } else {
+        toast.error('Erro ao enviar fotos')
+      }
+    } catch (error) {
+      toast.error('Erro no upload de fotos')
+    } finally {
+      setUploading(false)
+    }
+  }, [photos, propertyId, tenantId])
+
+  // 🆕 UPLOAD DE VÍDEOS
+  const onVideoDrop = useCallback(async (acceptedFiles: File[]) => {
+    // Validar tamanho máximo (500MB)
+    const maxSize = 500 * 1024 * 1024 // 500MB
+    const invalidFiles = acceptedFiles.filter(f => f.size > maxSize)
+
+    if (invalidFiles.length > 0) {
+      toast.error(`Vídeos devem ter no máximo 500MB`)
+      return
+    }
+
+    setUploading(true)
+    const formData = new FormData()
+    acceptedFiles.forEach(file => formData.append('videos', file))
+
+    try {
+      const token = await auth.currentUser?.getIdToken()
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/tenants/${tenantId}/properties/${propertyId}/videos`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        }
+      )
+
+      if (response.ok) {
+        const newVideos = await response.json()
+        onVideosChange([...videos, ...newVideos])
+        toast.success(`${acceptedFiles.length} vídeo(s) enviado(s)! Processando e comprimindo...`)
+      } else {
+        toast.error('Erro ao enviar vídeos')
+      }
+    } catch (error) {
+      toast.error('Erro no upload de vídeos')
+    } finally {
+      setUploading(false)
+    }
+  }, [videos, propertyId, tenantId])
+
+  const photoDropzone = useDropzone({
+    onDrop: onPhotoDrop,
+    accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'] },
+    multiple: true,
+    disabled: uploading
+  })
+
+  const videoDropzone = useDropzone({
+    onDrop: onVideoDrop,
+    accept: { 'video/*': ['.mp4', '.mov', '.avi'] },
+    multiple: true,
+    disabled: uploading
+  })
+
+  // 🆕 APLICAR SUGESTÃO DE IA (Seção 23.2.5)
+  async function handleApplyAISuggestion() {
+    const sortedPhotos = [...photos].sort((a, b) => {
+      // Se tem suggested_order, usar
+      if (a.suggested_order !== undefined && b.suggested_order !== undefined) {
+        return a.suggested_order - b.suggested_order
+      }
+      // Fallback para ordem atual
+      return a.order - b.order
+    })
+
+    // Atualizar ordem
+    const updatedPhotos = sortedPhotos.map((photo, index) => ({
+      ...photo,
+      order: index
+    }))
+
+    onPhotosChange(updatedPhotos)
+    toast.success('Ordem das fotos otimizada por IA!')
+  }
+
+  return (
+    <div className="space-y-6">
+      <Tabs defaultValue="photos" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="photos">Fotos ({photos.length})</TabsTrigger>
+          <TabsTrigger value="videos">Vídeos ({videos.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="photos" className="space-y-4">
+          {/* Upload Zone */}
+          <Card>
+            <CardContent className="pt-6">
+              <div
+                {...photoDropzone.getRootProps()}
+                className={`
+                  border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
+                  transition-colors
+                  ${photoDropzone.isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300'}
+                  ${uploading ? 'opacity-50 pointer-events-none' : ''}
+                `}
+              >
+                <input {...photoDropzone.getInputProps()} />
+                <Upload className="h-10 w-10 mx-auto mb-3 text-gray-400" />
+                <p className="font-medium">Arraste fotos aqui ou clique para selecionar</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  JPG, PNG ou WebP (múltiplos arquivos)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 🆕 Botão de Sugestão de IA */}
+          {photos.length > 0 && photos.some(p => p.suggested_order !== undefined) && (
+            <div className="flex justify-end">
+              <Button
+                onClick={handleApplyAISuggestion}
+                variant="outline"
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                Aplicar Sugestão de IA
+              </Button>
+            </div>
+          )}
+
+          {/* 🆕 Photo Grid com Drag & Drop */}
+          <PhotoGrid
+            photos={photos}
+            onReorder={onPhotosChange}
+            onDelete={(photoId) => {
+              onPhotosChange(photos.filter(p => p.id !== photoId))
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="videos" className="space-y-4">
+          {/* Upload Zone */}
+          <Card>
+            <CardContent className="pt-6">
+              <div
+                {...videoDropzone.getRootProps()}
+                className={`
+                  border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
+                  transition-colors
+                  ${videoDropzone.isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300'}
+                  ${uploading ? 'opacity-50 pointer-events-none' : ''}
+                `}
+              >
+                <input {...videoDropzone.getInputProps()} />
+                <Upload className="h-10 w-10 mx-auto mb-3 text-gray-400" />
+                <p className="font-medium">Arraste vídeos aqui ou clique para selecionar</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  MP4, MOV ou AVI (máx. 500MB por arquivo)
+                </p>
+                <p className="text-xs text-muted-foreground mt-2 bg-blue-50 p-2 rounded">
+                  💡 Vídeos serão automaticamente comprimidos (~50% menor) e otimizados para streaming
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 🆕 Embed YouTube/Instagram */}
+          <VideoEmbedForm
+            propertyId={propertyId}
+            onVideoAdded={(video) => {
+              onVideosChange([...videos, video])
+            }}
+          />
+
+          {/* 🆕 Video Grid com Drag & Drop */}
+          <VideoGrid
+            videos={videos}
+            onReorder={onVideosChange}
+            onDelete={(videoId) => {
+              onVideosChange(videos.filter(v => v.id !== videoId))
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+```
+
+### 🆕 PhotoGrid com Drag & Drop (components/properties/PhotoGrid.tsx)
+```typescript
+'use client'
+
+import { useState } from 'react'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable'
+import { SortablePhoto } from './SortablePhoto'
+
+interface Photo {
+  id: string
+  url: string
+  thumbURL: string
+  order: number
+  room_type?: string
+  quality?: number
+  suggested_order?: number
+}
+
+interface PhotoGridProps {
+  photos: Photo[]
+  onReorder: (photos: Photo[]) => void
+  onDelete: (photoId: string) => void
+}
+
+export function PhotoGrid({ photos, onReorder, onDelete }: PhotoGridProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  function handleDragEnd(event: any) {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const oldIndex = photos.findIndex(p => p.id === active.id)
+      const newIndex = photos.findIndex(p => p.id === over.id)
+
+      const reorderedPhotos = arrayMove(photos, oldIndex, newIndex).map((photo, index) => ({
+        ...photo,
+        order: index
+      }))
+
+      onReorder(reorderedPhotos)
+    }
+  }
+
+  if (photos.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+        Nenhuma foto adicionada
+      </div>
+    )
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext items={photos.map(p => p.id)} strategy={rectSortingStrategy}>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {photos
+            .sort((a, b) => a.order - b.order)
+            .map((photo) => (
+              <SortablePhoto
+                key={photo.id}
+                photo={photo}
+                onDelete={() => onDelete(photo.id)}
+              />
+            ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  )
+}
+```
+
+### 🆕 SortablePhoto com Qualidade (components/properties/SortablePhoto.tsx)
+```typescript
+'use client'
+
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Trash2, GripVertical } from 'lucide-react'
+import Image from 'next/image'
+
+interface Photo {
+  id: string
+  url: string
+  thumbURL: string
+  order: number
+  room_type?: string
+  quality?: number
+  suggested_order?: number
+}
+
+interface SortablePhotoProps {
+  photo: Photo
+  onDelete: () => void
+}
+
+export function SortablePhoto({ photo, onDelete }: SortablePhotoProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: photo.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1
+  }
+
+  // 🆕 Tradução de room_type (Seção 23.2.3)
+  const roomTypeLabels: Record<string, string> = {
+    living_room: 'Sala',
+    kitchen: 'Cozinha',
+    bedroom: 'Quarto',
+    bathroom: 'Banheiro',
+    exterior: 'Fachada',
+    other: 'Outro'
+  }
+
+  // 🆕 Cor do badge de qualidade (Seção 23.2.4)
+  function getQualityColor(quality: number) {
+    if (quality >= 0.8) return 'bg-green-100 text-green-700'
+    if (quality >= 0.6) return 'bg-yellow-100 text-yellow-700'
+    return 'bg-red-100 text-red-700'
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card className="overflow-hidden group relative">
+        <CardContent className="p-0">
+          {/* Image */}
+          <div className="relative aspect-video bg-gray-100">
+            <Image
+              src={photo.thumbURL}
+              alt={`Foto ${photo.order + 1}`}
+              fill
+              className="object-cover"
+            />
+
+            {/* Drag Handle */}
+            <div
+              {...attributes}
+              {...listeners}
+              className="absolute top-2 left-2 cursor-grab active:cursor-grabbing bg-white/90 rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <GripVertical className="h-5 w-5 text-gray-600" />
+            </div>
+
+            {/* Delete Button */}
+            <Button
+              onClick={onDelete}
+              variant="destructive"
+              size="sm"
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+
+            {/* 🆕 Order Badge */}
+            <Badge
+              variant="secondary"
+              className="absolute bottom-2 left-2 bg-black/70 text-white hover:bg-black/70"
+            >
+              #{photo.order + 1}
+            </Badge>
+          </div>
+
+          {/* 🆕 Metadata (Seção 23) */}
+          <div className="p-3 space-y-2">
+            <div className="flex gap-2 flex-wrap">
+              {/* Room Type Badge */}
+              {photo.room_type && (
+                <Badge variant="outline" className="text-xs">
+                  {roomTypeLabels[photo.room_type] || photo.room_type}
+                </Badge>
+              )}
+
+              {/* Quality Badge */}
+              {photo.quality !== undefined && (
+                <Badge
+                  variant="outline"
+                  className={`text-xs ${getQualityColor(photo.quality)}`}
+                >
+                  Qualidade: {Math.round(photo.quality * 100)}%
+                </Badge>
+              )}
+
+              {/* AI Suggestion Indicator */}
+              {photo.suggested_order !== undefined && photo.suggested_order !== photo.order && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                  IA sugere: #{photo.suggested_order + 1}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+```
+
+### 🆕 VideoGrid com Drag & Drop (components/properties/VideoGrid.tsx)
+```typescript
+'use client'
+
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable'
+import { SortableVideo } from './SortableVideo'
+
+interface Video {
+  id: string
+  url: string
+  thumbnailURL: string
+  duration: number
+  source: 'upload' | 'youtube' | 'instagram'
+  sourceURL?: string
+  order: number
+}
+
+interface VideoGridProps {
+  videos: Video[]
+  onReorder: (videos: Video[]) => void
+  onDelete: (videoId: string) => void
+}
+
+export function VideoGrid({ videos, onReorder, onDelete }: VideoGridProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  function handleDragEnd(event: any) {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const oldIndex = videos.findIndex(v => v.id === active.id)
+      const newIndex = videos.findIndex(v => v.id === over.id)
+
+      const reorderedVideos = arrayMove(videos, oldIndex, newIndex).map((video, index) => ({
+        ...video,
+        order: index
+      }))
+
+      onReorder(reorderedVideos)
+    }
+  }
+
+  if (videos.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+        Nenhum vídeo adicionado
+      </div>
+    )
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext items={videos.map(v => v.id)} strategy={rectSortingStrategy}>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {videos
+            .sort((a, b) => a.order - b.order)
+            .map((video) => (
+              <SortableVideo
+                key={video.id}
+                video={video}
+                onDelete={() => onDelete(video.id)}
+              />
+            ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  )
+}
+```
+
+### 🆕 SortableVideo (components/properties/SortableVideo.tsx)
+```typescript
+'use client'
+
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Trash2, GripVertical, Play, Youtube, Instagram } from 'lucide-react'
+import Image from 'next/image'
+
+interface Video {
+  id: string
+  url: string
+  thumbnailURL: string
+  duration: number
+  source: 'upload' | 'youtube' | 'instagram'
+  sourceURL?: string
+  order: number
+}
+
+interface SortableVideoProps {
+  video: Video
+  onDelete: () => void
+}
+
+export function SortableVideo({ video, onDelete }: SortableVideoProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: video.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1
+  }
+
+  // Formatar duração (segundos → mm:ss)
+  function formatDuration(seconds: number) {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Ícone de source
+  const sourceIcons = {
+    upload: Play,
+    youtube: Youtube,
+    instagram: Instagram
+  }
+  const SourceIcon = sourceIcons[video.source]
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card className="overflow-hidden group relative">
+        <CardContent className="p-0">
+          {/* Thumbnail */}
+          <div className="relative aspect-video bg-gray-100">
+            <Image
+              src={video.thumbnailURL}
+              alt={`Vídeo ${video.order + 1}`}
+              fill
+              className="object-cover"
+            />
+
+            {/* Play Overlay */}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                <Play className="h-6 w-6 text-gray-900 ml-0.5" fill="currentColor" />
+              </div>
+            </div>
+
+            {/* Drag Handle */}
+            <div
+              {...attributes}
+              {...listeners}
+              className="absolute top-2 left-2 cursor-grab active:cursor-grabbing bg-white/90 rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            >
+              <GripVertical className="h-5 w-5 text-gray-600" />
+            </div>
+
+            {/* Delete Button */}
+            <Button
+              onClick={onDelete}
+              variant="destructive"
+              size="sm"
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+
+            {/* Duration Badge */}
+            <Badge
+              variant="secondary"
+              className="absolute bottom-2 right-2 bg-black/70 text-white hover:bg-black/70"
+            >
+              {formatDuration(video.duration)}
+            </Badge>
+
+            {/* Order Badge */}
+            <Badge
+              variant="secondary"
+              className="absolute bottom-2 left-2 bg-black/70 text-white hover:bg-black/70"
+            >
+              #{video.order + 1}
+            </Badge>
+          </div>
+
+          {/* Metadata */}
+          <div className="p-3">
+            <div className="flex items-center gap-2">
+              <SourceIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground capitalize">
+                {video.source === 'upload' ? 'Upload direto' : video.source}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+```
+
+### 🆕 VideoEmbedForm (components/properties/VideoEmbedForm.tsx)
+```typescript
+'use client'
+
+import { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Youtube, Instagram } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '@/contexts/AuthContext'
+
+interface VideoEmbedFormProps {
+  propertyId: string
+  onVideoAdded: (video: any) => void
+}
+
+export function VideoEmbedForm({ propertyId, onVideoAdded }: VideoEmbedFormProps) {
+  const { tenantId } = useAuth()
+  const [url, setUrl] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+
+    if (!url) {
+      toast.error('Insira uma URL válida')
+      return
+    }
+
+    // Detectar tipo (YouTube ou Instagram)
+    const isYoutube = url.includes('youtube.com') || url.includes('youtu.be')
+    const isInstagram = url.includes('instagram.com')
+
+    if (!isYoutube && !isInstagram) {
+      toast.error('Apenas URLs do YouTube ou Instagram são aceitas')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const token = await auth.currentUser?.getIdToken()
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/tenants/${tenantId}/properties/${propertyId}/videos/embed`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            url,
+            source: isYoutube ? 'youtube' : 'instagram'
+          })
+        }
+      )
+
+      if (response.ok) {
+        const video = await response.json()
+        onVideoAdded(video)
+        setUrl('')
+        toast.success('Vídeo adicionado com sucesso!')
+      } else {
+        toast.error('Erro ao adicionar vídeo')
+      }
+    } catch (error) {
+      toast.error('Erro ao processar vídeo')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Youtube className="h-5 w-5" />
+          <Instagram className="h-5 w-5" />
+          Adicionar Vídeo do YouTube ou Instagram
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <div className="flex-1">
+            <Input
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=... ou https://www.instagram.com/p/..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Adicionando...' : 'Adicionar'}
+          </Button>
+        </form>
+        <p className="text-xs text-muted-foreground mt-2">
+          Cole a URL completa do vídeo do YouTube ou Instagram
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+### Integrando no PropertyForm
+
+Adicione o PhotoVideoManager no PropertyForm (após os campos básicos):
+
+```typescript
+import { PhotoVideoManager } from './PhotoVideoManager'
+
+export function PropertyForm({ onSubmit, defaultValues }: PropertyFormProps) {
+  const [photos, setPhotos] = useState<Photo[]>(defaultValues?.photos || [])
+  const [videos, setVideos] = useState<Video[]>(defaultValues?.videos || [])
+
+  // ... resto do form
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit((data) => {
+        // Incluir photos e videos no payload
+        onSubmit({ ...data, photos, videos })
+      })}>
+        {/* ... campos existentes */}
+
+        {/* 🆕 GESTÃO DE FOTOS E VÍDEOS */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Fotos e Vídeos</h3>
+          <PhotoVideoManager
+            propertyId={defaultValues?.id || 'new'}
+            photos={photos}
+            videos={videos}
+            onPhotosChange={setPhotos}
+            onVideosChange={setVideos}
+          />
+        </div>
+
+        {/* ... botões de submit */}
+      </form>
+    </Form>
+  )
+}
+```
+
+### Dependências Adicionais
+
+```bash
+# Drag and drop
+npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+
+# Já instaladas anteriormente:
+# - react-dropzone
+# - sonner (toast)
+```
+
+========================
+GESTÃO DE LEADS
+========================
+
+### Lista de Leads (app/(dashboard)/leads/page.tsx)
+```typescript
+'use client'
+
+import { useLeads } from '@/hooks/use-leads'
+import { useAuth } from '@/contexts/AuthContext'
+import { LeadTable } from '@/components/leads/LeadTable'
+import { LeadFilters } from '@/components/leads/LeadFilters'
+
+export default function LeadsPage() {
+  const { user } = useAuth()
+
+  // 🆕 IMPORTANTE (Seção 20.6): Leads filtrados por PropertyBrokerRole
+  // Endpoint correto: GET /tenants/:tenantId/brokers/:brokerId/leads
+  const { data: leads, isLoading } = useLeads(user?.uid)
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Leads</h1>
+        <p className="text-muted-foreground mt-1">
+          Leads de imóveis onde você participa como corretor
+        </p>
+      </div>
+
+      <LeadFilters />
+
+      <LeadTable leads={leads || []} isLoading={isLoading} />
+    </div>
+  )
+}
+```
+
+### Tabela de Leads (components/leads/LeadTable.tsx)
+```typescript
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Eye } from 'lucide-react'
+import Link from 'next/link'
+import { formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
+interface LeadTableProps {
+  leads: any[]
+  isLoading: boolean
+}
+
+export function LeadTable({ leads, isLoading }: LeadTableProps) {
+  if (isLoading) {
+    return <div>Carregando...</div>
+  }
+
+  return (
+    <div className="border rounded-lg bg-white">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Imóvel</TableHead>
+            <TableHead>Canal</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {leads.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-muted-foreground">
+                Nenhum lead encontrado
+              </TableCell>
+            </TableRow>
+          ) : (
+            leads.map((lead) => (
+              <TableRow key={lead.id}>
+                <TableCell className="font-medium">
+                  {lead.property_reference}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={lead.channel === 'whatsapp' ? 'default' : 'secondary'}>
+                    {lead.channel}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {formatDistanceToNow(new Date(lead.created_at), {
+                    addSuffix: true,
+                    locale: ptBR
+                  })}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{lead.status}</Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link href={`/leads/${lead.id}`}>
+                    <Button variant="ghost" size="sm">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+```
+
+========================
+🆕 BUSCA INTERNA DE IMÓVEIS (Seção 20.3)
+========================
+
+### Página de Busca Interna (app/(dashboard)/buscar-imoveis/page.tsx)
+```typescript
+'use client'
+
+import { useState } from 'react'
+import { usePropertySearch } from '@/hooks/use-property-search'
+import { useAuth } from '@/contexts/AuthContext'
+import { PropertySearchCard } from '@/components/properties/PropertySearchCard'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Search } from 'lucide-react'
+
+export default function PropertySearchPage() {
+  const { tenantId } = useAuth()
+  const [filters, setFilters] = useState({
+    visibility: 'all', // all, network, marketplace
+    property_type: '',
+    city: '',
+    min_price: '',
+    max_price: ''
+  })
+
+  const { data: properties, isLoading } = usePropertySearch(tenantId!, filters)
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Buscar Imóveis</h1>
+        <p className="text-muted-foreground mt-1">
+          Encontre imóveis da sua rede ou marketplace para fechar negócios
+        </p>
+      </div>
+
+      {/* Filtros */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-4 rounded-lg border">
+        <Select
+          value={filters.visibility}
+          onValueChange={(v) => setFilters({ ...filters, visibility: v })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="network">Apenas Rede</SelectItem>
+            <SelectItem value="marketplace">Apenas Marketplace</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Input
+          placeholder="Cidade"
+          value={filters.city}
+          onChange={(e) => setFilters({ ...filters, city: e.target.value })}
+        />
+
+        <Input
+          type="number"
+          placeholder="Preço mín"
+          value={filters.min_price}
+          onChange={(e) => setFilters({ ...filters, min_price: e.target.value })}
+        />
+
+        <Input
+          type="number"
+          placeholder="Preço máx"
+          value={filters.max_price}
+          onChange={(e) => setFilters({ ...filters, max_price: e.target.value })}
+        />
+      </div>
+
+      {/* Resultados */}
+      {isLoading ? (
+        <div>Carregando...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {properties?.map((property) => (
+            <PropertySearchCard key={property.id} property={property} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+### PropertySearchCard (components/properties/PropertySearchCard.tsx)
+```typescript
+'use client'
+
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { VisibilityBadge } from './VisibilityBadge'
+import { Handshake } from 'lucide-react'
+import { useManifestInterest } from '@/hooks/use-partnerships'
+import { toast } from 'sonner'
+
+interface PropertySearchCardProps {
+  property: any
+}
+
+export function PropertySearchCard({ property }: PropertySearchCardProps) {
+  const manifestInterest = useManifestInterest()
+
+  async function handleInterest() {
+    try {
+      await manifestInterest.mutateAsync({
+        propertyId: property.id,
+        tenantId: property.tenant_id
+      })
+      toast.success('Interesse registrado! Aguarde aprovação do captador.')
+    } catch (error) {
+      toast.error('Erro ao registrar interesse')
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg">{property.property_type}</h3>
+            <p className="text-sm text-muted-foreground">
+              {property.neighborhood}, {property.city}
+            </p>
+          </div>
+          <VisibilityBadge visibility={property.visibility} />
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-3">
+        <div>
+          <p className="text-2xl font-bold text-primary">
+            {new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            }).format(property.price_amount)}
+          </p>
+        </div>
+
+        <div className="flex gap-4 text-sm text-muted-foreground">
+          {property.bedrooms && <span>{property.bedrooms} quartos</span>}
+          {property.total_area && <span>{property.total_area}m²</span>}
+        </div>
+
+        {property.visibility === 'marketplace' && property.co_broker_commission && (
+          <Badge variant="outline" className="bg-green-50 text-green-700">
+            Comissão: {property.co_broker_commission}%
+          </Badge>
+        )}
+      </CardContent>
+
+      <CardFooter>
+        <Button
+          onClick={handleInterest}
+          disabled={manifestInterest.isPending}
+          className="w-full"
+        >
+          <Handshake className="mr-2 h-4 w-4" />
+          {manifestInterest.isPending ? 'Enviando...' : 'Tenho um Cliente'}
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+```
+
+========================
+🆕 GESTÃO DE PARCERIAS (Seção 20.3)
+========================
+
+### Página de Parcerias (app/(dashboard)/parcerias/page.tsx)
+```typescript
+'use client'
+
+import { useAuth } from '@/contexts/AuthContext'
+import { usePartnerships, usePendingRequests } from '@/hooks/use-partnerships'
+import { PartnershipRequestCard } from '@/components/partnerships/PartnershipRequestCard'
+import { PartnershipTable } from '@/components/partnerships/PartnershipTable'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
+
+export default function PartnershipsPage() {
+  const { user, tenantId } = useAuth()
+
+  // Solicitações PENDENTES onde o corretor é o CAPTADOR
+  const { data: pendingRequests, isLoading: loadingPending } = usePendingRequests(user?.uid)
+
+  // Parcerias ATIVAS onde o corretor participa
+  const { data: activePartnerships, isLoading: loadingActive } = usePartnerships(user?.uid)
+
+  const pendingCount = pendingRequests?.length || 0
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Parcerias</h1>
+        <p className="text-muted-foreground mt-1">
+          Gerencie solicitações e parcerias ativas de co-corretagem
+        </p>
+      </div>
+
+      <Tabs defaultValue="pending" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="pending">
+            Pendentes
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="active">Ativas</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending" className="space-y-4">
+          {loadingPending ? (
+            <div>Carregando...</div>
+          ) : pendingRequests && pendingRequests.length > 0 ? (
+            pendingRequests.map((request) => (
+              <PartnershipRequestCard key={request.id} request={request} />
+            ))
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              Nenhuma solicitação pendente
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="active">
+          {loadingActive ? (
+            <div>Carregando...</div>
+          ) : (
+            <PartnershipTable partnerships={activePartnerships || []} />
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+```
+
+### PartnershipRequestCard (components/partnerships/PartnershipRequestCard.tsx)
+```typescript
+'use client'
+
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { useApprovePartnership, useRejectPartnership } from '@/hooks/use-partnerships'
+import { toast } from 'sonner'
+import { Check, X, User, Building2 } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
+interface PartnershipRequestCardProps {
+  request: any
+}
+
+export function PartnershipRequestCard({ request }: PartnershipRequestCardProps) {
+  const approve = useApprovePartnership()
+  const reject = useRejectPartnership()
+
+  async function handleApprove() {
+    try {
+      await approve.mutateAsync({
+        propertyId: request.property_id,
+        brokerId: request.broker_id
+      })
+      toast.success('Parceria aprovada!')
+    } catch (error) {
+      toast.error('Erro ao aprovar parceria')
+    }
+  }
+
+  async function handleReject() {
+    try {
+      await reject.mutateAsync({
+        propertyId: request.property_id,
+        brokerId: request.broker_id
+      })
+      toast.success('Solicitação rejeitada')
+    } catch (error) {
+      toast.error('Erro ao rejeitar solicitação')
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="font-semibold">{request.broker_name}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Building2 className="h-4 w-4" />
+              <span>{request.property_reference}</span>
+            </div>
+          </div>
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
+            Pendente
+          </Badge>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        <div className="space-y-2 text-sm">
+          <div>
+            <span className="text-muted-foreground">Imóvel:</span>{' '}
+            <span className="font-medium">
+              {request.property_type} - {request.neighborhood}, {request.city}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Comissão oferecida:</span>{' '}
+            <span className="font-medium text-green-600">
+              {request.co_broker_commission}%
+            </span>
+          </div>
+          <div className="text-muted-foreground text-xs">
+            {formatDistanceToNow(new Date(request.created_at), {
+              addSuffix: true,
+              locale: ptBR
+            })}
+          </div>
+        </div>
+      </CardContent>
+
+      <CardFooter className="flex gap-2">
+        <Button
+          onClick={handleApprove}
+          disabled={approve.isPending || reject.isPending}
+          className="flex-1"
+        >
+          <Check className="mr-2 h-4 w-4" />
+          Aprovar
+        </Button>
+        <Button
+          onClick={handleReject}
+          disabled={approve.isPending || reject.isPending}
+          variant="outline"
+          className="flex-1"
+        >
+          <X className="mr-2 h-4 w-4" />
+          Rejeitar
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+```
+
+### PartnershipTable (components/partnerships/PartnershipTable.tsx)
+```typescript
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
+interface PartnershipTableProps {
+  partnerships: any[]
+}
+
+export function PartnershipTable({ partnerships }: PartnershipTableProps) {
+  return (
+    <div className="border rounded-lg bg-white">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Imóvel</TableHead>
+            <TableHead>Parceiro</TableHead>
+            <TableHead>Papel</TableHead>
+            <TableHead>Comissão</TableHead>
+            <TableHead>Data</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {partnerships.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-muted-foreground">
+                Nenhuma parceria ativa
+              </TableCell>
+            </TableRow>
+          ) : (
+            partnerships.map((partnership) => (
+              <TableRow key={partnership.id}>
+                <TableCell className="font-medium">
+                  {partnership.property_reference}
+                </TableCell>
+                <TableCell>{partnership.broker_name}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">
+                    {partnership.role === 'originating_broker' && 'Captador'}
+                    {partnership.role === 'selling_broker' && 'Vendedor'}
+                    {partnership.role === 'co_broker' && 'Co-corretor'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {partnership.commission_percentage}%
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {formatDistanceToNow(new Date(partnership.created_at), {
+                    addSuffix: true,
+                    locale: ptBR
+                  })}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+```
+
+========================
+IMPORTAÇÃO DE XML/XLS
+========================
+
+### Página de Importação (app/(dashboard)/importacao/page.tsx)
+```typescript
+'use client'
+
+import { ImportUploader } from '@/components/import/ImportUploader'
+import { ImportHistory } from '@/components/import/ImportHistory'
+
+export default function ImportPage() {
+  return (
+    <div className="space-y-8">
+      <h1 className="text-3xl font-bold">Importação de Imóveis</h1>
+
+      {/* Upload */}
+      <ImportUploader />
+
+      {/* Histórico */}
+      <ImportHistory />
+    </div>
+  )
+}
+```
+
+### Uploader (components/import/ImportUploader.tsx)
+```typescript
+'use client'
+
+import { useState, useCallback } from 'react'
+import { useDropzone } from 'react-dropzone'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Upload, FileText } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+
+export function ImportUploader() {
+  const [files, setFiles] = useState<File[]>([])
+  const [uploading, setUploading] = useState(false)
+  const { tenantId } = useAuth()
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setFiles(acceptedFiles)
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'text/xml': ['.xml'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+    }
+  })
+
+  async function handleUpload() {
+    if (files.length === 0 || !tenantId) return
+
+    setUploading(true)
+
+    const formData = new FormData()
+    files.forEach((file) => {
+      if (file.name.endsWith('.xml')) {
+        formData.append('xml_file', file)
+      } else {
+        formData.append('xls_file', file)
+      }
+    })
+    formData.append('source', 'union')
+
+    try {
+      const token = await auth.currentUser?.getIdToken()
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/tenants/${tenantId}/import`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        }
+      )
+
+      if (response.ok) {
+        alert('Importação iniciada com sucesso!')
+        setFiles([])
+      } else {
+        alert('Erro ao iniciar importação')
+      }
+    } catch (error) {
+      console.error('Erro:', error)
+      alert('Erro ao fazer upload')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <Card className="p-6">
+      <div
+        {...getRootProps()}
+        className={`
+          border-2 border-dashed rounded-lg p-12 text-center cursor-pointer
+          transition-colors
+          ${isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300'}
+        `}
+      >
+        <input {...getInputProps()} />
+        <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+        {isDragActive ? (
+          <p>Solte os arquivos aqui...</p>
+        ) : (
+          <div>
+            <p className="text-lg font-medium">Arraste arquivos XML/XLS aqui</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              ou clique para selecionar
+            </p>
+          </div>
+        )}
+      </div>
+
+      {files.length > 0 && (
+        <div className="mt-6 space-y-2">
+          <p className="font-medium">Arquivos selecionados:</p>
+          {files.map((file, index) => (
+            <div key={index} className="flex items-center gap-2 text-sm">
+              <FileText className="h-4 w-4" />
+              {file.name}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {files.length > 0 && (
+        <Button
+          onClick={handleUpload}
+          disabled={uploading}
+          className="mt-4 w-full"
+        >
+          {uploading ? 'Enviando...' : 'Iniciar Importação'}
+        </Button>
+      )}
+    </Card>
+  )
+}
+```
+
+========================
+API CLIENT
+========================
+
+### lib/api.ts
+```typescript
+import { auth } from './firebase'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const token = await auth.currentUser?.getIdToken()
+
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  }
+
+  const response = await fetch(`${API_URL}${url}`, {
+    ...options,
+    headers
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+
+  return response.json()
+}
+
+// Properties
+export const api = {
+  properties: {
+    list: (tenantId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties`),
+
+    get: (tenantId: string, propertyId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties/${propertyId}`),
+
+    create: (tenantId: string, data: any) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    update: (tenantId: string, propertyId: string, data: any) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties/${propertyId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      }),
+
+    delete: (tenantId: string, propertyId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties/${propertyId}`, {
+        method: 'DELETE'
+      }),
+
+    // 🆕 BUSCA INTERNA (Seção 20.3)
+    search: (tenantId: string, filters: any) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties/search?${new URLSearchParams(filters)}`)
+  },
+
+  // 🆕 PARCERIAS (Seção 20.3)
+  partnerships: {
+    // Manifestar interesse ("Tenho um Cliente")
+    manifestInterest: (tenantId: string, propertyId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties/${propertyId}/brokers/interest`, {
+        method: 'POST'
+      }),
+
+    // Aprovar parceria (captador)
+    approve: (tenantId: string, propertyId: string, brokerId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties/${propertyId}/brokers/${brokerId}/approve`, {
+        method: 'PATCH'
+      }),
+
+    // Rejeitar parceria (captador)
+    reject: (tenantId: string, propertyId: string, brokerId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties/${propertyId}/brokers/${brokerId}/reject`, {
+        method: 'PATCH'
+      }),
+
+    // Listar solicitações pendentes (corretor como captador)
+    listPendingRequests: (tenantId: string, brokerId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/brokers/${brokerId}/partnership-requests?status=pending`),
+
+    // Listar parcerias ativas (corretor participa)
+    listActive: (tenantId: string, brokerId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/brokers/${brokerId}/partnerships?status=active`),
+
+    // Alterar primary broker
+    changePrimary: (tenantId: string, propertyId: string, newPrimaryBrokerId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/properties/${propertyId}/primary-broker`, {
+        method: 'PATCH',
+        body: JSON.stringify({ new_primary_broker_id: newPrimaryBrokerId })
+      })
+  },
+
+  leads: {
+    // 🆕 CORRETO (Seção 20.6): Filtrado por PropertyBrokerRole
+    list: (tenantId: string, brokerId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/brokers/${brokerId}/leads`),
+
+    get: (tenantId: string, leadId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/leads/${leadId}`)
+  },
+
+  imports: {
+    list: (tenantId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/import_batches`),
+
+    get: (tenantId: string, batchId: string) =>
+      fetchWithAuth(`/api/v1/tenants/${tenantId}/import_batches/${batchId}`)
+  }
+}
+```
+
+========================
+REACT QUERY HOOKS
+========================
+
+### hooks/use-properties.ts
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
+
+export function useProperties() {
+  const { tenantId } = useAuth()
+
+  return useQuery({
+    queryKey: ['properties', tenantId],
+    queryFn: () => api.properties.list(tenantId!),
+    enabled: !!tenantId
+  })
+}
+
+export function useProperty(propertyId: string) {
+  const { tenantId } = useAuth()
+
+  return useQuery({
+    queryKey: ['property', tenantId, propertyId],
+    queryFn: () => api.properties.get(tenantId!, propertyId),
+    enabled: !!tenantId && !!propertyId
+  })
+}
+
+export function useCreateProperty() {
+  const { tenantId } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: any) => api.properties.create(tenantId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties', tenantId] })
+    }
+  })
+}
+```
+
+### 🆕 hooks/use-property-search.ts (Seção 20.3)
+```typescript
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
+
+export function usePropertySearch(tenantId: string, filters: any) {
+  return useQuery({
+    queryKey: ['property-search', tenantId, filters],
+    queryFn: () => api.properties.search(tenantId, filters),
+    enabled: !!tenantId
+  })
+}
+```
+
+### 🆕 hooks/use-partnerships.ts (Seção 20.3)
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
+
+// Manifestar interesse ("Tenho um Cliente")
+export function useManifestInterest() {
+  const { tenantId } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ propertyId, tenantId: propertyTenantId }: { propertyId: string, tenantId: string }) =>
+      api.partnerships.manifestInterest(propertyTenantId, propertyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partnerships'] })
+    }
+  })
+}
+
+// Aprovar parceria
+export function useApprovePartnership() {
+  const { tenantId } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ propertyId, brokerId }: { propertyId: string, brokerId: string }) =>
+      api.partnerships.approve(tenantId!, propertyId, brokerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partnership-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['partnerships'] })
+    }
+  })
+}
+
+// Rejeitar parceria
+export function useRejectPartnership() {
+  const { tenantId } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ propertyId, brokerId }: { propertyId: string, brokerId: string }) =>
+      api.partnerships.reject(tenantId!, propertyId, brokerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partnership-requests'] })
+    }
+  })
+}
+
+// Listar solicitações pendentes (corretor como captador)
+export function usePendingRequests(brokerId?: string) {
+  const { tenantId } = useAuth()
+
+  return useQuery({
+    queryKey: ['partnership-requests', tenantId, brokerId, 'pending'],
+    queryFn: () => api.partnerships.listPendingRequests(tenantId!, brokerId!),
+    enabled: !!tenantId && !!brokerId
+  })
+}
+
+// Listar parcerias ativas (corretor participa)
+export function usePartnerships(brokerId?: string) {
+  const { tenantId } = useAuth()
+
+  return useQuery({
+    queryKey: ['partnerships', tenantId, brokerId, 'active'],
+    queryFn: () => api.partnerships.listActive(tenantId!, brokerId!),
+    enabled: !!tenantId && !!brokerId
+  })
+}
+
+// Alterar primary broker
+export function useChangePrimaryBroker() {
+  const { tenantId } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ propertyId, newPrimaryBrokerId }: { propertyId: string, newPrimaryBrokerId: string }) =>
+      api.partnerships.changePrimary(tenantId!, propertyId, newPrimaryBrokerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] })
+      queryClient.invalidateQueries({ queryKey: ['partnerships'] })
+    }
+  })
+}
+```
+
+### 🆕 hooks/use-leads.ts (ATUALIZADO - Seção 20.6)
+```typescript
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { useAuth } from '@/contexts/AuthContext'
+
+// 🆕 IMPORTANTE: Leads filtrados por PropertyBrokerRole
+export function useLeads(brokerId?: string) {
+  const { tenantId } = useAuth()
+
+  return useQuery({
+    queryKey: ['leads', tenantId, brokerId],
+    queryFn: () => api.leads.list(tenantId!, brokerId!),
+    enabled: !!tenantId && !!brokerId
+  })
+}
+
+export function useLead(leadId: string) {
+  const { tenantId } = useAuth()
+
+  return useQuery({
+    queryKey: ['lead', tenantId, leadId],
+    queryFn: () => api.leads.get(tenantId!, leadId),
+    enabled: !!tenantId && !!leadId
+  })
+}
+```
+
+========================
+RESPONSIVIDADE MOBILE
+========================
+
+O dashboard admin NÃO precisa de otimização mobile tão agressiva quanto o público.
+Foco em tablets e desktop.
+
+Mobile (opcional):
+- Sidebar colapsável (hamburguer)
+- Tabelas viram cards empilhados
+- Formulários single column
+
+Desktop (prioritário):
+- Sidebar fixa
+- Tabelas completas
+- Formulários grid 2 colunas
+
+========================
+SHADCN/UI SETUP
+========================
+
+### Instalação
+```bash
+npx shadcn-ui@latest init
+```
+
+### Componentes necessários
+```bash
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add input
+npx shadcn-ui@latest add label
+npx shadcn-ui@latest add card
+npx shadcn-ui@latest add table
+npx shadcn-ui@latest add dialog
+npx shadcn-ui@latest add form
+npx shadcn-ui@latest add select
+npx shadcn-ui@latest add badge
+npx shadcn-ui@latest add dropdown-menu
+npx shadcn-ui@latest add avatar
+npx shadcn-ui@latest add sheet
+npx shadcn-ui@latest add tabs
+npx shadcn-ui@latest add textarea
+```
+
+### Dependências adicionais
+```bash
+# 🆕 Notificações toast
+npm install sonner
+
+# date-fns para formatação de datas
+npm install date-fns
+
+# react-dropzone para upload de arquivos
+npm install react-dropzone
+
+# 🆕 Drag and drop (Seção 23 - Fotos e Vídeos)
+npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+```
+
+========================
+ENV VARS (.env.local)
+========================
+
+```
+# Firebase
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+
+# Backend API
+NEXT_PUBLIC_API_URL=http://localhost:8080
+```
+
+========================
+ENTREGA ESPERADA
+========================
+
+1. **Autenticação Firebase**:
+   - Login funcional (email/senha)
+   - Logout
+   - Proteção de rotas (middleware)
+   - Extração de custom claims (tenant_id, role)
+
+2. **Dashboard Layout**:
+   - Sidebar de navegação (🆕 com Buscar Imóveis e Parcerias)
+   - Header com user menu
+   - Layout responsivo
+
+3. **Gestão de Imóveis**:
+   - Lista de imóveis (tabela)
+   - Criar imóvel (formulário completo)
+   - Editar imóvel
+   - Filtros de busca
+   - 🆕 Campo de visibilidade (private, network, marketplace, public)
+   - 🆕 Campo de comissão de co-corretagem (quando marketplace)
+   - 🆕 VisibilityBadge component
+
+4. **🆕 Busca Interna de Imóveis (Seção 20.3)**:
+   - Buscar imóveis com visibility network/marketplace
+   - Filtros (visibilidade, cidade, tipo, preço)
+   - PropertySearchCard com badge de visibilidade
+   - Botão "Tenho um Cliente" (manifest interest)
+   - Exibição de comissão oferecida
+
+5. **🆕 Gestão de Parcerias (Seção 20.3)**:
+   - Aba "Pendentes" com solicitações aguardando aprovação
+   - PartnershipRequestCard com botões Aprovar/Rejeitar
+   - Badge de contagem de pendentes
+   - Aba "Ativas" com tabela de parcerias
+   - Indicação de papel (Captador, Vendedor, Co-corretor)
+   - 🆕 APROVAÇÃO MANUAL do captador (não automática)
+
+6. **Gestão de Leads (ATUALIZADO - Seção 20.6)**:
+   - 🆕 Lista de leads filtrada por PropertyBrokerRole (endpoint correto)
+   - Visualizar detalhes do lead
+   - Filtros (canal, data, status)
+   - Apenas leads de Properties onde corretor participa
+
+7. **Importação**:
+   - Upload XML/XLS (drag & drop)
+   - Histórico de importações
+   - Status do batch
+   - Lista de erros
+
+8. **API Client**:
+   - Integração com backend Go
+   - Autenticação via Firebase token
+   - React Query hooks
+   - 🆕 Endpoints de parcerias (interest, approve, reject)
+   - 🆕 Endpoint de busca interna
+   - 🆕 Endpoint de leads por broker
+
+========================
+CRITÉRIO DE SUCESSO
+========================
+
+✅ Login funcional (Firebase Auth)
+✅ Proteção de rotas (middleware)
+✅ Dashboard layout (Sidebar + Header)
+✅ CRUD de imóveis completo
+🆕 ✅ Campo de visibilidade (private, network, marketplace, public)
+🆕 ✅ Campo de comissão de co-corretagem (condicional)
+🆕 ✅ Busca interna de imóveis (network + marketplace)
+🆕 ✅ Botão "Tenho um Cliente" funcional
+🆕 ✅ Página de Parcerias (Pendentes + Ativas)
+🆕 ✅ Aprovação/Rejeição manual de parcerias
+🆕 ✅ Badge de contagem de pendentes
+✅ Visualização de leads (filtrado por PropertyBrokerRole)
+✅ Upload XML/XLS funcional
+✅ Histórico de importações
+✅ Erros de importação exibidos
+✅ API client com autenticação
+🆕 ✅ Endpoints de parcerias implementados
+✅ React Query configurado
+✅ shadcn/ui components instalados
+🆕 ✅ Sonner toast para notificações
+✅ TypeScript sem erros
+✅ Responsivo (tablet + desktop)
+
+🆕 ✅ Upload de fotos (drag & drop multifile) (Seção 23)
+🆕 ✅ Upload de vídeos (drag & drop, max 500MB) (Seção 23)
+🆕 ✅ Embed YouTube/Instagram (Seção 23)
+🆕 ✅ Drag-and-drop reordenação de fotos (Seção 23)
+🆕 ✅ Drag-and-drop reordenação de vídeos (Seção 23)
+🆕 ✅ Indicadores de qualidade da foto (0-100%) (Seção 23)
+🆕 ✅ Badges de tipo de cômodo (Sala, Cozinha, Quarto, etc.) (Seção 23)
+🆕 ✅ Botão "Aplicar Sugestão de IA" para ordenação (Seção 23)
+🆕 ✅ Badge de sugestão de ordem da IA (Seção 23)
+🆕 ✅ Thumbnails automáticos de vídeos (Seção 23)
+🆕 ✅ Preview de fotos/vídeos no grid (Seção 23)
+🆕 ✅ @dnd-kit/core instalado e configurado (Seção 23)
+
+========================
+ESCOPO PROIBIDO
+========================
+
+- Rotas públicas (/, /buscar, /imovel/[slug])
+- SSR/SEO optimization (não necessário em admin)
+- Otimização mobile agressiva (foco em desktop)
+- WhatsApp button (exclusivo do público)
+- Analytics/tracking de usuários finais
+
+========================
+🆕 CONFIGURAÇÃO ADICIONAL
+========================
+
+### Toast Provider (Sonner)
+Adicionar no `app/layout.tsx`:
+
+```typescript
+import { Toaster } from 'sonner'
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="pt-BR">
+      <body>
+        <AuthProvider>
+          {children}
+          <Toaster position="top-right" richColors />
+        </AuthProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+### 🆕 REFERÊNCIA SEÇÃO 20 (AI_DEV_DIRECTIVE)
+
+Este prompt implementa as seguintes regras da Seção 20:
+
+**20.2 - Visibilidade Escalonada**:
+- Campo `visibility` no PropertyForm (private, network, marketplace, public)
+- Campo `co_broker_commission` condicional (quando marketplace)
+- VisibilityBadge component
+
+**20.3 - Fluxo "Tenho um Cliente"**:
+- Página /buscar-imoveis com busca interna
+- PropertySearchCard com botão "Tenho um Cliente"
+- POST /properties/:propertyId/brokers/interest
+- **APROVAÇÃO MANUAL** do captador (não automática)
+- Página /parcerias com abas Pendentes e Ativas
+- PartnershipRequestCard com Aprovar/Rejeitar
+- Badge de contagem de pendentes
+
+**20.6 - Permissões de Visualização de Leads**:
+- Endpoint correto: GET /tenants/:tenantId/brokers/:brokerId/leads
+- Leads filtrados por PropertyBrokerRole
+- useLeads(brokerId) com filtro automático
+
+**20.8 - Mudança de Primary Broker**:
+- useChangePrimaryBroker() hook
+- PATCH /properties/:propertyId/primary-broker
+
+### Endpoints Novos Implementados
+
+```
+🆕 POST   /api/v1/tenants/:tenantId/properties/:propertyId/brokers/interest
+🆕 PATCH  /api/v1/tenants/:tenantId/properties/:propertyId/brokers/:brokerId/approve
+🆕 PATCH  /api/v1/tenants/:tenantId/properties/:propertyId/brokers/:brokerId/reject
+🆕 GET    /api/v1/tenants/:tenantId/brokers/:brokerId/partnership-requests?status=pending
+🆕 GET    /api/v1/tenants/:tenantId/brokers/:brokerId/partnerships?status=active
+🆕 GET    /api/v1/tenants/:tenantId/properties/search
+🆕 GET    /api/v1/tenants/:tenantId/brokers/:brokerId/leads (CORRETO)
+🆕 PATCH  /api/v1/tenants/:tenantId/properties/:propertyId/primary-broker
+
+🆕 POST   /api/v1/tenants/:tenantId/properties/:propertyId/photos (Seção 23)
+🆕 POST   /api/v1/tenants/:tenantId/properties/:propertyId/videos (Seção 23)
+🆕 POST   /api/v1/tenants/:tenantId/properties/:propertyId/videos/embed (Seção 23)
+🆕 PATCH  /api/v1/tenants/:tenantId/properties/:propertyId/photos/:photoId/order (Seção 23)
+🆕 DELETE /api/v1/tenants/:tenantId/properties/:propertyId/photos/:photoId (Seção 23)
+🆕 DELETE /api/v1/tenants/:tenantId/properties/:propertyId/videos/:videoId (Seção 23)
+```
+
+### Fluxo Completo de Parceria
+
+1. **Vendedor busca imóvel**:
+   - Acessa /buscar-imoveis
+   - Filtra por visibility (network ou marketplace)
+   - Vê PropertySearchCard com comissão oferecida
+
+2. **Vendedor manifesta interesse**:
+   - Clica "Tenho um Cliente"
+   - POST /brokers/interest
+   - PropertyBrokerRole criado com `status: "pending_approval"`
+   - Toast: "Interesse registrado! Aguarde aprovação do captador."
+
+3. **Captador recebe notificação**:
+   - Badge vermelho na sidebar "Parcerias"
+   - Email enviado pelo backend
+   - Acessa /parcerias → aba "Pendentes"
+   - Vê PartnershipRequestCard
+
+4. **Captador aprova ou rejeita**:
+   - Aprovar: PATCH /brokers/:brokerId/approve → status: "active"
+   - Rejeitar: PATCH /brokers/:brokerId/reject → status: "rejected"
+   - ActivityLog registra ação
+
+5. **Vendedor recebe confirmação**:
+   - Se aprovado: parceria aparece na aba "Ativas"
+   - Se rejeitado: solicitação removida
+   - Leads do Property começam a aparecer na lista
+
+6. **Lead chega**:
+   - Primary broker recebe WhatsApp redirect
+   - Vendedor (selling_broker ativo) recebe email + dashboard
+   - Lead aparece em /leads para ambos

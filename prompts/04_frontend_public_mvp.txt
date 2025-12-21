@@ -1,0 +1,2084 @@
+Você é um engenheiro frontend sênior especializado em Next.js e TypeScript.
+Construa o FRONTEND do MVP conforme `AI_DEV_DIRECTIVE.md`, PROMPT 01 e PROMPT 09.
+
+STACK TÉCNICA:
+- Framework: Next.js 14+ (App Router)
+- Linguagem: TypeScript 5+
+- UI Components: shadcn/ui + Tailwind CSS
+- Estado: React Query (TanStack Query) + Zustand
+- Autenticação: Firebase Auth SDK (client-side)
+- Imagens: next/image com loader customizado GCS
+- Deploy: Vercel (automático via GitHub)
+
+IMPORTANTE:
+- Executar APÓS PROMPT 01 (backend) e PROMPT 09 (auth)
+- Usar SOMENTE endpoints definidos no backend
+- NÃO criar endpoints novos
+- NÃO alterar regras de governança
+
+========================
+🎨 DESIGN SYSTEM (AI_DEV_DIRECTIVE Seção 22)
+========================
+
+**OBRIGATÓRIO**: Aplicar design system profissional desde o MVP.
+
+### Branding Placeholder
+
+```typescript
+// lib/branding.ts
+export const branding = {
+  name: process.env.NEXT_PUBLIC_APP_NAME || "ImóvelHub",
+  tagline: process.env.NEXT_PUBLIC_APP_TAGLINE || "Marketplace Imobiliário",
+  logo: process.env.NEXT_PUBLIC_LOGO_URL || "/logo-placeholder.svg",
+  favicon: process.env.NEXT_PUBLIC_FAVICON_URL || "/favicon.svg",
+  primaryColor: process.env.NEXT_PUBLIC_PRIMARY_COLOR || "#0066FF",
+  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "contato@imovelhub.com.br",
+  phone: process.env.NEXT_PUBLIC_CONTACT_PHONE || "+55 11 99999-9999"
+}
+```
+
+### Paleta de Cores (Tailwind CSS)
+
+```typescript
+// tailwind.config.ts
+export default {
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          DEFAULT: 'hsl(214, 100%, 50%)',    // #0066FF - Azul confiança
+          foreground: 'hsl(0, 0%, 100%)',     // Branco
+        },
+        secondary: {
+          DEFAULT: 'hsl(220, 13%, 91%)',      // #E8EAED - Cinza neutro
+          foreground: 'hsl(220, 9%, 46%)',    // #6B7280
+        },
+        accent: {
+          DEFAULT: 'hsl(142, 71%, 45%)',      // #22C55E - Verde sucesso
+          foreground: 'hsl(0, 0%, 100%)',
+        },
+        destructive: {
+          DEFAULT: 'hsl(0, 84%, 60%)',        // #EF4444 - Vermelho
+          foreground: 'hsl(0, 0%, 100%)',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],        // Body text
+        heading: ['Poppins', 'sans-serif'],   // Headings
+      },
+    },
+  },
+}
+```
+
+### Componentes shadcn/ui Obrigatórios
+
+```bash
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add card
+npx shadcn-ui@latest add input
+npx shadcn-ui@latest add select
+npx shadcn-ui@latest add dialog
+npx shadcn-ui@latest add dropdown-menu
+npx shadcn-ui@latest add table
+npx shadcn-ui@latest add badge
+npx shadcn-ui@latest add avatar
+npx shadcn-ui@latest add skeleton
+npx shadcn-ui@latest add toast
+npx shadcn-ui@latest add checkbox
+npx shadcn-ui@latest add label
+```
+
+### Logo Placeholder Component
+
+```tsx
+// components/ui/logo-placeholder.tsx
+import { Home } from 'lucide-react'
+import { branding } from '@/lib/branding'
+
+export function LogoPlaceholder({ variant = "full" }: { variant?: "full" | "icon" }) {
+  if (variant === "icon") {
+    return (
+      <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+        <Home className="w-6 h-6 text-primary-foreground" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+        <Home className="w-6 h-6 text-primary-foreground" />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-xl font-bold text-foreground font-heading">{branding.name}</span>
+        <span className="text-xs text-muted-foreground">{branding.tagline}</span>
+      </div>
+    </div>
+  )
+}
+```
+
+### PropertyCard Component (Padrão de Mercado)
+
+```tsx
+// components/property/PropertyCard.tsx
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Heart, MessageCircle, Bed, Bath, Car, Ruler } from 'lucide-react'
+import Image from 'next/image'
+
+export function PropertyCard({ property, listing }) {
+  return (
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+      {/* Imagem com badge de status */}
+      <div className="relative aspect-video">
+        <Image
+          src={listing.photos[0]?.mediumURL || '/placeholder.jpg'}
+          fill
+          className="object-cover"
+          alt={listing.title}
+        />
+        <Badge className="absolute top-2 right-2 bg-accent">
+          Disponível
+        </Badge>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 left-2 bg-white/80 hover:bg-white"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleFavorite()
+          }}
+        >
+          <Heart className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Conteúdo */}
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="font-semibold text-xl font-heading">
+              R$ {property.priceAmount.toLocaleString('pt-BR')}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {property.propertyType} • {property.bedrooms} quartos • {property.bathrooms} banheiros • {property.totalArea}m²
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {property.neighborhood}, {property.city} - {property.state}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-4">
+          <Button size="sm" className="flex-1">
+            Ver Detalhes
+          </Button>
+          <Button size="sm" variant="outline">
+            <MessageCircle className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+========================
+⚖️ LGPD - CONFORMIDADE OBRIGATÓRIA (AI_DEV_DIRECTIVE Seção 21)
+========================
+
+**CRÍTICO**: TODO formulário que coleta dados pessoais DEVE ter consentimento LGPD.
+
+### Página Obrigatória: `/politica-de-privacidade`
+
+```tsx
+// app/(public)/politica-de-privacidade/page.tsx
+export default function PoliticaDePrivacidadePage() {
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <h1 className="text-4xl font-bold mb-6">Política de Privacidade</h1>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">1. Dados Coletados</h2>
+        <p>Coletamos os seguintes dados pessoais:</p>
+        <ul className="list-disc ml-6 mt-2">
+          <li>Nome completo</li>
+          <li>Email</li>
+          <li>Telefone</li>
+          <li>Mensagens enviadas via formulário de contato</li>
+        </ul>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">2. Finalidade</h2>
+        <p>Utilizamos seus dados exclusivamente para:</p>
+        <ul className="list-disc ml-6 mt-2">
+          <li>Entrar em contato sobre o imóvel de interesse</li>
+          <li>Enviar informações relevantes sobre imóveis similares (se autorizado)</li>
+        </ul>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">3. Base Legal</h2>
+        <p>Tratamos seus dados com base no seu <strong>consentimento explícito</strong> (Art. 7º, I da LGPD).</p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">4. Seus Direitos</h2>
+        <p>Você tem direito a:</p>
+        <ul className="list-disc ml-6 mt-2">
+          <li>Acessar seus dados</li>
+          <li>Corrigir dados incompletos ou incorretos</li>
+          <li>Solicitar exclusão dos dados</li>
+          <li>Revogar o consentimento a qualquer momento</li>
+          <li>Exportar seus dados em formato estruturado</li>
+        </ul>
+        <p className="mt-4">
+          Para exercer seus direitos, entre em contato: <a href="mailto:lgpd@imovelhub.com.br" className="text-primary underline">lgpd@imovelhub.com.br</a>
+        </p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">5. Retenção de Dados</h2>
+        <p>Seus dados serão mantidos por até 2 anos após o último contato, sendo então anonimizados automaticamente.</p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">6. Compartilhamento</h2>
+        <p>Seus dados serão compartilhados apenas com:</p>
+        <ul className="list-disc ml-6 mt-2">
+          <li>O corretor responsável pelo imóvel de interesse</li>
+          <li>A imobiliária parceira (se aplicável)</li>
+        </ul>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">7. Segurança</h2>
+        <p>Utilizamos medidas técnicas de segurança (HTTPS, criptografia, controle de acesso) para proteger seus dados.</p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">8. Cookies</h2>
+        <p>Não utilizamos cookies de rastreamento. Apenas cookies essenciais para funcionamento da plataforma.</p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">9. Alterações</h2>
+        <p>Esta política pode ser atualizada. A versão mais recente sempre estará disponível nesta página.</p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">10. DPO (Encarregado de Dados)</h2>
+        <p>Email: <a href="mailto:lgpd@imovelhub.com.br" className="text-primary underline">lgpd@imovelhub.com.br</a></p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-2xl font-semibold mb-3">11. Atualização</h2>
+        <p>Última atualização: {new Date().toLocaleDateString('pt-BR')}</p>
+      </section>
+    </div>
+  )
+}
+```
+
+### LeadForm Component (LGPD-Compliant)
+
+```tsx
+// components/lead/LeadForm.tsx
+'use client'
+
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { toast } from '@/components/ui/use-toast'
+import Link from 'next/link'
+
+const CONSENT_TEXT = "Concordo com a Política de Privacidade e autorizo o uso dos meus dados para contato sobre este imóvel."
+
+export function LeadForm({ propertyId }) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { register, handleSubmit, watch, formState: { errors } } = useForm()
+
+  const consentGiven = watch('consent_given', false)
+
+  const onSubmit = async (data) => {
+    if (!data.consent_given) {
+      toast({
+        title: "Consentimento obrigatório",
+        description: "Você precisa concordar com a Política de Privacidade",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch(`/api/properties/${propertyId}/leads/form`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          message: data.message,
+          consent_given: true,
+          consent_text: CONSENT_TEXT,
+        })
+      })
+
+      if (!response.ok) throw new Error('Erro ao enviar mensagem')
+
+      toast({
+        title: "Mensagem enviada!",
+        description: "O corretor entrará em contato em breve.",
+      })
+
+      // Reset form
+      form.reset()
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <Label htmlFor="name">Nome completo *</Label>
+        <Input
+          id="name"
+          {...register('name', { required: true })}
+          placeholder="João Silva"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="email">Email *</Label>
+        <Input
+          id="email"
+          type="email"
+          {...register('email', { required: true })}
+          placeholder="joao@example.com"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="phone">Telefone *</Label>
+        <Input
+          id="phone"
+          type="tel"
+          {...register('phone', { required: true })}
+          placeholder="(11) 99999-9999"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="message">Mensagem</Label>
+        <Textarea
+          id="message"
+          {...register('message')}
+          placeholder="Gostaria de agendar uma visita..."
+          rows={4}
+        />
+      </div>
+
+      {/* ⭐ LGPD - Checkbox de consentimento DESTACADO */}
+      <div className="flex items-start gap-2 p-4 bg-muted rounded-lg border">
+        <Checkbox
+          id="consent"
+          {...register('consent_given', { required: true })}
+        />
+        <Label htmlFor="consent" className="text-sm leading-relaxed cursor-pointer">
+          Concordo com a{' '}
+          <Link
+            href="/politica-de-privacidade"
+            target="_blank"
+            className="text-primary underline font-medium"
+          >
+            Política de Privacidade
+          </Link>{' '}
+          e autorizo o uso dos meus dados para contato sobre este imóvel.
+        </Label>
+      </div>
+
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full"
+        disabled={!consentGiven || isSubmitting}
+      >
+        {isSubmitting ? 'Enviando...' : 'Enviar Mensagem'}
+      </Button>
+
+      <p className="text-xs text-muted-foreground text-center">
+        Seus dados serão mantidos por até 2 anos. Você pode solicitar exclusão a qualquer momento.
+      </p>
+    </form>
+  )
+}
+```
+
+### WhatsApp Button (LGPD-Compliant)
+
+```tsx
+// components/property/WhatsAppButton.tsx
+'use client'
+
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { MessageCircle } from 'lucide-react'
+import { toast } from '@/components/ui/use-toast'
+
+const CONSENT_TEXT = "Concordo com a Política de Privacidade e autorizo o uso dos meus dados para contato sobre este imóvel."
+
+export function WhatsAppButton({ propertyId, brokerPhone }) {
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleWhatsAppClick = async () => {
+    setIsLoading(true)
+
+    try {
+      // 1. OBRIGATÓRIO: Criar Lead ANTES de redirecionar
+      const response = await fetch(`/api/properties/${propertyId}/leads/whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consent_given: true,
+          consent_text: CONSENT_TEXT,
+          // name, phone, email são opcionais via WhatsApp
+        })
+      })
+
+      if (!response.ok) throw new Error('Erro ao registrar contato')
+
+      const { whatsapp_url } = await response.json()
+
+      // 2. Redirecionar para WhatsApp
+      window.open(whatsapp_url, '_blank')
+
+      toast({
+        title: "Abrindo WhatsApp...",
+        description: "Você será redirecionado em instantes.",
+      })
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <Button
+      size="lg"
+      className="w-full bg-[#25D366] hover:bg-[#20BA5A] text-white"
+      onClick={handleWhatsAppClick}
+      disabled={isLoading}
+    >
+      <MessageCircle className="w-5 h-5 mr-2" />
+      {isLoading ? 'Registrando contato...' : 'Falar no WhatsApp'}
+    </Button>
+  )
+}
+```
+
+========================
+📹 SUPORTE A VÍDEOS (AI_DEV_DIRECTIVE Seção 23)
+========================
+
+**NOVO**: Listings podem ter vídeos (upload direto ou YouTube/Instagram).
+
+### PropertyGallery Component (Fotos + Vídeos)
+
+```tsx
+// components/property/PropertyGallery.tsx
+'use client'
+
+import { useState } from 'react'
+import Image from 'next/image'
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+
+export function PropertyGallery({ photos, videos }) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isOpen, setIsOpen] = useState(false)
+
+  // Combinar fotos e vídeos em um único array
+  const media = [
+    ...photos.map(p => ({ type: 'photo', ...p })),
+    ...videos.map(v => ({ type: 'video', ...v }))
+  ].sort((a, b) => a.order - b.order)
+
+  const currentMedia = media[currentIndex]
+
+  return (
+    <div className="relative">
+      {/* Thumbnail Grid */}
+      <div className="grid grid-cols-4 gap-2">
+        {media.slice(0, 4).map((item, idx) => (
+          <div
+            key={item.id}
+            className="relative aspect-video cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => {
+              setCurrentIndex(idx)
+              setIsOpen(true)
+            }}
+          >
+            {item.type === 'photo' ? (
+              <Image
+                src={item.thumbURL}
+                fill
+                className="object-cover rounded-lg"
+                alt=""
+              />
+            ) : (
+              <>
+                <Image
+                  src={item.thumbnailURL}
+                  fill
+                  className="object-cover rounded-lg"
+                  alt=""
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
+                  <Play className="w-8 h-8 text-white" />
+                </div>
+              </>
+            )}
+            {idx === 3 && media.length > 4 && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg text-white font-semibold">
+                +{media.length - 4}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Lightbox Modal */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-5xl">
+          <div className="relative aspect-video bg-black">
+            {currentMedia?.type === 'photo' ? (
+              <Image
+                src={currentMedia.largeURL}
+                fill
+                className="object-contain"
+                alt=""
+              />
+            ) : currentMedia?.source === 'upload' ? (
+              <video
+                controls
+                poster={currentMedia.thumbnailURL}
+                className="w-full h-full"
+              >
+                <source src={currentMedia.url} type="video/mp4" />
+              </video>
+            ) : (
+              <iframe
+                src={currentMedia.sourceURL}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              />
+            )}
+
+            {/* Navigation */}
+            {currentIndex > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
+                onClick={() => setCurrentIndex(i => i - 1)}
+              >
+                <ChevronLeft />
+              </Button>
+            )}
+            {currentIndex < media.length - 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
+                onClick={() => setCurrentIndex(i => i + 1)}
+              >
+                <ChevronRight />
+              </Button>
+            )}
+          </div>
+
+          <div className="text-center text-sm text-muted-foreground">
+            {currentIndex + 1} / {media.length}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+```
+
+========================
+REGRAS INVIOLÁVEIS
+========================
+- **URL pública**: `/imovel/{slug}` (slug amigável, NÃO UUID)
+  - Exemplo: `/imovel/apartamento-sao-paulo-jardim-europa-ap00335`
+  - Ver AI_DEV_DIRECTIVE.md seção 15.1
+- Renderizar SOMENTE canonical listing
+- Nunca expor múltiplos listings do mesmo Property
+- Lead pertence ao Property (NUNCA diretamente ao corretor)
+- Proprietário NÃO aparece no frontend público
+- Todo botão "Falar no WhatsApp" DEVE:
+  1. Criar Lead via backend (`POST /api/v1/properties/:propertyId/leads/whatsapp`)
+  2. Somente DEPOIS redirecionar para WhatsApp
+- É PROIBIDO link direto para WhatsApp sem criação prévia de Lead
+
+========================
+ESTRUTURA DO PROJETO NEXT.JS
+========================
+
+**IMPORTANTE**: O frontend Next.js fica na pasta `/frontend` na raiz do projeto.
+O backend Go fica separado em `/backend`.
+
+```
+frontend/                       # Projeto Next.js
+├── app/
+│   ├── (public)/              # Grupo de rotas públicas
+│   │   ├── layout.tsx         # Layout público
+│   │   ├── page.tsx           # Homepage
+│   │   ├── buscar/
+│   │   │   └── page.tsx       # Busca de imóveis
+│   │   └── imovel/
+│   │       └── [slug]/
+│   │           └── page.tsx   # Detalhes do imóvel (SSR)
+│   ├── (private)/             # Grupo de rotas privadas
+│   │   ├── layout.tsx         # Layout privado (com sidebar)
+│   │   └── app/
+│   │       ├── page.tsx       # Dashboard
+│   │       ├── imoveis/
+│   │       │   ├── page.tsx   # Listagem de imóveis
+│   │       │   └── [id]/
+│   │       │       └── page.tsx # Editar imóvel
+│   │       ├── leads/
+│   │       │   └── page.tsx   # Listagem de leads
+│   │       └── importacao/
+│   │           └── page.tsx   # UI de importação
+│   ├── login/
+│   │   └── page.tsx           # Login
+│   ├── signup/
+│   │   └── page.tsx           # Cadastro (se público)
+│   └── api/                   # Route handlers (proxy para backend Go)
+│       └── [...path]/
+│           └── route.ts       # Proxy genérico
+├── components/
+│   ├── ui/                    # shadcn/ui components
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── input.tsx
+│   │   ├── dialog.tsx
+│   │   └── ...
+│   ├── property/              # Componentes de imóvel
+│   │   ├── PropertyCard.tsx   # Card na listagem
+│   │   ├── PropertyGallery.tsx # Carrossel de fotos
+│   │   ├── PropertyDetails.tsx
+│   │   ├── PropertyMap.tsx    # Mapa (Google Maps)
+│   │   └── ContactButton.tsx  # WhatsApp + Form
+│   ├── lead/
+│   │   ├── LeadForm.tsx       # Formulário de contato
+│   │   └── LeadTable.tsx      # Tabela de leads (privado)
+│   ├── layout/
+│   │   ├── Header.tsx         # Header público
+│   │   ├── Footer.tsx
+│   │   ├── Sidebar.tsx        # Sidebar privado
+│   │   └── MobileMenu.tsx
+│   └── shared/
+│       ├── SearchFilters.tsx  # Filtros de busca
+│       ├── Pagination.tsx
+│       └── StatusBadge.tsx    # Indicador de status
+├── lib/
+│   ├── firebase.ts            # Firebase config
+│   ├── api-client.ts          # Cliente HTTP (Axios/Fetch)
+│   ├── slug.ts                # Gerar/parse slugs
+│   └── utils.ts               # Utilidades
+├── hooks/
+│   ├── useAuth.ts             # Hook de autenticação
+│   ├── useProperty.ts         # React Query: properties
+│   ├── useLeads.ts            # React Query: leads
+│   └── useImport.ts           # React Query: importação
+├── contexts/
+│   └── AuthContext.tsx        # Context de autenticação (ver PROMPT 09)
+├── types/
+│   ├── property.ts            # Types Property, Listing
+│   ├── lead.ts                # Types Lead
+│   ├── broker.ts              # Types Broker, Tenant
+│   └── api.ts                 # Types de resposta da API
+├── middleware.ts              # Protected routes
+├── next.config.js             # Config Next.js
+├── tailwind.config.ts         # Config Tailwind
+└── package.json
+```
+
+========================
+ROTAS
+========================
+
+### Públicas (SSR para SEO):
+
+**1. Homepage (`/`)**
+- Hero section com busca rápida
+- Destaques (últimos imóveis ou em destaque)
+- CTA para corretores
+- Footer com links institucionais
+
+**2. Busca (`/buscar`)**
+- Filtros laterais (tipo, cidade, bairro, preço, quartos) - ver PROMPT 10
+- Grid de PropertyCard (fotos, título, preço, localização)
+- Paginação
+- Ordenação (recente, menor preço, maior preço)
+- URL params para compartilhamento: `/buscar?tipo=apartamento&cidade=sao-paulo&preco_max=1000000`
+
+**3. Detalhes do Imóvel (`/imovel/[slug]`)**
+- **SSR OBRIGATÓRIO** (para SEO)
+- Fetch Property via slug (backend retorna Property + canonical Listing)
+- Layout:
+  - Gallery (fotos WebP, lazy loading)
+  - Título + preço + localização
+  - Características (quartos, banhrooms, área)
+  - Descrição completa
+  - Mapa (Google Maps)
+  - Botões de contato:
+    - **"Falar no WhatsApp"** (prioridade)
+    - **"Enviar mensagem"** (formulário)
+- Indicadores de status:
+  - Badge "Confirmado recentemente" (se status_confirmed_at < 7 dias)
+  - Badge "Pendente confirmação" (se status_confirmed_at > 15 dias)
+- Meta tags dinâmicas (ver seção SEO)
+
+### Privadas (CSR + Auth):
+
+**4. Dashboard (`/app`)**
+- Resumo: total de imóveis, leads novos, importações recentes
+- Atalhos rápidos
+
+**5. Listagem de Imóveis (`/app/imoveis`)**
+- Tabela ou grid com todos os Properties do tenant
+- Filtros: status, visibility_public, possible_duplicate, data_completeness
+- Ações: editar, ver detalhes, confirmar status/preço
+- Badge visual para status (disponível, pendente, oculto)
+
+**6. Detalhes/Edição de Imóvel (`/app/imoveis/[id]`)**
+- Formulário completo do Property
+- Seção "Status & Preço" (ver PROMPT 08):
+  - Última confirmação de status/preço
+  - Botão "Confirmar Disponibilidade"
+  - Botão "Confirmar Preço"
+  - Botão "Gerar link p/ proprietário" (confirmação passiva)
+- Seção "Co-corretagem":
+  - Listar PropertyBrokerRoles (captador, vendedores, co-corretores)
+  - Adicionar co-corretor
+- Salvar alterações: PATCH /api/v1/tenants/:tenantId/properties/:propertyId
+
+**7. Leads (`/app/leads`)**
+- Tabela de leads
+- Filtros: property, status, channel
+- Visualizar detalhes do lead
+- Atualizar status: novo → contatado → qualificado → perdido
+
+**8. Importação (`/app/importacao`)**
+- Upload de arquivos (XML + XLS opcional)
+- Progress bar durante importação
+- Exibir resumo do batch:
+  - Total de registros
+  - Properties criados
+  - Duplicados possíveis
+  - Erros (com botão "Revisar erros")
+- Histórico de importações
+
+========================
+SEO E META TAGS (CRÍTICO)
+========================
+Ver AI_DEV_DIRECTIVE.md seção 15.2
+
+### Página de Imóvel (`/imovel/[slug]`)
+
+**1. Title Dinâmico**
+```tsx
+// app/imovel/[slug]/page.tsx
+export async function generateMetadata({ params }): Promise<Metadata> {
+  const property = await fetchPropertyBySlug(params.slug)
+  const listing = property.canonical_listing
+
+  return {
+    title: `${property.property_type} ${property.bedrooms}q em ${property.neighborhood}, ${property.city} | ${tenant.name}`,
+    description: listing.description.substring(0, 155),
+    openGraph: {
+      title: listing.title,
+      description: listing.description.substring(0, 155),
+      url: `https://${domain}/imovel/${property.slug}`,
+      images: [
+        {
+          url: listing.photos[0]?.large_url || '',
+          width: 1600,
+          height: 1200,
+          alt: listing.title
+        }
+      ],
+      type: 'website',
+      locale: 'pt_BR'
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: listing.title,
+      description: listing.description.substring(0, 155),
+      images: [listing.photos[0]?.large_url]
+    }
+  }
+}
+```
+
+**2. JSON-LD (schema.org/RealEstateListing)**
+```tsx
+// Dentro do componente da página
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "RealEstateListing",
+  "name": listing.title,
+  "description": listing.description,
+  "url": `https://${domain}/imovel/${property.slug}`,
+  "image": listing.photos.map(p => p.large_url),
+  "price": {
+    "@type": "MonetaryAmount",
+    "value": property.price_amount,
+    "currency": property.price_currency
+  },
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": `${property.street}, ${property.number}`,
+    "addressLocality": property.city,
+    "addressRegion": property.state,
+    "postalCode": property.zip_code,
+    "addressCountry": "BR"
+  },
+  "numberOfRooms": property.bedrooms,
+  "numberOfBathroomsTotal": property.bathrooms,
+  "floorSize": {
+    "@type": "QuantitativeValue",
+    "value": property.total_area,
+    "unitCode": "MTK"
+  }
+}
+
+return (
+  <>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+    {/* Resto do componente */}
+  </>
+)
+```
+
+**3. URLs Canônicas e Redirects**
+```tsx
+// Caso slug antigo (redirect 301)
+if (property.slug !== params.slug) {
+  redirect(`/imovel/${property.slug}`, RedirectType.permanent) // 301
+}
+
+// Link canônico
+<link rel="canonical" href={`https://${domain}/imovel/${property.slug}`} />
+```
+
+**4. Breadcrumbs com Schema.org**
+```tsx
+// components/Breadcrumbs.tsx
+'use client'
+import Link from 'next/link'
+
+interface BreadcrumbItem {
+  name: string
+  url?: string
+}
+
+export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": items.map((item, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": item.name,
+      ...(item.url && { "item": item.url })
+    }))
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <nav aria-label="Breadcrumb" className="text-sm text-gray-600 mb-4">
+        <ol className="flex items-center space-x-2">
+          {items.map((item, index) => (
+            <li key={index} className="flex items-center">
+              {index > 0 && <span className="mx-2">/</span>}
+              {item.url ? (
+                <Link href={item.url} className="hover:text-primary">
+                  {item.name}
+                </Link>
+              ) : (
+                <span className="text-gray-900 font-medium">{item.name}</span>
+              )}
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </>
+  )
+}
+
+// Uso na página de imóvel
+<Breadcrumbs items={[
+  { name: "Home", url: "/" },
+  { name: "Imóveis", url: "/buscar" },
+  { name: property.city, url: `/buscar?city=${property.city}` },
+  { name: property.neighborhood, url: `/buscar?city=${property.city}&neighborhood=${property.neighborhood}` },
+  { name: listing.title }
+]} />
+```
+
+**5. Sitemap.xml Dinâmico**
+```typescript
+// app/sitemap.ts (Next.js 14+)
+import { MetadataRoute } from 'next'
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://imovelhub.com.br'
+
+  // Fetch all published properties
+  const response = await fetch(`${process.env.API_URL}/api/v1/properties?status=published&limit=10000`, {
+    headers: {
+      'Authorization': `Bearer ${process.env.API_KEY}`,
+      'X-Tenant-ID': process.env.TENANT_ID || '',
+    },
+  })
+
+  const { properties } = await response.json()
+
+  // Static pages
+  const routes: MetadataRoute.Sitemap = [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 1,
+    },
+    {
+      url: `${baseUrl}/buscar`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/privacidade`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.3,
+    },
+  ]
+
+  // Property pages
+  const propertyRoutes: MetadataRoute.Sitemap = properties.map((property: any) => ({
+    url: `${baseUrl}/imovel/${property.slug}`,
+    lastModified: new Date(property.updated_at),
+    changeFrequency: 'weekly',
+    priority: 0.8,
+  }))
+
+  return [...routes, ...propertyRoutes]
+}
+```
+
+**6. robots.txt**
+```typescript
+// app/robots.ts (Next.js 14+)
+import { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://imovelhub.com.br'
+
+  return {
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: [
+          '/admin/',
+          '/api/',
+          '/app/',
+          '/_next/',
+          '/static/',
+        ],
+      },
+      {
+        userAgent: 'Googlebot',
+        allow: '/',
+        disallow: ['/admin/', '/api/', '/app/'],
+      },
+    ],
+    sitemap: `${baseUrl}/sitemap.xml`,
+  }
+}
+```
+
+**7. Core Web Vitals Optimization**
+
+```typescript
+// app/layout.tsx - Font optimization
+import { Inter, Poppins } from 'next/font/google'
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap', // CRITICAL: Evita FOUT (Flash of Unstyled Text)
+  preload: true,
+  variable: '--font-inter',
+})
+
+const poppins = Poppins({
+  weight: ['400', '600', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  preload: true,
+  variable: '--font-poppins',
+})
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="pt-BR" className={`${inter.variable} ${poppins.variable}`}>
+      <head>
+        {/* Preconnect to critical domains */}
+        <link rel="preconnect" href="https://storage.googleapis.com" />
+        <link rel="dns-prefetch" href="https://storage.googleapis.com" />
+      </head>
+      <body className="font-sans">
+        {children}
+      </body>
+    </html>
+  )
+}
+```
+
+```tsx
+// Image optimization with blur placeholder
+import Image from 'next/image'
+
+<Image
+  src={photo.large_url}
+  alt={listing.title}
+  width={1600}
+  height={1200}
+  placeholder="blur"
+  blurDataURL={photo.blur_hash} // Generated by backend (Vision API)
+  loading="lazy"
+  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+  className="object-cover"
+/>
+```
+
+**8. Organization Schema (Homepage)**
+```tsx
+// app/page.tsx - Add company information
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "RealEstateAgent",
+  "name": branding.name,
+  "url": baseUrl,
+  "logo": `${baseUrl}${branding.logo}`,
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": branding.phone,
+    "contactType": "customer service",
+    "areaServed": "BR",
+    "availableLanguage": "Portuguese"
+  },
+  "address": {
+    "@type": "PostalAddress",
+    "addressCountry": "BR"
+  }
+}
+
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+/>
+```
+
+========================
+SLUG AMIGÁVEL (IMPLEMENTAÇÃO)
+========================
+Ver AI_DEV_DIRECTIVE.md seção 15.1
+
+### Geração de Slug (Backend)
+Implementado no backend, mas frontend precisa:
+1. Usar slug na URL (não ID)
+2. Buscar Property por slug (endpoint: `GET /api/v1/properties/by-slug/:slug`)
+
+### Frontend
+```ts
+// lib/slug.ts
+export function parseSlug(slug: string) {
+  // apartamento-sao-paulo-jardim-europa-ap00335
+  // Último token = referência
+  const parts = slug.split('-')
+  const reference = parts[parts.length - 1]
+  return { slug, reference }
+}
+
+// Fetch property
+async function fetchPropertyBySlug(slug: string) {
+  const res = await fetch(`${API_URL}/properties/by-slug/${slug}`)
+  return res.json()
+}
+```
+
+========================
+COMPONENTES CRÍTICOS
+========================
+
+### 1. ContactButton (WhatsApp)
+```tsx
+// components/property/ContactButton.tsx
+'use client'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+
+export function WhatsAppButton({ propertyId }: { propertyId: string }) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleClick() {
+    setLoading(true)
+
+    try {
+      // 1. Criar Lead (OBRIGATÓRIO)
+      const res = await fetch(`/api/properties/${propertyId}/leads/whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          utm_source: 'site',
+          utm_campaign: window.location.pathname
+        })
+      })
+
+      const { lead_id, whatsapp_number, message } = await res.json()
+
+      // 2. Redirecionar para WhatsApp
+      const encoded = encodeURIComponent(message)
+      const whatsappURL = `https://wa.me/${whatsapp_number}?text=${encoded}`
+
+      window.open(whatsappURL, '_blank')
+    } catch (error) {
+      console.error('Erro ao criar lead:', error)
+      alert('Erro ao conectar. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Button
+      onClick={handleClick}
+      disabled={loading}
+      size="lg"
+      className="w-full bg-green-600 hover:bg-green-700"
+    >
+      {loading ? 'Conectando...' : '💬 Falar no WhatsApp'}
+    </Button>
+  )
+}
+```
+
+### 2. PropertyGallery (Fotos WebP)
+```tsx
+// components/property/PropertyGallery.tsx
+'use client'
+import Image from 'next/image'
+import { useState } from 'react'
+import { Photo } from '@/types/property'
+
+export function PropertyGallery({ photos }: { photos: Photo[] }) {
+  const [selected, setSelected] = useState(0)
+
+  return (
+    <div className="space-y-4">
+      {/* Foto principal */}
+      <div className="relative h-[500px] w-full overflow-hidden rounded-lg">
+        <Image
+          src={photos[selected].large_url}
+          alt={`Foto ${selected + 1}`}
+          fill
+          className="object-cover"
+          priority={selected === 0}
+          loading={selected === 0 ? 'eager' : 'lazy'}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+          loader={gcsLoader} // Custom loader para GCS
+        />
+      </div>
+
+      {/* Thumbnails */}
+      <div className="grid grid-cols-6 gap-2">
+        {photos.map((photo, idx) => (
+          <button
+            key={photo.id}
+            onClick={() => setSelected(idx)}
+            className={`relative h-20 overflow-hidden rounded ${
+              idx === selected ? 'ring-2 ring-blue-500' : ''
+            }`}
+          >
+            <Image
+              src={photo.thumb_url}
+              alt={`Thumbnail ${idx + 1}`}
+              fill
+              className="object-cover"
+              loading="lazy"
+              loader={gcsLoader}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Custom loader para GCS
+function gcsLoader({ src, width, quality = 85 }: any) {
+  // GCS já tem WebP otimizado, apenas retorna URL
+  // Se quiser on-the-fly resize, usar Cloud CDN com transformações
+  return src
+}
+```
+
+### 3. SearchFilters (Busca)
+Ver PROMPT 10 para filtros detalhados.
+
+### 4. StatusBadge (Indicador de Status)
+```tsx
+// components/shared/StatusBadge.tsx
+import { Badge } from '@/components/ui/badge'
+
+export function StatusBadge({
+  status,
+  statusConfirmedAt
+}: {
+  status: string
+  statusConfirmedAt: Date | null
+}) {
+  const daysSinceConfirmation = statusConfirmedAt
+    ? Math.floor((Date.now() - statusConfirmedAt.getTime()) / (1000 * 60 * 60 * 24))
+    : 999
+
+  if (daysSinceConfirmation <= 7) {
+    return <Badge variant="success">✓ Confirmado recentemente</Badge>
+  }
+
+  if (daysSinceConfirmation > 15) {
+    return <Badge variant="warning">⚠ Pendente confirmação</Badge>
+  }
+
+  return null
+}
+```
+
+========================
+AUTENTICAÇÃO (FRONTEND)
+========================
+Ver PROMPT 09 para implementação completa do AuthContext.
+
+### Protected Routes (middleware.ts)
+```ts
+// middleware.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('firebase_token')?.value
+
+  // Proteger rotas /app/*
+  if (request.nextUrl.pathname.startsWith('/app')) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ['/app/:path*']
+}
+```
+
+========================
+STATE MANAGEMENT
+========================
+
+### React Query (Server State)
+```tsx
+// hooks/useProperty.ts
+import { useQuery } from '@tanstack/react-query'
+
+export function useProperty(slug: string) {
+  return useQuery({
+    queryKey: ['property', slug],
+    queryFn: async () => {
+      const res = await fetch(`/api/properties/by-slug/${slug}`)
+      if (!res.ok) throw new Error('Property not found')
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    cacheTime: 30 * 60 * 1000 // 30 minutos
+  })
+}
+
+export function useProperties(filters: any) {
+  return useQuery({
+    queryKey: ['properties', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams(filters)
+      const res = await fetch(`/api/properties?${params}`)
+      return res.json()
+    }
+  })
+}
+```
+
+### Zustand (Client State)
+```ts
+// lib/store.ts
+import { create } from 'zustand'
+
+interface SearchFilters {
+  propertyType: string | null
+  city: string | null
+  neighborhood: string | null
+  priceMin: number | null
+  priceMax: number | null
+  bedrooms: number | null
+}
+
+interface SearchStore {
+  filters: SearchFilters
+  setFilter: (key: keyof SearchFilters, value: any) => void
+  resetFilters: () => void
+}
+
+export const useSearchStore = create<SearchStore>((set) => ({
+  filters: {
+    propertyType: null,
+    city: null,
+    neighborhood: null,
+    priceMin: null,
+    priceMax: null,
+    bedrooms: null
+  },
+  setFilter: (key, value) =>
+    set((state) => ({
+      filters: { ...state.filters, [key]: value }
+    })),
+  resetFilters: () =>
+    set({
+      filters: {
+        propertyType: null,
+        city: null,
+        neighborhood: null,
+        priceMin: null,
+        priceMax: null,
+        bedrooms: null
+      }
+    })
+}))
+```
+
+========================
+SHADCN/UI SETUP
+========================
+
+Instalar componentes necessários:
+```bash
+npx shadcn-ui@latest init
+npx shadcn-ui@latest add button card input select dialog badge table form
+```
+
+Tailwind config:
+```js
+// tailwind.config.ts
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
+  darkMode: ['class'],
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}'
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Cores do tenant (configurável)
+        primary: 'hsl(var(--primary))',
+        secondary: 'hsl(var(--secondary))'
+      }
+    }
+  },
+  plugins: [require('tailwindcss-animate')]
+}
+export default config
+```
+
+========================
+INTEGRAÇÃO COM BACKEND
+========================
+
+### API Client
+```ts
+// lib/api-client.ts
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+
+export async function apiFetch(endpoint: string, options: RequestInit = {}) {
+  // Get Firebase token
+  const token = await getFirebaseToken()
+
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...options.headers
+    }
+  })
+
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.message || 'API error')
+  }
+
+  return res.json()
+}
+
+async function getFirebaseToken() {
+  const auth = getAuth()
+  const user = auth.currentUser
+  if (!user) throw new Error('Not authenticated')
+  return user.getIdToken()
+}
+```
+
+========================
+IMAGENS (NEXT.JS + GCS)
+========================
+
+```tsx
+// next.config.js
+module.exports = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        pathname: '/{your-bucket}/**'
+      }
+    ],
+    formats: ['image/webp'] // Priorizar WebP
+  }
+}
+```
+
+========================
+RESPONSIVIDADE (MOBILE-FIRST ROBUSTO)
+========================
+
+ESTRATÉGIA MOBILE-FIRST
+----------------------
+Design mobile-primeiro, progressivamente aprimorado para tablets/desktop.
+NUNCA usar `display: none` para esconder conteúdo crítico em mobile.
+
+BREAKPOINTS TAILWIND (padrão shadcn/ui)
+----------------------
+- Base (default): 0-639px (mobile portrait)
+- sm: 640px+ (mobile landscape / small tablets)
+- md: 768px+ (tablets portrait)
+- lg: 1024px+ (tablets landscape / small desktop)
+- xl: 1280px+ (desktop)
+- 2xl: 1536px+ (large desktop)
+
+PADRÕES POR COMPONENTE
+----------------------
+
+1. LAYOUT GERAL
+Mobile:
+- Container: px-4 (16px padding lateral)
+- Spacing vertical: space-y-4 ou space-y-6
+- Single column layout
+
+Tablet/Desktop:
+- Container: max-w-7xl mx-auto px-6 lg:px-8
+- Grid layouts: grid-cols-1 md:grid-cols-2 lg:grid-cols-3
+
+Exemplo:
+```tsx
+<div className="container mx-auto px-4 sm:px-6 lg:px-8">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+    {/* PropertyCards */}
+  </div>
+</div>
+```
+
+2. NAVEGAÇÃO (HEADER)
+Mobile:
+- Hamburger menu (Sheet component do shadcn/ui)
+- Logo centralizado ou à esquerda
+- Botões de ação fixos no topo
+- Altura: h-14 (56px) - thumb-friendly
+
+Desktop:
+- Menu horizontal
+- Logo à esquerda
+- Links centralizados
+- User menu à direita
+- Altura: h-16 (64px)
+
+Exemplo:
+```tsx
+// components/shared/Header.tsx
+export function Header() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+      <div className="container flex h-14 md:h-16 items-center px-4">
+        {/* Mobile: Hamburger */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetTrigger asChild className="md:hidden">
+            <Button variant="ghost" size="icon">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left">
+            <nav className="flex flex-col space-y-4">
+              <Link href="/buscar">Buscar Imóveis</Link>
+              <Link href="/app">Área do Corretor</Link>
+            </nav>
+          </SheetContent>
+        </Sheet>
+
+        {/* Logo */}
+        <Link href="/" className="flex items-center ml-4 md:ml-0">
+          <span className="font-bold text-lg md:text-xl">Imobiliária</span>
+        </Link>
+
+        {/* Desktop: Menu horizontal */}
+        <nav className="hidden md:flex ml-auto space-x-6">
+          <Link href="/buscar">Buscar Imóveis</Link>
+          <Link href="/app">Área do Corretor</Link>
+        </nav>
+      </div>
+    </header>
+  )
+}
+```
+
+3. PROPERTY CARD (LISTAGEM)
+Mobile:
+- Full width (sem grid)
+- Imagem: aspect-video, height ~200px
+- Título: text-base font-semibold
+- Preço: text-lg font-bold
+- Detalhes: flex wrap, text-sm
+- Padding: p-4
+
+Desktop:
+- Grid layout (3 colunas)
+- Imagem: aspect-video, hover:scale-105
+- Título: text-lg
+- Padding: p-6
+
+Exemplo:
+```tsx
+<Card className="overflow-hidden hover:shadow-lg transition-shadow">
+  <div className="relative aspect-video">
+    <Image
+      src={property.photos[0]?.medium_url}
+      alt={property.title}
+      fill
+      className="object-cover"
+    />
+  </div>
+  <CardContent className="p-4 md:p-6">
+    <h3 className="text-base md:text-lg font-semibold line-clamp-2">
+      {property.title}
+    </h3>
+    <p className="text-lg md:text-2xl font-bold text-primary mt-2">
+      {formatCurrency(property.price)}
+    </p>
+    <div className="flex flex-wrap gap-3 mt-3 text-sm md:text-base text-muted-foreground">
+      <span className="flex items-center gap-1">
+        <BedIcon className="h-4 w-4" /> {property.bedrooms}q
+      </span>
+      <span className="flex items-center gap-1">
+        <CarIcon className="h-4 w-4" /> {property.parking_spaces}
+      </span>
+      <span className="flex items-center gap-1">
+        <SquareIcon className="h-4 w-4" /> {property.total_area}m²
+      </span>
+    </div>
+  </CardContent>
+</Card>
+```
+
+4. PROPERTY DETAIL PAGE
+Mobile:
+- Gallery: full width, swipe horizontal (Embla Carousel)
+- Sticky bottom bar: WhatsApp button sempre visível
+- Seções empilhadas verticalmente
+- Tabs para organizar info (Descrição, Características, Localização)
+
+Desktop:
+- Gallery: grid 2x2 com lightbox
+- Sidebar fixa: preço + WhatsApp
+- Seções lado a lado
+
+Exemplo:
+```tsx
+// Sticky WhatsApp Bar (mobile)
+<div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t md:hidden z-40">
+  <WhatsAppButton propertyId={property.id} className="w-full" />
+</div>
+
+// Desktop Sidebar
+<aside className="hidden lg:block lg:sticky lg:top-20 space-y-4">
+  <Card className="p-6">
+    <p className="text-3xl font-bold">{formatCurrency(property.price)}</p>
+    <WhatsAppButton propertyId={property.id} className="w-full mt-4" />
+  </Card>
+</aside>
+```
+
+5. GALLERY (CAROUSEL)
+Mobile:
+- Swipe horizontal (touch-friendly)
+- Indicadores (dots) na parte inferior
+- Full width
+- Lazy loading obrigatório
+
+Desktop:
+- Grid 2x2 ou 3x3
+- Modal lightbox ao clicar
+- Navegação por teclado (← →)
+
+Biblioteca recomendada: Embla Carousel (leve, touch-friendly)
+
+```bash
+npm install embla-carousel-react
+```
+
+Exemplo:
+```tsx
+import useEmblaCarousel from 'embla-carousel-react'
+
+export function PropertyGallery({ photos }: { photos: Photo[] }) {
+  const [emblaRef] = useEmblaCarousel({ loop: true })
+
+  return (
+    <>
+      {/* Mobile: Carousel */}
+      <div className="md:hidden overflow-hidden" ref={emblaRef}>
+        <div className="flex">
+          {photos.map((photo) => (
+            <div key={photo.id} className="flex-[0_0_100%] min-w-0">
+              <div className="relative aspect-video">
+                <Image
+                  src={photo.medium_url}
+                  alt={photo.caption || ''}
+                  fill
+                  className="object-cover"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop: Grid */}
+      <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-2">
+        {photos.slice(0, 6).map((photo) => (
+          <button
+            key={photo.id}
+            onClick={() => openLightbox(photo)}
+            className="relative aspect-video overflow-hidden rounded-lg"
+          >
+            <Image
+              src={photo.medium_url}
+              alt={photo.caption || ''}
+              fill
+              className="object-cover hover:scale-105 transition-transform"
+            />
+          </button>
+        ))}
+      </div>
+    </>
+  )
+}
+```
+
+6. SEARCH FILTERS
+Mobile:
+- Sheet modal (slide do bottom)
+- Botão "Filtros" fixo no topo da busca
+- Sticky footer: "Limpar" + "Aplicar filtros"
+- Campos empilhados verticalmente
+
+Desktop:
+- Sidebar lateral (sempre visível)
+- Aplicação automática ao mudar filtro
+
+Exemplo:
+```tsx
+// Mobile: Filter Button + Sheet
+<Sheet>
+  <SheetTrigger asChild className="md:hidden">
+    <Button variant="outline" className="w-full">
+      <SlidersHorizontal className="mr-2 h-4 w-4" />
+      Filtros
+    </Button>
+  </SheetTrigger>
+  <SheetContent side="bottom" className="h-[90vh]">
+    <SheetHeader>
+      <SheetTitle>Filtros de Busca</SheetTitle>
+    </SheetHeader>
+    <div className="py-6 space-y-4 overflow-y-auto">
+      {/* Filter fields */}
+    </div>
+    <SheetFooter className="sticky bottom-0 bg-background pt-4 border-t">
+      <Button variant="outline" onClick={clearFilters}>Limpar</Button>
+      <Button onClick={applyFilters}>Aplicar Filtros</Button>
+    </SheetFooter>
+  </SheetContent>
+</Sheet>
+
+// Desktop: Sidebar
+<aside className="hidden md:block w-64 space-y-4">
+  {/* Filter fields */}
+</aside>
+```
+
+7. FORMS
+Mobile:
+- Labels acima dos campos (NUNCA placeholder-only)
+- Input height: h-11 ou h-12 (min 44px - Apple HIG)
+- Espaçamento entre campos: space-y-4
+- Botões full width
+- Keyboard type apropriado (inputMode="numeric" para preço)
+
+Desktop:
+- Grid 2 colunas quando apropriado
+- Botões com largura fixa
+
+Exemplo:
+```tsx
+<form className="space-y-4">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-2">
+      <Label htmlFor="name">Nome completo</Label>
+      <Input
+        id="name"
+        className="h-11"
+        placeholder="Digite seu nome"
+      />
+    </div>
+    <div className="space-y-2">
+      <Label htmlFor="phone">Telefone</Label>
+      <Input
+        id="phone"
+        type="tel"
+        inputMode="tel"
+        className="h-11"
+        placeholder="(11) 99999-9999"
+      />
+    </div>
+  </div>
+
+  <Button type="submit" className="w-full md:w-auto">
+    Enviar
+  </Button>
+</form>
+```
+
+8. TABELAS (ÁREA PRIVADA)
+Mobile:
+- Converter para Card list
+- Mostrar apenas colunas críticas
+- Accordion para detalhes adicionais
+
+Desktop:
+- Table completa
+- Todas as colunas
+
+Exemplo:
+```tsx
+{/* Mobile: Card list */}
+<div className="md:hidden space-y-3">
+  {leads.map((lead) => (
+    <Card key={lead.id} className="p-4">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="font-semibold">{lead.property_title}</p>
+          <p className="text-sm text-muted-foreground">{lead.created_at}</p>
+        </div>
+        <Badge>{lead.channel}</Badge>
+      </div>
+      <Button variant="ghost" size="sm" className="mt-2 w-full">
+        Ver detalhes
+      </Button>
+    </Card>
+  ))}
+</div>
+
+{/* Desktop: Table */}
+<Table className="hidden md:table">
+  <TableHeader>
+    <TableRow>
+      <TableHead>Imóvel</TableHead>
+      <TableHead>Data</TableHead>
+      <TableHead>Canal</TableHead>
+      <TableHead>Ações</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    {leads.map((lead) => (
+      <TableRow key={lead.id}>
+        <TableCell>{lead.property_title}</TableCell>
+        <TableCell>{lead.created_at}</TableCell>
+        <TableCell><Badge>{lead.channel}</Badge></TableCell>
+        <TableCell>
+          <Button variant="ghost" size="sm">Ver</Button>
+        </TableCell>
+      </TableRow>
+    ))}
+  </TableBody>
+</Table>
+```
+
+INTERAÇÕES TOUCH
+----------------------
+- Botões: min-height 44px (Apple) ou 48px (Material)
+- Espaçamento entre elementos clicáveis: min 8px
+- Swipe gestures: gallery, modals slide
+- Pull-to-refresh: OPCIONAL (não crítico para MVP)
+- Tap highlights: desabilitar onde apropriado com CSS
+
+```css
+/* globals.css */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+```
+
+PERFORMANCE MOBILE
+----------------------
+1. Imagens:
+   - next/image obrigatório (lazy loading automático)
+   - WebP prioritário
+   - Sizes attribute configurado:
+     ```tsx
+     <Image
+       src={photo.medium_url}
+       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+     />
+     ```
+
+2. Bundle size:
+   - Código crítico: < 200KB (gzipped)
+   - Usar dynamic imports para código pesado:
+     ```tsx
+     const MapComponent = dynamic(() => import('./Map'), {
+       ssr: false,
+       loading: () => <Skeleton className="h-96" />
+     })
+     ```
+
+3. Fonts:
+   - next/font para otimização automática
+   - Preload fonts críticos
+   - Font display: swap
+
+4. React Query:
+   - Stale time: 5 minutos (reduzir requests)
+   - Cache time: 10 minutos
+   - Retry: false em mobile (economizar dados)
+
+ACESSIBILIDADE MOBILE
+----------------------
+- Font size mínimo: 16px (evitar zoom no iOS)
+- Contrast ratio: min 4.5:1 (WCAG AA)
+- Touch targets: min 44x44px
+- Focus visible: keyboard navigation no desktop
+- ARIA labels: especialmente em ícones sem texto
+- Screen reader: testar com VoiceOver (iOS) / TalkBack (Android)
+
+Exemplo:
+```tsx
+<Button
+  variant="ghost"
+  size="icon"
+  aria-label="Adicionar aos favoritos"
+>
+  <Heart className="h-5 w-5" />
+</Button>
+```
+
+TESTES RESPONSIVOS
+----------------------
+Devices obrigatórios (Chrome DevTools):
+- iPhone SE (375x667) - smallest common
+- iPhone 12/13/14 (390x844)
+- iPhone 14 Pro Max (430x932)
+- iPad (810x1080)
+- iPad Pro (1024x1366)
+- Desktop 1920x1080
+
+Checklist por device:
+✅ Layout não quebra
+✅ Textos legíveis (min 16px)
+✅ Botões clicáveis (min 44px)
+✅ Imagens carregam corretamente
+✅ Modals/Sheets funcionam
+✅ Navigation funcional
+✅ Forms utilizáveis
+
+FERRAMENTAS RECOMENDADAS
+----------------------
+- Embla Carousel (gallery mobile)
+- Radix UI (primitives - já incluso no shadcn/ui)
+- clsx + tailwind-merge (className composition)
+- react-hook-form (forms otimizados)
+- zod (validação)
+
+PWA (PROGRESSIVO ENHANCEMENT - FUTURO)
+----------------------
+MVP: NÃO implementar PWA completo, mas preparar:
+- Manifest.json básico
+- Meta tags viewport corretas:
+  ```html
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+  ```
+- Theme color (mobile browser):
+  ```html
+  <meta name="theme-color" content="#ffffff">
+  ```
+
+Evolução futura (pós-MVP):
+- Service Worker (offline)
+- Add to Home Screen
+- Push notifications
+
+========================
+ESCOPO PROIBIDO
+========================
+- Cadastro de cliente final
+- Chat complexo
+- Área do proprietário (confirmação passiva tem página própria - PROMPT 08)
+- Pagamento
+- CRM completo
+
+========================
+ENTREGA ESPERADA
+========================
+
+**Core Application:**
+1. Projeto Next.js 14+ estruturado
+2. Rotas públicas (SSR): /, /buscar, /imovel/[slug]
+3. Rotas privadas (CSR): /app, /app/imoveis, /app/leads, /app/importacao
+4. Componentes shadcn/ui configurados
+5. AuthContext (Firebase Auth)
+6. React Query hooks (properties, leads)
+7. Middleware de proteção de rotas
+8. Responsivo (mobile-first)
+
+**SEO & Performance (CRÍTICO):**
+9. Slug amigável implementado
+10. Meta tags dinâmicas (title, description, OpenGraph, Twitter)
+11. **JSON-LD Schema.org** (RealEstateListing + BreadcrumbList + Organization)
+12. **sitemap.xml dinâmico** (app/sitemap.ts) - fetch all published properties
+13. **robots.txt** (app/robots.ts) - block /admin/, /api/, /app/
+14. **Breadcrumbs component** com Schema.org BreadcrumbList
+15. **Font optimization** (Inter/Poppins com display:swap + preload)
+16. **Image blur placeholders** (usando blur_hash do Vision API)
+17. **Preconnect** para storage.googleapis.com (reduce latency)
+18. **Canonical URLs** com redirect 301 para slugs antigos
+
+**Components:**
+19. WhatsApp button (Lead ANTES de redirect)
+20. Gallery com fotos WebP + lazy loading
+21. StatusBadge (indicadores de confirmação)
+22. ContactForm LGPD-compliant
+
+**Documentation:**
+23. README com instruções de setup
+24. .env.example com todas as variáveis
+
+========================
+CRITÉRIO DE SUCESSO
+========================
+
+**SEO (PRIORIDADE MÁXIMA):**
+✅ URL usa slug amigável (não UUID)
+✅ SSR funcional em /imovel/[slug] (HTML completo para Googlebot)
+✅ Meta tags dinâmicas (title, description, OpenGraph, Twitter)
+✅ JSON-LD Schema.org (RealEstateListing + BreadcrumbList + Organization)
+✅ sitemap.xml acessível em /sitemap.xml
+✅ robots.txt acessível em /robots.txt
+✅ Breadcrumbs com Schema.org em todas as páginas de imóvel
+✅ Canonical URLs implementadas
+✅ Redirect 301 para slugs antigos
+✅ Fonts otimizadas (display:swap + preload)
+✅ Images com blur placeholder (CLS < 0.1)
+✅ Preconnect para GCS (LCP < 2.5s)
+
+**Funcionalidade:**
+✅ WhatsApp SEMPRE cria Lead antes de redirect
+✅ Fotos WebP lazy loading
+✅ Autenticação Firebase funcional
+✅ Rotas privadas protegidas
+✅ shadcn/ui + Tailwind configurado
+✅ Mobile-first responsivo
+✅ Integração com backend Go via API client
+✅ React Query gerencia server state
+✅ Zustand gerencia client state (filtros)
+✅ Canonical listing renderizado (único)
+✅ Proprietário NÃO aparece no frontend
+✅ Indicadores de status (confirmado/pendente)
+
+**Testes SEO (Validação):**
+✅ Google Rich Results Test: passa sem erros
+✅ PageSpeed Insights: Score > 90 (mobile + desktop)
+✅ Lighthouse SEO: Score 100
+✅ Schema.org Validator: sem warnings

@@ -1,0 +1,86 @@
+Você é um engenheiro sênior responsável por preparar a ESTRUTURA
+de distribuição multicanal de anúncios, SEM implementar integrações externas.
+
+IMPORTANTE:
+- NÃO integrar com Instagram, Facebook ou Meta API.
+- NÃO criar agendamento automático de posts.
+- NÃO expandir escopo do MVP.
+
+========================
+OBJETIVO
+========================
+Preparar a plataforma para distribuir o canonical listing
+em múltiplos canais, mantendo:
+- imóvel único
+- canonical listing
+- leads associados ao Property
+- auditoria completa
+
+========================
+CONCEITO CENTRAL
+========================
+Distribuição é um CANAL, não um cadastro.
+
+O imóvel:
+- nasce uma vez (Property)
+- possui um anúncio canônico (Listing)
+- é distribuído por links e conteúdos derivados
+
+WhatsApp é tratado como canal de distribuição/conversa.
+Mesmo em fluxos de divulgação multicanal,
+o Lead deve sempre ser criado na plataforma antes do contato externo.
+
+========================
+ESTRUTURA MÍNIMA (BACKEND)
+========================
+Criar estrutura conceitual para:
+- channels (ex.: site, instagram, facebook, whatsapp)
+- share_links:
+  - property_id
+  - channel
+  - utm_source
+  - utm_campaign
+  - created_at
+
+NÃO criar integrações externas.
+
+========================
+ESTRUTURA MÍNIMA (FRONTEND)
+========================
+Na área privada do imóvel:
+- Botão: "Divulgar imóvel"
+- Gerar automaticamente:
+  - texto curto para Instagram
+  - texto longo para Facebook
+  - link rastreável para o imóvel
+- Botões:
+  - Copiar texto
+  - Copiar link
+
+========================
+LEADS
+========================
+- Leads vindos desses links entram normalmente no Property.
+- Registrar canal de origem (utm_source).
+
+========================
+AUDITORIA
+========================
+Registrar ActivityLog:
+- geração de link
+- geração de conteúdo
+
+========================
+ENTREGA
+========================
+- Estrutura preparada
+- UX simples
+- Sem integração externa
+- Sem impacto no MVP core
+
+========================
+RESTRIÇÃO:
+========================
+Imóveis com status pendente ou desatualizado
+não devem ser priorizados para distribuição externa.
+

@@ -1,0 +1,779 @@
+Você é um engenheiro backend sênior Go responsável por iniciar o MVP descrito em `AI_DEV_DIRECTIVE.md`.
+
+IMPORTANTE:
+Este projeto segue o princípio de **IMÓVEL ÚNICO COM MÚLTIPLOS VÍNCULOS (CO-CORRETAGEM)**.
+Essa lógica é FUNDAMENTAL e não pode ser violada.
+
+Este prompt deve ser executado JUNTO com PROMPT 09 (Autenticação e Multi-tenancy),
+pois a estrutura de dados depende de tenant_id.
+
+========================
+STACK TÉCNICA
+========================
+- Backend: Go (Golang) 1.21+ + Gin framework
+- Banco: Google Cloud Firestore
+- Autenticação: Firebase Authentication (ver PROMPT 09)
+- Storage: Google Cloud Storage (GCS)
+- Deploy: Google Cloud Run
+
+========================
+OBJETIVO DESTE PROMPT
+========================
+Estabelecer a FUNDAÇÃO do MVP:
+- estrutura do repositório Go
+- modelos centrais (Property, Listing, Owner, PropertyBrokerRole, Lead, ActivityLog)
+- contratos conceituais
+- decisões de governança
+- endpoints conceituais (CRUD básico)
+
+NÃO implementar frontend (ver PROMPT 04).
+NÃO implementar importação ainda (ver PROMPT 02).
+NÃO criar features fora do MVP.
+
+========================
+REGRAS ESTRUTURAIS
+========================
+- Property = ativo físico único
+- Listing = versão do anúncio por corretor
+- Owner = proprietário (PASSIVO no MVP)
+- Canonical Listing = único anúncio público
+- PropertyBrokerRole = vínculo corretor-imóvel (captador, vendedor, co-corretor)
+- Lead pertence ao Property
+- Auditoria obrigatória
+- Multi-tenancy obrigatório (isolamento por tenant_id)
+
+========================
+REGRA GLOBAL DE CONTATO (MVP)
+========================
+O WhatsApp é tratado exclusivamente como canal de comunicação.
+Todo contato iniciado via WhatsApp DEVE gerar um Lead na plataforma
+antes de qualquer redirecionamento externo.
+É proibido tratar o WhatsApp como origem primária do lead.
+
+========================
+REGRA DE GOVERNANÇA DO STATUS
+========================
+Disponibilidade e preço pertencem ao Property.
+Corretores apenas confirmam informações.
+Toda confirmação deve ser auditável.
+
+========================
+ESTRUTURA DO REPOSITÓRIO GO
+========================
+
+**IMPORTANTE**: O backend Go fica na pasta `/backend` na raiz do projeto.
+O frontend Next.js fica separado em `/frontend`.
+
+```
+backend/                            # Projeto Go (API)
+├── cmd/
+│   └── api/
+│       └── main.go                 # Entry point
+├── internal/
+│   ├── models/                     # Modelos de domínio
+│   │   ├── tenant.go
+│   │   ├── broker.go
+│   │   ├── property.go
+│   │   ├── listing.go
+│   │   ├── owner.go
+│   │   ├── property_broker_role.go
+│   │   ├── lead.go
+│   │   └── activity_log.go
+│   ├── repositories/               # Acesso ao Firestore
+│   │   ├── tenant_repository.go
+│   │   ├── property_repository.go
+│   │   ├── listing_repository.go
+│   │   ├── owner_repository.go
+│   │   ├── lead_repository.go
+│   │   └── activity_log_repository.go
+│   ├── services/                   # Lógica de negócio
+│   │   ├── property_service.go
+│   │   ├── listing_service.go
+│   │   ├── lead_service.go
+│   │   └── activity_log_service.go
+│   ├── handlers/                   # HTTP handlers (Gin)
+│   │   ├── auth_handler.go         # Ver PROMPT 09
+│   │   ├── property_handler.go
+│   │   ├── listing_handler.go
+│   │   ├── lead_handler.go
+│   │   └── broker_handler.go
+│   ├── middleware/                 # Middlewares
+│   │   ├── auth_middleware.go      # Ver PROMPT 09
+│   │   ├── tenant_middleware.go    # Ver PROMPT 09
+│   │   └── logger_middleware.go
+│   ├── utils/
+│   │   ├── slug.go                 # Gerar slugs SEO-friendly
+│   │   ├── hash.go                 # event_id, event_hash
+│   │   └── firestore.go            # Helpers Firestore
+│   └── config/
+│       └── config.go               # Configurações (env vars)
+├── pkg/
+│   └── firebase/
+│       ├── client.go               # Firebase Admin SDK
+│       └── auth.go                 # Auth helpers
+├── docs/
+│   └── decisions/
+│       ├── 001_imovel_unico.md
+│       ├── 002_property_vs_listing.md
+│       ├── 003_proprietario_passivo.md
+│       ├── 004_canonical_listing.md
+│       ├── 005_co_corretagem.md
+│       └── 006_multitenancy.md
+├── .env.example
+├── go.mod
+├── go.sum
+├── Dockerfile
+├── cloudbuild.yaml                 # GCP Cloud Build
+└── README.md
+```
+
+========================
+MODELOS GO (FIRESTORE)
+========================
+
+### Property (Imóvel)
+Coleção: `/tenants/{tenantId}/properties/{propertyId}`
+
+```go
+package models
+
+import "time"
+
+type Property struct {
+    ID        string    `firestore:"-" json:"id"`
+    TenantID  string    `firestore:"tenant_id" json:"tenant_id"`
+
+    // Identificação
+    Slug      string    `firestore:"slug" json:"slug"` // SEO-friendly, unique per tenant
+    ExternalSource string `firestore:"external_source,omitempty" json:"external_source,omitempty"` // ex: "union"
+    ExternalID     string `firestore:"external_id,omitempty" json:"external_id,omitempty"` // ex: "77749175"
+    Reference      string `firestore:"reference,omitempty" json:"reference,omitempty"` // ex: "AP00335"
+
+    // Proprietário
+    OwnerID   string    `firestore:"owner_id" json:"owner_id"` // ref Owner
+
+    // Tipo e localização
+    PropertyType PropertyType `firestore:"property_type" json:"property_type"` // apartment, house, land, commercial
+    Street       string       `firestore:"street,omitempty" json:"street,omitempty"`
+    Number       string       `firestore:"number,omitempty" json:"number,omitempty"`
+    Complement   string       `firestore:"complement,omitempty" json:"complement,omitempty"`
+    Neighborhood string       `firestore:"neighborhood" json:"neighborhood"`
+    City         string       `firestore:"city" json:"city"`
+    State        string       `firestore:"state" json:"state"` // UF (ex: "SP")
+    ZipCode      string       `firestore:"zip_code,omitempty" json:"zip_code,omitempty"`
+    Country      string       `firestore:"country" json:"country"` // default "BR"
+
+    // Características
+    Bedrooms       int     `firestore:"bedrooms,omitempty" json:"bedrooms,omitempty"`
+    Bathrooms      int     `firestore:"bathrooms,omitempty" json:"bathrooms,omitempty"`
+    Suites         int     `firestore:"suites,omitempty" json:"suites,omitempty"`
+    ParkingSpaces  int     `firestore:"parking_spaces,omitempty" json:"parking_spaces,omitempty"`
+    TotalArea      float64 `firestore:"total_area,omitempty" json:"total_area,omitempty"` // m²
+    UsableArea     float64 `firestore:"usable_area,omitempty" json:"usable_area,omitempty"` // m²
+
+    // Preço e status (GOVERNANÇA)
+    PriceAmount      float64          `firestore:"price_amount" json:"price_amount"`
+    PriceCurrency    string           `firestore:"price_currency" json:"price_currency"` // "BRL"
+    PriceConfirmedAt *time.Time       `firestore:"price_confirmed_at,omitempty" json:"price_confirmed_at,omitempty"`
+    Status           PropertyStatus   `firestore:"status" json:"status"` // available, unavailable, pending_confirmation
+    StatusConfirmedAt *time.Time      `firestore:"status_confirmed_at,omitempty" json:"status_confirmed_at,omitempty"`
+
+    // Visibilidade e Co-corretagem (AI_DEV_DIRECTIVE Seção 20)
+    Visibility           PropertyVisibility `firestore:"visibility" json:"visibility"` // private, network, marketplace, public
+    VisibilityPublic     PropertyVisibility `firestore:"visibility_public" json:"visibility_public"` // DEPRECATED: usar apenas Visibility
+    CoBrokerCommission   float64            `firestore:"co_broker_commission" json:"co_broker_commission"` // % oferecida para selling_broker (ex: 40.0 = 40%)
+    PendingReason        string             `firestore:"pending_reason,omitempty" json:"pending_reason,omitempty"` // stale_status, stale_price, owner_reported
+
+    // Canonical Listing
+    CanonicalListingID string `firestore:"canonical_listing_id,omitempty" json:"canonical_listing_id,omitempty"` // ref Listing
+
+    // Deduplicação
+    Fingerprint        string `firestore:"fingerprint" json:"fingerprint"` // hash(street+number+city+property_type+area)
+    PossibleDuplicate  bool   `firestore:"possible_duplicate" json:"possible_duplicate"`
+    DataCompleteness   string `firestore:"data_completeness" json:"data_completeness"` // complete, incomplete, partial
+
+    // Metadata
+    CreatedAt time.Time `firestore:"created_at" json:"created_at"`
+    UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
+}
+
+type PropertyType string
+const (
+    PropertyTypeApartment  PropertyType = "apartment"
+    PropertyTypeHouse      PropertyType = "house"
+    PropertyTypeLand       PropertyType = "land"
+    PropertyTypeCommercial PropertyType = "commercial"
+)
+
+type PropertyStatus string
+const (
+    PropertyStatusAvailable            PropertyStatus = "available"
+    PropertyStatusUnavailable          PropertyStatus = "unavailable"
+    PropertyStatusPendingConfirmation  PropertyStatus = "pending_confirmation"
+)
+
+type PropertyVisibility string
+const (
+    // Visibilidade escalonada (AI_DEV_DIRECTIVE Seção 20.2)
+    PropertyVisibilityPrivate     PropertyVisibility = "private"     // apenas captador
+    PropertyVisibilityNetwork     PropertyVisibility = "network"     // tenant (imobiliária)
+    PropertyVisibilityMarketplace PropertyVisibility = "marketplace" // todos os corretores
+    PropertyVisibilityPublic      PropertyVisibility = "public"      // internet (SEO)
+
+    // DEPRECATED (manter por compatibilidade temporária)
+    PropertyVisibilityHiddenStale      PropertyVisibility = "hidden_stale"
+    PropertyVisibilityHiddenUnavailable PropertyVisibility = "hidden_unavailable"
+)
+```
+
+---
+
+### Listing (Anúncio)
+Coleção: `/tenants/{tenantId}/listings/{listingId}`
+
+```go
+type Listing struct {
+    ID          string    `firestore:"-" json:"id"`
+    TenantID    string    `firestore:"tenant_id" json:"tenant_id"`
+    PropertyID  string    `firestore:"property_id" json:"property_id"` // ref Property
+    BrokerID    string    `firestore:"broker_id" json:"broker_id"` // ref Broker (listing broker/vendedor)
+
+    // Conteúdo do anúncio
+    Title       string    `firestore:"title" json:"title"`
+    Description string    `firestore:"description" json:"description"`
+
+    // Fotos (URLs GCS)
+    Photos      []Photo   `firestore:"photos" json:"photos"`
+
+    // 🆕 Vídeos (AI_DEV_DIRECTIVE Seção 23)
+    Videos      []Video   `firestore:"videos" json:"videos"`
+
+    // SEO
+    MetaTitle       string `firestore:"meta_title,omitempty" json:"meta_title,omitempty"`
+    MetaDescription string `firestore:"meta_description,omitempty" json:"meta_description,omitempty"`
+
+    // Status
+    IsActive    bool      `firestore:"is_active" json:"is_active"`
+    IsCanonical bool      `firestore:"is_canonical" json:"is_canonical"` // denormalizado para query
+
+    // Metadata
+    CreatedAt   time.Time `firestore:"created_at" json:"created_at"`
+    UpdatedAt   time.Time `firestore:"updated_at" json:"updated_at"`
+}
+
+type Photo struct {
+    ID       string `firestore:"id" json:"id"`
+    URL      string `firestore:"url" json:"url"` // GCS URL
+    ThumbURL string `firestore:"thumb_url" json:"thumb_url"` // 400x300 WebP
+    MediumURL string `firestore:"medium_url" json:"medium_url"` // 800x600 WebP
+    LargeURL string `firestore:"large_url" json:"large_url"` // 1600x1200 WebP
+    Order    int    `firestore:"order" json:"order"`
+    IsCover  bool   `firestore:"is_cover" json:"is_cover"`
+
+    // 🆕 Análise de qualidade (AI_DEV_DIRECTIVE Seção 23 - Fase 2)
+    RoomType       string   `firestore:"room_type,omitempty" json:"room_type,omitempty"` // living_room, kitchen, bedroom, bathroom, exterior
+    Quality        float64  `firestore:"quality,omitempty" json:"quality,omitempty"` // 0.0 - 1.0
+    SuggestedOrder int      `firestore:"suggested_order,omitempty" json:"suggested_order,omitempty"` // Ordem sugerida pela IA
+}
+
+// 🆕 Suporte a vídeos (AI_DEV_DIRECTIVE Seção 23)
+type Video struct {
+    ID           string    `firestore:"id" json:"id"`
+    URL          string    `firestore:"url" json:"url"` // GCS URL
+    ThumbnailURL string    `firestore:"thumbnail_url" json:"thumbnail_url"` // Frame do meio (gerado por ffmpeg)
+    Duration     int       `firestore:"duration" json:"duration"` // Duração em segundos
+    Source       string    `firestore:"source" json:"source"` // "upload", "youtube", "instagram"
+    SourceURL    string    `firestore:"source_url,omitempty" json:"source_url,omitempty"` // URL original (se externo)
+    Order        int       `firestore:"order" json:"order"`
+    CreatedAt    time.Time `firestore:"created_at" json:"created_at"`
+}
+```
+
+---
+
+### Owner (Proprietário)
+Coleção: `/tenants/{tenantId}/owners/{ownerId}`
+
+```go
+type Owner struct {
+    ID             string      `firestore:"-" json:"id"`
+    TenantID       string      `firestore:"tenant_id" json:"tenant_id"`
+
+    // Dados pessoais (PODEM ser incompletos no MVP)
+    Name           string      `firestore:"name,omitempty" json:"name,omitempty"`
+    Email          string      `firestore:"email,omitempty" json:"email,omitempty"`
+    Phone          string      `firestore:"phone,omitempty" json:"phone,omitempty"`
+    Document       string      `firestore:"document,omitempty" json:"document,omitempty"` // CPF/CNPJ
+    DocumentType   string      `firestore:"document_type,omitempty" json:"document_type,omitempty"` // cpf, cnpj
+
+    // Completude dos dados
+    OwnerStatus    OwnerStatus `firestore:"owner_status" json:"owner_status"` // incomplete, partial, verified
+
+    // 🆕 LGPD - Consentimento e Origem (AI_DEV_DIRECTIVE Seção 21)
+    ConsentGiven     bool      `firestore:"consent_given" json:"consent_given"` // default: false para placeholders
+    ConsentText      string    `firestore:"consent_text,omitempty" json:"consent_text,omitempty"` // Texto exibido
+    ConsentDate      *time.Time `firestore:"consent_date,omitempty" json:"consent_date,omitempty"`
+    ConsentOrigin    string    `firestore:"consent_origin,omitempty" json:"consent_origin,omitempty"` // broker, self_service, xls_import, manual_entry
+
+    // 🆕 LGPD - Anonimização
+    IsAnonymized         bool      `firestore:"is_anonymized" json:"is_anonymized"` // default: false
+    AnonymizedAt         *time.Time `firestore:"anonymized_at,omitempty" json:"anonymized_at,omitempty"`
+    AnonymizationReason  string    `firestore:"anonymization_reason,omitempty" json:"anonymization_reason,omitempty"` // retention_policy, user_request
+
+    // Metadata
+    CreatedAt      time.Time   `firestore:"created_at" json:"created_at"`
+    UpdatedAt      time.Time   `firestore:"updated_at" json:"updated_at"`
+}
+
+type OwnerStatus string
+const (
+    OwnerStatusIncomplete OwnerStatus = "incomplete" // placeholder
+    OwnerStatusPartial    OwnerStatus = "partial"    // alguns dados
+    OwnerStatusVerified   OwnerStatus = "verified"   // completo e verificado
+)
+```
+
+---
+
+### PropertyBrokerRole (Vínculo Corretor-Imóvel)
+Coleção: `/tenants/{tenantId}/property_broker_roles/{roleId}`
+
+**IMPORTANTE**: Este modelo implementa a co-corretagem conforme definido no AI_DEV_DIRECTIVE.md seção 4.
+
+```go
+type PropertyBrokerRole struct {
+    ID        string    `firestore:"-" json:"id"`
+    TenantID  string    `firestore:"tenant_id" json:"tenant_id"`
+    PropertyID string   `firestore:"property_id" json:"property_id"` // ref Property
+    BrokerID   string   `firestore:"broker_id" json:"broker_id"` // ref Broker
+
+    // Papel do corretor
+    Role      BrokerPropertyRole `firestore:"role" json:"role"` // originating_broker, listing_broker, co_broker
+
+    // Comissão (apenas registro, SEM processamento no MVP)
+    CommissionPercentage float64 `firestore:"commission_percentage,omitempty" json:"commission_percentage,omitempty"`
+
+    // Primary (para roteamento de leads)
+    IsPrimary bool `firestore:"is_primary" json:"is_primary"` // define quem recebe leads primeiro
+
+    // Metadata
+    CreatedAt time.Time `firestore:"created_at" json:"created_at"`
+    UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`
+}
+
+type BrokerPropertyRole string
+const (
+    // Captador: corretor que originou/captou o imóvel (único por Property)
+    BrokerPropertyRoleOriginating BrokerPropertyRole = "originating_broker"
+
+    // Vendedor: corretor responsável por um Listing (pode haver múltiplos)
+    BrokerPropertyRoleListing     BrokerPropertyRole = "listing_broker"
+
+    // Co-corretor: corretor adicional na negociação (comum no Brasil)
+    BrokerPropertyRoleCoBroker    BrokerPropertyRole = "co_broker"
+)
+```
+
+**REGRAS DE NEGÓCIO (PropertyBrokerRole)**:
+1. Todo Property DEVE ter exatamente 1 `originating_broker` (captador)
+2. Todo Listing DEVE criar 1 `listing_broker` (vendedor)
+3. Pode haver N `co_broker` adicionados durante negociação
+4. Apenas 1 PropertyBrokerRole pode ter `is_primary: true` (roteamento de leads)
+5. Comissão é apenas registro, SEM cálculo ou split no MVP
+
+---
+
+### Lead
+Coleção: `/tenants/{tenantId}/leads/{leadId}`
+
+```go
+type Lead struct {
+    ID         string    `firestore:"-" json:"id"`
+    TenantID   string    `firestore:"tenant_id" json:"tenant_id"`
+    PropertyID string    `firestore:"property_id" json:"property_id"` // ref Property (OBRIGATÓRIO)
+
+    // Dados do interessado (MÍNIMOS)
+    Name       string    `firestore:"name,omitempty" json:"name,omitempty"`
+    Email      string    `firestore:"email,omitempty" json:"email,omitempty"`
+    Phone      string    `firestore:"phone,omitempty" json:"phone,omitempty"`
+    Message    string    `firestore:"message,omitempty" json:"message,omitempty"`
+
+    // Origem
+    Channel    LeadChannel `firestore:"channel" json:"channel"` // whatsapp, form, phone, email
+    UTMSource  string      `firestore:"utm_source,omitempty" json:"utm_source,omitempty"`
+    UTMCampaign string     `firestore:"utm_campaign,omitempty" json:"utm_campaign,omitempty"`
+    UTMMedium  string      `firestore:"utm_medium,omitempty" json:"utm_medium,omitempty"`
+    Referrer   string      `firestore:"referrer,omitempty" json:"referrer,omitempty"` // URL da página
+
+    // Status
+    Status     LeadStatus `firestore:"status" json:"status"` // new, contacted, qualified, lost
+
+    // 🆕 LGPD - Consentimento (AI_DEV_DIRECTIVE Seção 21)
+    ConsentGiven   bool      `firestore:"consent_given" json:"consent_given"` // OBRIGATÓRIO para criar lead
+    ConsentText    string    `firestore:"consent_text" json:"consent_text"` // Texto exibido no checkbox
+    ConsentDate    time.Time `firestore:"consent_date" json:"consent_date"` // Timestamp do consentimento
+    ConsentIP      string    `firestore:"consent_ip,omitempty" json:"consent_ip,omitempty"` // IP do usuário (se disponível)
+    ConsentRevoked bool      `firestore:"consent_revoked" json:"consent_revoked"` // default: false
+    RevokedAt      *time.Time `firestore:"revoked_at,omitempty" json:"revoked_at,omitempty"` // Timestamp da revogação
+
+    // 🆕 LGPD - Anonimização
+    IsAnonymized        bool      `firestore:"is_anonymized" json:"is_anonymized"` // default: false
+    AnonymizedAt        *time.Time `firestore:"anonymized_at,omitempty" json:"anonymized_at,omitempty"`
+    AnonymizationReason string    `firestore:"anonymization_reason,omitempty" json:"anonymization_reason,omitempty"` // retention_policy, user_request
+
+    // Metadata
+    CreatedAt  time.Time `firestore:"created_at" json:"created_at"`
+    UpdatedAt  time.Time `firestore:"updated_at" json:"updated_at"`
+}
+
+type LeadChannel string
+const (
+    LeadChannelWhatsApp LeadChannel = "whatsapp"
+    LeadChannelForm     LeadChannel = "form"
+    LeadChannelPhone    LeadChannel = "phone"
+    LeadChannelEmail    LeadChannel = "email"
+)
+
+type LeadStatus string
+const (
+    LeadStatusNew       LeadStatus = "new"
+    LeadStatusContacted LeadStatus = "contacted"
+    LeadStatusQualified LeadStatus = "qualified"
+    LeadStatusLost      LeadStatus = "lost"
+)
+```
+
+---
+
+### ActivityLog (Auditoria)
+Coleção: `/tenants/{tenantId}/activity_logs/{logId}`
+
+Ver AI_DEV_DIRECTIVE.md seção 17 para especificação completa.
+
+```go
+type ActivityLog struct {
+    ID        string                 `firestore:"-" json:"id"`
+    TenantID  string                 `firestore:"tenant_id" json:"tenant_id"`
+
+    // Identificação determinística
+    EventID   string                 `firestore:"event_id" json:"event_id"` // hash(entityId + action + timestamp_bucket_5min)
+    EventHash string                 `firestore:"event_hash" json:"event_hash"` // SHA256 do payload normalizado
+    RequestID string                 `firestore:"request_id" json:"request_id"` // UUID v4 por request HTTP
+
+    // Evento
+    EventType string                 `firestore:"event_type" json:"event_type"` // ex: property_created, lead_created_whatsapp
+
+    // Ator
+    ActorType ActorType              `firestore:"actor_type" json:"actor_type"` // user, system, owner
+    ActorID   string                 `firestore:"actor_id,omitempty" json:"actor_id,omitempty"`
+
+    // Dados flexíveis
+    Metadata  map[string]interface{} `firestore:"metadata" json:"metadata"`
+
+    // Timestamp
+    Timestamp time.Time              `firestore:"timestamp" json:"timestamp"`
+}
+
+type ActorType string
+const (
+    ActorTypeUser   ActorType = "user"   // Broker autenticado
+    ActorTypeSystem ActorType = "system" // Job automático
+    ActorTypeOwner  ActorType = "owner"  // Owner confirmando via link
+)
+```
+
+========================
+ENDPOINTS CONCEITUAIS (GIN)
+========================
+
+Ver código completo nos handlers correspondentes.
+Abaixo, apenas assinaturas para referência.
+
+### Properties
+
+**POST /api/v1/tenants/:tenantId/properties**
+- Criar Property manualmente (corretor)
+- Body: dados do Property (sem OwnerID se Owner ainda não existir)
+- Behavior:
+  - Criar Owner placeholder se necessário
+  - Gerar slug SEO-friendly
+  - Criar PropertyBrokerRole (originating_broker = corretor autenticado)
+  - ActivityLog: property_created, owner_placeholder_created (se aplicável)
+
+**GET /api/v1/tenants/:tenantId/properties/:propertyId**
+- Buscar Property por ID
+- Incluir: Owner, Canonical Listing, PropertyBrokerRoles
+
+**PATCH /api/v1/tenants/:tenantId/properties/:propertyId**
+- Atualizar Property
+- Validar que corretor tem vínculo com o Property
+- ActivityLog: property_updated
+
+**GET /api/v1/tenants/:tenantId/properties**
+- Listar Properties do tenant
+- Filtros: status, visibility_public, possible_duplicate, data_completeness
+- Paginação
+
+---
+
+### Listings
+
+**POST /api/v1/tenants/:tenantId/listings**
+- Criar Listing para um Property
+- Body: property_id, title, description, photos (URLs externas, processadas depois)
+- Behavior:
+  - Validar que Property existe
+  - Criar PropertyBrokerRole (listing_broker = corretor autenticado)
+  - Se for o PRIMEIRO Listing, setar como canonical (canonical_listing_id)
+  - ActivityLog: listing_created, canonical_listing_assigned (se aplicável)
+
+**GET /api/v1/tenants/:tenantId/listings/:listingId**
+- Buscar Listing por ID
+
+**PATCH /api/v1/tenants/:tenantId/listings/:listingId**
+- Atualizar Listing
+- Validar que corretor é o listing_broker
+- ActivityLog: listing_updated
+
+**POST /api/v1/tenants/:tenantId/properties/:propertyId/canonical-listing**
+- Trocar canonical listing (apenas se o atual estiver inativo ou inválido)
+- Body: new_listing_id
+- Behavior:
+  - Validar regras de troca (ver AI_DEV_DIRECTIVE.md seção 5)
+  - ActivityLog: canonical_listing_changed
+
+---
+
+### Leads
+
+**POST /api/v1/properties/:propertyId/leads/whatsapp** (PÚBLICO - sem autenticação)
+- Criar Lead via WhatsApp (ver PROMPT 07)
+- Body: name (opcional), phone (opcional), utm_source, utm_campaign, consent_given (OBRIGATÓRIO), consent_text
+- Behavior:
+  - 🆕 LGPD: Validar consent_given = true (retornar 400 se false)
+  - Criar Lead associado ao Property
+  - Registrar channel = whatsapp
+  - Registrar ConsentDate = time.Now(), ConsentIP (se disponível via X-Forwarded-For)
+  - ActivityLog: lead_created_whatsapp
+  - Retornar: lead_id, mensagem pré-formatada, número WhatsApp do corretor primary
+
+**POST /api/v1/properties/:propertyId/leads/form** (PÚBLICO - sem autenticação)
+- Criar Lead via formulário de contato
+- Body: name, email, phone, message, consent_given (OBRIGATÓRIO), consent_text
+- Behavior:
+  - 🆕 LGPD: Validar consent_given = true (retornar 400 se false)
+  - Criar Lead associado ao Property
+  - Registrar channel = form
+  - Registrar ConsentDate = time.Now(), ConsentIP (se disponível via X-Forwarded-For)
+  - ActivityLog: lead_created_form
+
+**GET /api/v1/tenants/:tenantId/leads** (PRIVADO)
+- Listar Leads do tenant
+- Filtros: property_id, status, channel
+- Paginação
+
+**PATCH /api/v1/tenants/:tenantId/leads/:leadId** (PRIVADO)
+- Atualizar status do Lead
+- ActivityLog: lead_status_changed
+
+---
+
+### PropertyBrokerRoles (Co-corretagem)
+
+**POST /api/v1/tenants/:tenantId/properties/:propertyId/brokers**
+- Adicionar corretor ao Property (co-corretor)
+- Body: broker_id, role (co_broker), commission_percentage (opcional)
+- Validar:
+  - Apenas 1 originating_broker permitido (bloquear se role = originating_broker)
+  - listing_broker criado automaticamente ao criar Listing (bloquear criação manual)
+  - co_broker pode ser adicionado livremente
+- ActivityLog: co_broker_added
+
+**GET /api/v1/tenants/:tenantId/properties/:propertyId/brokers**
+- Listar corretores vinculados ao Property
+
+**DELETE /api/v1/tenants/:tenantId/properties/:propertyId/brokers/:roleId**
+- Remover co-corretor (apenas co_broker pode ser removido)
+- ActivityLog: co_broker_removed
+
+========================
+DECISÕES DE GOVERNANÇA (docs/decisions/)
+========================
+
+Criar arquivos markdown documentando:
+
+**001_imovel_unico.md**
+- Justificativa: evitar duplicação, governança centralizada
+- Implementação: external_source + external_id, fingerprint
+- Trade-offs: complexidade de deduplicação vs qualidade de dados
+
+**002_property_vs_listing.md**
+- Justificativa: Property = verdade, Listing = visão do corretor
+- Implementação: separação de coleções, canonical_listing_id
+- Trade-offs: normalização vs denormalização
+
+**003_proprietario_passivo.md**
+- Justificativa: MVP focado em corretores, Owner sem login
+- Implementação: Owner pode ser incompleto, confirmação via link
+- Trade-offs: simplicidade vs experiência do proprietário
+
+**004_canonical_listing.md**
+- Justificativa: evitar múltiplos anúncios públicos do mesmo imóvel
+- Implementação: canonical_listing_id único, regras de troca
+- Trade-offs: flexibilidade vs consistência pública
+
+**005_co_corretagem.md**
+- Justificativa: mercado brasileiro tem alta colaboração entre corretores
+- Implementação: PropertyBrokerRole com 3 papéis distintos
+- Trade-offs: complexidade de splits (fora do MVP) vs realidade de mercado
+
+**006_multitenancy.md**
+- Justificativa: SaaS multi-imobiliária desde o MVP
+- Implementação: subcoleções Firestore, Security Rules, custom claims
+- Trade-offs: complexidade inicial vs escalabilidade futura
+
+========================
+LGPD - COMPLIANCE OBRIGATÓRIO
+========================
+
+**IMPORTANTE**: Conformidade com LGPD (Lei Geral de Proteção de Dados) é OBRIGATÓRIA.
+Ver AI_DEV_DIRECTIVE.md Seção 21 para especificação completa.
+
+### Validações LGPD nos Endpoints
+
+**Lead Creation (WhatsApp + Form)**:
+1. Campo `consent_given` DEVE ser true (retornar HTTP 400 se false)
+2. Campo `consent_text` DEVE conter o texto exato exibido ao usuário
+3. Campo `consent_date` DEVE ser preenchido automaticamente com time.Now()
+4. Campo `consent_ip` DEVE ser extraído do header X-Forwarded-For (se disponível)
+5. Campos LGPD DEVEM ser incluídos no ActivityLog metadata
+
+**Owner Creation (Placeholder)**:
+1. Se Owner criado como placeholder (sem consentimento explícito):
+   - consent_given = false
+   - consent_origin = "broker" (corretor adicionou dados)
+   - owner_status = "incomplete"
+2. Se Owner criado com dados completos (futuro):
+   - consent_given = true
+   - consent_text obrigatório
+   - consent_date obrigatório
+   - consent_origin = "self_service" ou "broker"
+
+### Exemplo de Validação (Go)
+
+```go
+// internal/services/lead_service.go
+func (s *LeadService) CreateLead(ctx context.Context, req CreateLeadRequest) (*Lead, error) {
+    // 🆕 LGPD: Validação de consentimento
+    if !req.ConsentGiven {
+        return nil, errors.New("consent_given must be true to create a lead (LGPD compliance)")
+    }
+
+    if req.ConsentText == "" {
+        return nil, errors.New("consent_text is required (LGPD compliance)")
+    }
+
+    // Extrair IP do request
+    ip := extractIPFromContext(ctx) // X-Forwarded-For ou RemoteAddr
+
+    lead := &Lead{
+        ID:              generateID(),
+        TenantID:        req.TenantID,
+        PropertyID:      req.PropertyID,
+        Name:            req.Name,
+        Email:           req.Email,
+        Phone:           req.Phone,
+        Message:         req.Message,
+        Channel:         req.Channel,
+        Status:          LeadStatusNew,
+
+        // 🆕 LGPD
+        ConsentGiven:    true,
+        ConsentText:     req.ConsentText,
+        ConsentDate:     time.Now(),
+        ConsentIP:       ip,
+        ConsentRevoked:  false,
+        IsAnonymized:    false,
+
+        CreatedAt:       time.Now(),
+        UpdatedAt:       time.Now(),
+    }
+
+    // Salvar no Firestore
+    if err := s.repo.Create(ctx, lead); err != nil {
+        return nil, err
+    }
+
+    // ActivityLog (incluir consent metadata)
+    s.activityLog.Log(ctx, ActivityLog{
+        EventType: "lead_created_" + string(req.Channel),
+        TenantID:  req.TenantID,
+        Metadata: map[string]interface{}{
+            "lead_id":       lead.ID,
+            "property_id":   lead.PropertyID,
+            "channel":       lead.Channel,
+            "consent_given": true, // ⭐ LGPD audit
+            "consent_ip":    ip,   // ⭐ LGPD audit
+        },
+    })
+
+    return lead, nil
+}
+```
+
+### Exemplo de Texto de Consentimento (Frontend)
+
+O frontend DEVE enviar o texto EXATO exibido ao usuário:
+
+```
+Concordo com a Política de Privacidade e autorizo o uso dos meus dados para contato sobre este imóvel.
+```
+
+Este texto será armazenado em `consent_text` para auditoria futura.
+
+========================
+AUDITORIA OBRIGATÓRIA
+========================
+ActivityLog para eventos DESTE prompt:
+- property_created
+- property_updated
+- listing_created
+- listing_updated
+- canonical_listing_assigned
+- canonical_listing_changed
+- owner_placeholder_created
+- owner_enriched (quando dados forem adicionados)
+- lead_created_whatsapp
+- lead_created_form
+- lead_status_changed
+- co_broker_added
+- co_broker_removed
+
+Ver AI_DEV_DIRECTIVE.md seção 17 para campos obrigatórios.
+
+========================
+ENTREGA ESPERADA
+========================
+1. Repositório Go estruturado conforme layout acima
+2. Modelos Go completos (Property, Listing, Owner, PropertyBrokerRole, Lead, ActivityLog)
+3. Repositories (camada de acesso ao Firestore)
+4. Services (lógica de negócio + validações)
+5. Handlers (endpoints HTTP com Gin)
+6. Middlewares (autenticação, tenant isolation - ver PROMPT 09)
+7. Documentação (docs/decisions/)
+8. README.md com instruções de setup
+9. .env.example
+10. Dockerfile + cloudbuild.yaml para deploy no Cloud Run
+
+========================
+CRITÉRIO DE SUCESSO
+========================
+✅ Modelos Go refletem 100% as regras de negócio do AI_DEV_DIRECTIVE.md
+✅ Firestore estruturado com subcoleções multi-tenant
+✅ Endpoints CRUD funcionais para Property, Listing, Lead
+✅ PropertyBrokerRole implementa co-corretagem corretamente
+✅ ActivityLog registra todos os eventos críticos
+✅ Canonical Listing é único e bem governado
+✅ Owner pode ser incompleto sem bloquear operações
+✅ Lead SEMPRE pertence ao Property, NUNCA diretamente ao corretor
+✅ Middleware valida tenant_id em TODAS as requests privadas

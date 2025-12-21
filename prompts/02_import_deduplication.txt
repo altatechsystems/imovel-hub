@@ -1,0 +1,988 @@
+Você é um engenheiro backend Go sênior responsável EXCLUSIVAMENTE por implementar
+IMPORTAÇÃO + DEDUPLICAÇÃO conforme `AI_DEV_DIRECTIVE.md` e PROMPT 01.
+
+STACK TÉCNICA:
+- Backend: Go (Golang) 1.21+ + Gin framework
+- Banco: Google Cloud Firestore
+- Storage: Google Cloud Storage (GCS)
+- Processamento de imagens: biblioteca imaging/draw (Go)
+
+IMPORTANTE:
+NÃO criar frontend.
+NÃO criar novas features fora do escopo de importação/deduplicação.
+NÃO alterar regras de governança (Imóvel Único, canonical listing, co-corretagem, owner passivo).
+EXECUTAR após PROMPT 01 e PROMPT 09 (auth + multi-tenancy).
+
+========================
+OBJETIVO
+========================
+Importar imóveis do CRM (Union) garantindo:
+- Property único (sem duplicação)
+- Listings múltiplos por Property, com canonical_listing_id
+- Owner (proprietário) criado como entidade PASSIVA, mesmo que dados estejam incompletos
+- Auditoria completa (ActivityLog)
+- Estrutura pronta para outros layouts no futuro (adapter-based)
+
+========================
+ARQUIVOS DE ENTRADA (UNION)
+========================
+No MVP, o source=union é composto por DOIS arquivos complementares:
+
+1) XML (principal): /914802.xml
+   - contém dados ricos do imóvel, descrição, SEO, fotos, valores etc.
+   - NÃO contém todos os dados necessários do proprietário (Owner) ou pode vir incompleto
+
+2) XLS (complementar): arquivo .xls exportado do CRM
+   - objetivo: ENRIQUECER campos ausentes do XML, principalmente Owner
+   - deve ser tratado como "enrichment dataset" do mesmo source=union
+
+Premissa do MVP:
+- A importação deve funcionar mesmo se o XLS estiver ausente (criar Owner placeholder).
+- Se o XLS estiver presente, aplicar enrichment sem quebrar o Property único.
+
+========================
+ESCOPO
+========================
+- Importação via adapters por source
+- Implementar APENAS source=union
+- Normalização (XML + XLS → payload canônico interno)
+- Deduplicação de Property
+- Criação/atualização de Owner (passivo, pode ser incompleto)
+- Criação de Listing
+- Definição de canonical_listing_id
+- ActivityLog completo
+- Batch com resumo de importação (contagens, duplicados, enriquecidos, erros)
+
+========================
+CHAVES DE MATCH (XML ↔ XLS)
+========================
+A importação deve tentar correlacionar o registro do XLS ao imóvel do XML.
+Ordem de preferência (quando disponíveis em ambas as fontes):
+1) Codigoimovel (Union) / código equivalente no XLS
+2) Referencia (ex.: AP00335) / referência equivalente no XLS
+3) Fallback heurístico (endereço + tipo + área) — apenas para sugerir, não para merge automático
+
+**IMPORTANTE**: A estrutura exata do XLS (nomes de colunas) deve ser analisada
+durante a implementação ao examinar o arquivo real. Implementar parser flexível
+que identifica colunas automaticamente (ex: "Codigo", "CodImovel", "CodigoImovel").
+
+Se não for possível correlacionar, o imóvel ainda é importado a partir do XML,
+e o Owner permanece como placeholder/incompleto (ver regra de Owner).
+
+========================
+REGRAS DE DEDUPLICAÇÃO (PROPERTY)
+========================
+1) external_source + external_id (chave forte)
+   - external_source = "union"
+   - external_id = Codigoimovel (ex.: 77749175)
+2) fingerprint heurístico (endereço normalizado + tipo + área total/útil)
+3) Se dúvida → possible_duplicate = true (registrar no batch summary)
+4) PROIBIDO merge automático de Properties
+
+========================
+OWNER (PROPRIETÁRIO) — PASSIVO NO MVP
+========================
+- Todo Property deve apontar para um Owner (owner_id).
+- O Owner pode ser criado com dados mínimos se o XML/XLS não tiver dados completos.
+- A importação NUNCA deve bloquear por falta de dados do Owner.
+
+Regras:
+- Se o XLS fornecer dados do proprietário:
+  - criar/atualizar Owner com os campos disponíveis (ex.: nome, telefone, email, documento se existir)
+  - registrar consent/origem se houver no XLS
+  - ActivityLog: owner_enriched_from_xls
+- Se NÃO houver dados do proprietário:
+  - criar Owner placeholder (ex.: nome="PROPRIETÁRIO NÃO INFORMADO")
+  - marcar flags internas: owner_data_completeness = "missing" | "partial" | "complete"
+  - ActivityLog: owner_placeholder_created
+
+IMPORTANTE:
+- Owner é PASSIVO no MVP (sem login, sem leads, sem negociação).
+- A confirmação passiva por link (quando existir) pode preencher campos depois,
+  mas isso NÃO faz parte deste prompt.
+
+========================
+LISTING E CANONICAL LISTING
+========================
+- Criar um Listing a partir do XML (conteúdo de anúncio do operador)
+- Primeiro listing vira canônico (canonical_listing_id), a menos que já exista um canônico válido
+- Não trocar automaticamente
+- Só trocar se o canônico estiver inativo ou inválido (regra existente)
+
+========================
+IMPORTANTE (LEADS)
+========================
+A importação de imóveis NÃO cria leads automaticamente.
+Leads só podem ser criados por interação do usuário (ex.: formulário ou WhatsApp),
+sempre associados ao Property e nunca diretamente a um corretor.
+
+========================
+IMPORTANTE (STATUS/PREÇO)
+========================
+A importação NÃO define disponibilidade como verdade permanente.
+Status e preço importados devem exigir confirmação futura:
+- preencher price_amount e status inicial (se disponível no XML)
+- inicializar status_confirmed_at e price_confirmed_at conforme regra do projeto
+  (ex.: setar como "now" apenas se houver evidência de atualização recente; caso contrário, marcar como pendente)
+
+========================
+MULTI-FONTE / FUTUROS LAYOUTS
+========================
+- Estrutura por adapters permanece obrigatória.
+- Union é o único adapter implementado no MVP.
+- O endpoint recebe ?source=union.
+- Sem UI de escolha de layout no MVP.
+- Deixar o código preparado para novos adapters (outros CRMs) sem refatoração estrutural.
+
+========================
+AUDITORIA (OBRIGATÓRIA)
+========================
+Registrar ActivityLog para:
+- import_batch_started / import_batch_completed
+- property_created / property_matched_existing
+- listing_created
+- canonical_listing_assigned
+- owner_placeholder_created
+- owner_enriched_from_xls
+- possible_duplicate_flagged
+Cada evento deve conter event_id determinístico, event_hash e request_id.
+
+========================
+PROCESSAMENTO DE FOTOS (OBRIGATÓRIO)
+========================
+Ver AI_DEV_DIRECTIVE.md seção 14.4 para pipeline completo.
+
+### Pipeline de Importação de Fotos:
+
+1. **Download das URLs Externas (XML)**
+   - Ler tags `<Foto>` do XML Union
+   - Fazer HTTP GET de cada URL
+   - Validar content-type (image/jpeg, image/png, etc.)
+   - Tratamento de erro: se download falhar, pular foto + registrar erro
+
+2. **Upload para GCS (Original Temporário)**
+   - Path: `gs://{bucket}/tenants/{tenantId}/properties/{propertyId}/temp/{original_filename}`
+   - Manter original APENAS durante processamento
+   - Metadados: content-type, source_url, download_timestamp
+
+3. **Processamento e Conversão WebP**
+   Usar biblioteca: `github.com/disintegration/imaging` (Go)
+
+   Para CADA foto, gerar 3 versões WebP:
+   ```go
+   // Thumb (listagens)
+   thumb := imaging.Resize(img, 400, 300, imaging.Lanczos)
+   imaging.Save(thumb, "thumb_400.webp", imaging.JPEGQuality(85))
+
+   // Medium (carrossel)
+   medium := imaging.Resize(img, 800, 600, imaging.Lanczos)
+   imaging.Save(medium, "medium_800.webp", imaging.JPEGQuality(85))
+
+   // Large (fullscreen)
+   large := imaging.Resize(img, 1600, 1200, imaging.Lanczos)
+   imaging.Save(large, "large_1600.webp", imaging.JPEGQuality(85))
+   ```
+
+4. **Upload Versões Processadas para GCS**
+   - Path final: `gs://{bucket}/tenants/{tenantId}/properties/{propertyId}/photos/{photo_id}/`
+   - Estrutura:
+     ```
+     /thumb_400.webp
+     /medium_800.webp
+     /large_1600.webp
+     ```
+   - Tornar arquivos **públicos** (public-read) para CDN
+   - Metadados: photo_id, order, is_cover
+
+5. **Excluir Original Temporário**
+   - Após sucesso de todas as conversões, deletar `/temp/{original_filename}`
+   - Economia de storage
+
+6. **Criar Objeto Photo no Listing**
+   ```go
+   type Photo struct {
+       ID       string `firestore:"id"`       // UUID v4
+       URL      string `firestore:"url"`      // GCS URL public (large)
+       ThumbURL string `firestore:"thumb_url"`  // 400x300
+       MediumURL string `firestore:"medium_url"` // 800x600
+       LargeURL string `firestore:"large_url"`  // 1600x1200
+       Order    int    `firestore:"order"`    // ordem do XML
+       IsCover  bool   `firestore:"is_cover"` // primeira foto = true
+   }
+   ```
+
+7. **Tratamento de Erros**
+   - Download falhou: pular foto + registrar em import_errors
+   - Conversão falhou: pular foto + registrar em import_errors
+   - Upload falhou: pular foto + registrar em import_errors
+   - NUNCA bloquear importação do Property por erro de foto
+
+8. **ActivityLog**
+   - photo_downloaded (sucesso)
+   - photo_conversion_failed (erro)
+   - photo_uploaded (sucesso)
+
+### Ordem das Fotos:
+- Preservar ordem do XML (primeira foto = capa)
+- Campo `Order` no Photo: 0, 1, 2, ...
+- Campo `IsCover`: true apenas para Order=0
+
+### Performance:
+- Processar fotos em **paralelo** (goroutines)
+- Limite de 10 fotos simultâneas (evitar saturar CPU/rede)
+- Timeout de 30s por download de foto
+
+========================
+CORRETOR CAPTADOR (OBRIGATÓRIO)
+========================
+Ver AI_DEV_DIRECTIVE.md seção 4 e PROMPT 01 (PropertyBrokerRole).
+
+Ao importar um Property, criar PropertyBrokerRole:
+```go
+PropertyBrokerRole{
+    PropertyID: property.ID,
+    BrokerID:   authBrokerID, // corretor autenticado que fez importação
+    TenantID:   tenantID,
+    Role:       "originating_broker", // CAPTADOR
+    IsPrimary:  true, // recebe leads por padrão
+    CommissionPercentage: 0, // opcional no MVP
+}
+```
+
+**REGRA CRÍTICA**: Todo Property importado DEVE ter 1 originating_broker.
+Se importação for manual (UI), usar corretor autenticado.
+Se importação for automática (job), definir corretor default do tenant.
+
+========================
+MULTI-TENANCY NA IMPORTAÇÃO
+========================
+Importação SEMPRE associada a um tenant específico.
+
+Endpoint:
+```
+POST /api/v1/tenants/{tenantId}/import
+Authorization: Bearer {firebase_token}
+Content-Type: multipart/form-data
+
+Body:
+- xml_file: arquivo XML
+- xls_file: arquivo XLS (opcional)
+- source: "union"
+```
+
+Validações:
+- Middleware valida que token.tenant_id == tenantId da URL
+- Apenas admin ou broker do tenant pode importar
+- Todos os Properties/Owners/Listings criados pertencem ao tenantID
+
+========================
+ESTRUTURA GO (ADICIONAL AO PROMPT 01)
+========================
+
+```
+internal/
+├── adapters/
+│   └── union/
+│       ├── xml_parser.go       # Parse XML Union
+│       ├── xls_parser.go       # Parse XLS Union
+│       ├── normalizer.go       # XML+XLS → PropertyPayload
+│       └── photo_processor.go  # Download + WebP + GCS
+├── services/
+│   ├── import_service.go       # Orquestração importação
+│   └── deduplication_service.go # Lógica de deduplicação
+├── handlers/
+│   └── import_handler.go       # POST /import
+```
+
+### Modelos Adicionais:
+
+**ImportBatch**
+Coleção: `/tenants/{tenantId}/import_batches/{batchId}`
+```go
+type ImportBatch struct {
+    ID        string    `firestore:"-"`
+    TenantID  string    `firestore:"tenant_id"`
+    Source    string    `firestore:"source"` // "union"
+    Status    string    `firestore:"status"` // processing, completed, failed
+
+    // Resumo
+    TotalXMLRecords              int `firestore:"total_xml_records"`
+    TotalPropertiesCreated       int `firestore:"total_properties_created"`
+    TotalPropertiesMatchedExisting int `firestore:"total_properties_matched_existing"`
+    TotalPossibleDuplicates      int `firestore:"total_possible_duplicates"`
+    TotalOwnersPlaceholders      int `firestore:"total_owners_placeholders"`
+    TotalOwnersEnrichedFromXLS   int `firestore:"total_owners_enriched_from_xls"`
+    TotalPhotosProcessed         int `firestore:"total_photos_processed"` // NOVO
+    TotalErrors                  int `firestore:"total_errors"`
+
+    // Metadados
+    StartedAt   time.Time `firestore:"started_at"`
+    CompletedAt *time.Time `firestore:"completed_at,omitempty"`
+    CreatedBy   string    `firestore:"created_by"` // broker_id
+}
+```
+
+**ImportError**
+Subcoleção: `/tenants/{tenantId}/import_batches/{batchId}/errors/{errorId}`
+```go
+type ImportError struct {
+    ID          string                 `firestore:"-"`
+    BatchID     string                 `firestore:"batch_id"`
+    TenantID    string                 `firestore:"tenant_id"`
+    ErrorType   string                 `firestore:"error_type"` // xml_parse, photo_download, deduplication, etc.
+    ErrorMessage string                `firestore:"error_message"`
+    RecordData  map[string]interface{} `firestore:"record_data"` // dados do registro com problema
+    Timestamp   time.Time              `firestore:"timestamp"`
+}
+```
+
+========================
+ENTREGA ESPERADA
+========================
+1. **Código Modular**:
+   - Adapter Union: XML parser + XLS parser + normalizer + photo processor
+   - Import Service: orquestração + deduplicação
+   - Handler: endpoint POST /import
+
+2. **Processamento de Fotos**:
+   - Download URLs externas
+   - Conversão WebP (3 tamanhos)
+   - Upload GCS com paths estruturados
+   - Cleanup de arquivos temporários
+
+3. **PropertyBrokerRole**:
+   - Criação automática do originating_broker
+   - Associação ao corretor que importou
+
+4. **Multi-tenancy**:
+   - Isolamento por tenant
+   - Validação de permissões
+
+5. **Batch Summary** (ImportBatch):
+   - total_xml_records
+   - total_properties_created
+   - total_properties_matched_existing
+   - total_possible_duplicates
+   - total_owners_placeholders
+   - total_owners_enriched_from_xls
+   - total_photos_processed ⭐ NOVO
+   - total_errors
+
+6. **Tratamento de Erros**:
+   - Subcoleção import_errors
+   - UI privada: exibir erros + botão "Revisar"
+   - Resolução manual posterior
+
+7. **Auditoria Completa** (ActivityLog):
+   - import_batch_started
+   - import_batch_completed
+   - property_created
+   - property_matched_existing
+   - listing_created
+   - canonical_listing_assigned
+   - owner_placeholder_created
+   - owner_enriched_from_xls
+   - possible_duplicate_flagged
+   - photo_downloaded
+   - photo_uploaded
+   - photo_conversion_failed
+
+8. **Testes**:
+   - Unit tests: parsers XML/XLS
+   - Integration tests: import completo com arquivo real (914802.xml)
+   - Teste de erro: URLs inválidas, XML malformado
+
+========================
+🆕 PROCESSAMENTO DE MÍDIA COM IA (Seção 23)
+========================
+
+**IMPORTANTE**: Esta seção implementa a Seção 23 do AI_DEV_DIRECTIVE (Otimização Automática de Mídia).
+A importação deve processar fotos e vídeos com análise de qualidade por IA.
+
+### PIPELINE DE FOTOS (Vision API)
+
+**Objetivo**: Baixar fotos do XML, converter para WebP, analisar qualidade e detectar tipo de cômodo.
+
+#### Etapa 1: Download e Upload Inicial
+
+```go
+// internal/services/photo_processor.go
+func (p *PhotoProcessor) ProcessPhotoFromURL(ctx context.Context, photoURL string, propertyID string, order int) (*Photo, error) {
+    // 1. Download da foto original
+    resp, err := http.Get(photoURL)
+    if err != nil {
+        return nil, fmt.Errorf("failed to download photo: %w", err)
+    }
+    defer resp.Body.Close()
+
+    // 2. Decodificar imagem
+    img, format, err := image.Decode(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf("failed to decode image: %w", err)
+    }
+
+    // 3. Gerar 3 tamanhos em WebP
+    sizes := map[string]image.Point{
+        "thumb":  {400, 300},   // 400x300
+        "medium": {800, 600},   // 800x600
+        "large":  {1600, 1200}, // 1600x1200
+    }
+
+    urls := make(map[string]string)
+    for sizeName, dimensions := range sizes {
+        // Resize mantendo aspect ratio
+        resized := imaging.Fit(img, dimensions.X, dimensions.Y, imaging.Lanczos)
+
+        // Converter para WebP (85% quality)
+        buf := new(bytes.Buffer)
+        if err := webp.Encode(buf, resized, &webp.Options{Quality: 85}); err != nil {
+            return nil, fmt.Errorf("failed to encode webp: %w", err)
+        }
+
+        // Upload para GCS
+        gcsPath := fmt.Sprintf("tenants/%s/properties/%s/photos/%s_%s.webp",
+            p.tenantID, propertyID, photoID, sizeName)
+
+        if err := p.gcsClient.Upload(ctx, gcsPath, buf.Bytes(), "image/webp"); err != nil {
+            return nil, fmt.Errorf("failed to upload to GCS: %w", err)
+        }
+
+        urls[sizeName+"URL"] = p.gcsClient.PublicURL(gcsPath)
+    }
+
+    photo := &Photo{
+        ID:        photoID,
+        URL:       urls["largeURL"],   // URL principal (1600x1200)
+        ThumbURL:  urls["thumbURL"],   // 400x300
+        MediumURL: urls["mediumURL"],  // 800x600
+        LargeURL:  urls["largeURL"],   // 1600x1200
+        Order:     order,
+        IsCover:   order == 0, // Primeira foto é capa
+    }
+
+    return photo, nil
+}
+```
+
+#### Etapa 2: Análise com Vision API (Async)
+
+```go
+// internal/services/vision_analyzer.go
+import (
+    vision "cloud.google.com/go/vision/apiv1"
+    visionpb "cloud.google.com/go/vision/apiv1/visionpb"
+)
+
+func (v *VisionAnalyzer) AnalyzePhoto(ctx context.Context, photoURL string) (*PhotoAnalysis, error) {
+    client, err := vision.NewImageAnnotatorClient(ctx)
+    if err != nil {
+        return nil, err
+    }
+    defer client.Close()
+
+    image := vision.NewImageFromURI(photoURL)
+
+    // 1. Label Detection (detectar tipo de cômodo)
+    labels, err := client.DetectLabels(ctx, image, nil, 10)
+    if err != nil {
+        return nil, fmt.Errorf("label detection failed: %w", err)
+    }
+
+    // 2. Image Properties (analisar qualidade)
+    props, err := client.DetectImageProperties(ctx, image, nil)
+    if err != nil {
+        return nil, fmt.Errorf("property detection failed: %w", err)
+    }
+
+    // 3. Safe Search (evitar conteúdo inadequado)
+    safeSearch, err := client.DetectSafeSearch(ctx, image, nil)
+    if err != nil {
+        return nil, fmt.Errorf("safe search failed: %w", err)
+    }
+
+    analysis := &PhotoAnalysis{
+        Labels:     extractLabels(labels),
+        Quality:    calculateQuality(props),
+        RoomType:   detectRoomType(labels),
+        SafeSearch: safeSearch.Adult != visionpb.Likelihood_LIKELY &&
+                     safeSearch.Violence != visionpb.Likelihood_LIKELY,
+    }
+
+    return analysis, nil
+}
+
+// Detectar tipo de cômodo baseado em labels
+func detectRoomType(annotations []*visionpb.EntityAnnotation) string {
+    labelScores := make(map[string]float32)
+    for _, label := range annotations {
+        labelScores[strings.ToLower(label.Description)] = label.Score
+    }
+
+    // Mapear labels para room_type
+    roomKeywords := map[string][]string{
+        "living_room": {"living room", "sofa", "couch", "tv", "lounge"},
+        "kitchen":     {"kitchen", "stove", "refrigerator", "sink", "oven"},
+        "bedroom":     {"bedroom", "bed", "mattress", "pillow", "nightstand"},
+        "bathroom":    {"bathroom", "toilet", "shower", "bathtub", "sink"},
+        "exterior":    {"building", "facade", "exterior", "garden", "balcony", "terrace"},
+    }
+
+    bestMatch := "other"
+    bestScore := float32(0.0)
+
+    for roomType, keywords := range roomKeywords {
+        score := float32(0.0)
+        for _, keyword := range keywords {
+            if s, ok := labelScores[keyword]; ok {
+                score += s
+            }
+        }
+        if score > bestScore {
+            bestScore = score
+            bestMatch = roomType
+        }
+    }
+
+    // Retornar "other" se confiança < 40%
+    if bestScore < 0.4 {
+        return "other"
+    }
+
+    return bestMatch
+}
+
+// Calcular qualidade da foto (0.0 - 1.0)
+func calculateQuality(props *visionpb.ImageProperties) float64 {
+    quality := 1.0
+
+    // 1. Avaliar cores dominantes (diversidade é bom)
+    if len(props.DominantColors.Colors) < 3 {
+        quality -= 0.2 // Muito monocromática
+    }
+
+    // 2. Avaliar brilho (0.0 muito escuro, 1.0 muito claro)
+    // Ideal: 0.3 - 0.7
+    avgBrightness := calculateAverageBrightness(props.DominantColors.Colors)
+    if avgBrightness < 0.3 || avgBrightness > 0.7 {
+        quality -= 0.3 // Muito escura ou muito clara
+    }
+
+    // 3. Crop suggestions (se Vision API sugerir crop, foto não está bem enquadrada)
+    // Nota: Crop detection requer anotação adicional
+    // quality -= cropPenalty
+
+    // Normalizar para 0.0 - 1.0
+    if quality < 0 {
+        quality = 0
+    }
+
+    return quality
+}
+
+func calculateAverageBrightness(colors []*visionpb.ColorInfo) float64 {
+    totalBrightness := 0.0
+    for _, c := range colors {
+        // Fórmula de luminância: 0.299*R + 0.587*G + 0.114*B
+        brightness := (0.299*float64(c.Color.Red) +
+                      0.587*float64(c.Color.Green) +
+                      0.114*float64(c.Color.Blue)) / 255.0
+        totalBrightness += brightness * float64(c.PixelFraction)
+    }
+    return totalBrightness
+}
+```
+
+#### Etapa 3: Ordenação Inteligente
+
+```go
+// internal/services/photo_sorter.go
+func (s *PhotoSorter) SuggestOrder(photos []*Photo) {
+    // Ordem ideal: exterior → living_room → kitchen → bedroom → bathroom → other
+
+    roomPriority := map[string]int{
+        "exterior":    0,
+        "living_room": 1,
+        "kitchen":     2,
+        "bedroom":     3,
+        "bathroom":    4,
+        "other":       5,
+    }
+
+    // Criar grupos por tipo de cômodo
+    groups := make(map[string][]*Photo)
+    for _, photo := range photos {
+        roomType := photo.RoomType
+        if roomType == "" {
+            roomType = "other"
+        }
+        groups[roomType] = append(groups[roomType], photo)
+    }
+
+    // Ordenar cada grupo por qualidade (melhor primeiro)
+    for _, group := range groups {
+        sort.Slice(group, func(i, j int) bool {
+            return group[i].Quality > group[j].Quality
+        })
+    }
+
+    // Montar ordem final
+    suggestedOrder := 0
+    for priority := 0; priority <= 5; priority++ {
+        for roomType, p := range roomPriority {
+            if p == priority {
+                if group, ok := groups[roomType]; ok {
+                    for _, photo := range group {
+                        photo.SuggestedOrder = suggestedOrder
+                        suggestedOrder++
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+#### Etapa 4: Trigger Async (Cloud Functions)
+
+**IMPORTANTE**: A análise Vision API é CARA e LENTA. Deve ser async.
+
+```go
+// Importação: Upload foto → GCS → Trigger Cloud Function → Vision API
+
+// 1. Durante importação: apenas fazer upload
+func (p *PhotoProcessor) ProcessPhotoFromURL(ctx context.Context, photoURL string) (*Photo, error) {
+    // ... upload para GCS (código acima)
+
+    // Publicar mensagem no Pub/Sub para processamento async
+    topic := p.pubsubClient.Topic("photo-analysis")
+    msg := &PhotoAnalysisRequest{
+        TenantID:   p.tenantID,
+        PropertyID: propertyID,
+        PhotoID:    photo.ID,
+        PhotoURL:   photo.LargeURL,
+    }
+
+    _, err := topic.Publish(ctx, &pubsub.Message{
+        Data: mustMarshalJSON(msg),
+    }).Get(ctx)
+
+    return photo, err // Retorna ANTES da análise completar
+}
+
+// 2. Cloud Function separada processa async
+// functions/photo-analyzer/main.go
+func AnalyzePhotoFunction(ctx context.Context, m pubsub.Message) error {
+    var req PhotoAnalysisRequest
+    json.Unmarshal(m.Data, &req)
+
+    // Executar Vision API
+    analysis, err := visionAnalyzer.AnalyzePhoto(ctx, req.PhotoURL)
+    if err != nil {
+        log.Errorf("Vision API failed: %v", err)
+        return err
+    }
+
+    // Atualizar Firestore com metadata
+    photoRef := firestore.Collection("tenants").Doc(req.TenantID).
+        Collection("properties").Doc(req.PropertyID).
+        Collection("photos").Doc(req.PhotoID)
+
+    _, err = photoRef.Update(ctx, []firestore.Update{
+        {Path: "room_type", Value: analysis.RoomType},
+        {Path: "quality", Value: analysis.Quality},
+        {Path: "suggested_order", Value: analysis.SuggestedOrder},
+    })
+
+    return err
+}
+```
+
+### PIPELINE DE VÍDEOS (ffmpeg)
+
+**Objetivo**: Processar vídeos do XML (se houver), extrair thumbnail e detectar duração.
+
+**Nota**: O XML da Union provavelmente NÃO terá vídeos. Esta funcionalidade é para upload manual via frontend admin (PROMPT 04b já implementado). Durante importação, pular vídeos.
+
+#### Processamento de Vídeo (se necessário no futuro)
+
+```go
+// internal/services/video_processor.go
+import (
+    "os/exec"
+    "strconv"
+    "strings"
+)
+
+func (v *VideoProcessor) ProcessVideoUpload(ctx context.Context, videoPath string) (*Video, error) {
+    // 1. Detectar duração com ffprobe
+    cmd := exec.Command("ffprobe",
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        videoPath)
+
+    output, err := cmd.Output()
+    if err != nil {
+        return nil, fmt.Errorf("ffprobe failed: %w", err)
+    }
+
+    durationStr := strings.TrimSpace(string(output))
+    duration, err := strconv.ParseFloat(durationStr, 64)
+    if err != nil {
+        return nil, fmt.Errorf("invalid duration: %w", err)
+    }
+
+    // 🆕 2. COMPRESSÃO AUTOMÁTICA (otimizar storage + streaming)
+    compressedPath := "/tmp/video_compressed.mp4"
+
+    cmd = exec.Command("ffmpeg",
+        "-i", videoPath,
+        "-c:v", "libx264",           // Codec H.264 (compatibilidade universal)
+        "-crf", "28",                // Constant Rate Factor: 28 = boa qualidade, ~50% menor
+        "-preset", "medium",         // Preset de encoding (medium = balanceado)
+        "-c:a", "aac",               // Codec de áudio AAC
+        "-b:a", "128k",              // Bitrate de áudio 128kbps
+        "-movflags", "+faststart",   // Permite streaming progressivo (play antes de download completo)
+        "-maxrate", "2M",            // Bitrate máximo 2Mbps (streaming fluido em 4G)
+        "-bufsize", "4M",            // Buffer size para rate control
+        compressedPath)
+
+    if err := cmd.Run(); err != nil {
+        // Fallback: se compressão falhar, usar vídeo original
+        log.Warnf("Video compression failed, using original: %v", err)
+        compressedPath = videoPath
+    }
+
+    // 3. Extrair thumbnail (frame do meio do vídeo)
+    thumbnailPath := "/tmp/thumbnail.jpg"
+    middleTime := duration / 2
+
+    cmd = exec.Command("ffmpeg",
+        "-ss", fmt.Sprintf("%.2f", middleTime), // Seek para o meio
+        "-i", compressedPath,                   // ⚠️ Usar vídeo comprimido
+        "-vframes", "1",                        // Extrair 1 frame
+        "-q:v", "2",                            // Qualidade alta
+        thumbnailPath)
+
+    if err := cmd.Run(); err != nil {
+        return nil, fmt.Errorf("ffmpeg thumbnail failed: %w", err)
+    }
+
+    // 4. Upload thumbnail para GCS
+    thumbnailData, _ := os.ReadFile(thumbnailPath)
+    thumbnailGCSPath := fmt.Sprintf("tenants/%s/videos/%s_thumb.jpg", tenantID, videoID)
+    v.gcsClient.Upload(ctx, thumbnailGCSPath, thumbnailData, "image/jpeg")
+
+    // 5. Upload vídeo COMPRIMIDO para GCS
+    videoData, _ := os.ReadFile(compressedPath)
+    videoGCSPath := fmt.Sprintf("tenants/%s/videos/%s.mp4", tenantID, videoID)
+    v.gcsClient.Upload(ctx, videoGCSPath, videoData, "video/mp4")
+
+    // 6. Cleanup de arquivos temporários
+    os.Remove(videoPath)
+    if compressedPath != videoPath {
+        os.Remove(compressedPath)
+    }
+    os.Remove(thumbnailPath)
+
+    video := &Video{
+        ID:           videoID,
+        URL:          v.gcsClient.PublicURL(videoGCSPath),
+        ThumbnailURL: v.gcsClient.PublicURL(thumbnailGCSPath),
+        Duration:     int(duration),
+        Source:       "upload",
+        CreatedAt:    time.Now(),
+    }
+
+    return video, nil
+}
+```
+
+**IMPORTANTE**: ffmpeg deve estar instalado no ambiente Cloud Run:
+
+```dockerfile
+# Dockerfile
+FROM golang:1.21-alpine
+
+# Instalar ffmpeg
+RUN apk add --no-cache ffmpeg
+
+COPY . /app
+WORKDIR /app
+RUN go build -o /app/server ./cmd/api
+
+CMD ["/app/server"]
+```
+
+#### 🆕 Explicação dos Parâmetros de Compressão
+
+**Por que CRF 28?**
+- CRF (Constant Rate Factor) controla qualidade vs. tamanho
+- Escala: 0 (lossless, enorme) até 51 (péssima qualidade, minúsculo)
+- **CRF 28**: sweet spot para vídeos de imóveis
+  - Qualidade: indistinguível do original para olho humano
+  - Redução: ~40-60% do tamanho original
+  - Exemplo: 100MB → 40-60MB
+
+**Por que maxrate 2Mbps?**
+- Garante streaming fluido em conexão 4G (5-10Mbps típico)
+- Evita buffering no player
+- 1080p Full HD com CRF 28 cabe confortavelmente em 2Mbps
+
+**Por que faststart?**
+- Move metadata (moov atom) para o início do arquivo
+- Player pode começar a reproduzir ANTES do download completo
+- Essencial para boa UX em vídeos web
+
+**Tempo de processamento estimado**:
+- Vídeo de 1 minuto (100MB) → ~15-30 segundos de compressão
+- Processamento é **assíncrono** (não bloqueia upload do corretor)
+
+**Fallback gracioso**:
+- Se compressão falhar (arquivo corrompido, codec não suportado):
+  - Log de warning
+  - Usa vídeo original sem compressão
+  - Upload continua normalmente (não quebra fluxo)
+
+### CUSTOS E OTIMIZAÇÕES
+
+#### Custos Vision API (Google Cloud)
+
+- **Label Detection**: $1.50 / 1000 imagens
+- **Image Properties**: $1.00 / 1000 imagens
+- **Safe Search**: $1.00 / 1000 imagens
+- **Total por foto**: ~$0.0035 (0,35 centavos por foto)
+
+**Exemplo de custo**:
+- Importação de 1.000 imóveis com média de 10 fotos cada = 10.000 fotos
+- Custo Vision API: 10.000 × $0.0035 = **$35**
+
+#### 🆕 Custos de Storage de Vídeos (Google Cloud Storage)
+
+**Sem compressão** (vídeo original):
+- Vídeo médio: 100MB
+- 1.000 imóveis × 2 vídeos/imóvel = 2.000 vídeos
+- Storage total: 200GB
+- Custo mensal: 200GB × $0.020/GB = **$4/mês** (~R$ 20/mês)
+
+**Com compressão automática** (CRF 28):
+- Vídeo comprimido: ~50MB (50% redução)
+- 1.000 imóveis × 2 vídeos/imóvel = 2.000 vídeos
+- Storage total: 100GB
+- Custo mensal: 100GB × $0.020/GB = **$2/mês** (~R$ 10/mês)
+
+**Economia anual**: $24/ano (~R$ 120/ano) para cada 1.000 imóveis
+
+**Bandwidth (Egress)**:
+- Primeiros 1TB grátis/mês
+- Vídeo de 50MB × 10 views = 500MB de egress
+- 2.000 vídeos × 500MB = 1TB (ainda grátis)
+- Se exceder 1TB: $0.12/GB
+
+**ROI da compressão**:
+- Economia de storage: 50%
+- Economia de bandwidth: 50%
+- Melhor UX: streaming mais rápido
+- **Custo adicional**: Zero (ffmpeg já instalado)
+
+#### Otimizações Recomendadas
+
+1. **Batch Vision API requests**:
+   - Processar múltiplas fotos em um único request
+   - Reduz latência e custo de rede
+
+2. **Cache de análises**:
+   - Se foto já foi analisada (mesmo hash SHA256), reusar resultado
+   - Evitar re-análise em reimportações
+
+3. **Processamento async obrigatório**:
+   - NUNCA bloquear importação esperando Vision API
+   - Usar Pub/Sub + Cloud Functions
+
+4. **Fallback se Vision API falhar**:
+   - Foto importada normalmente, apenas sem metadata de qualidade
+   - RoomType = "other", Quality = 0.5 (default)
+
+### FLUXO COMPLETO DE IMPORTAÇÃO COM MÍDIA
+
+```
+1. Upload XML/XLS → Backend
+2. Parse XML → extrair URLs de fotos
+3. Para cada foto:
+   a. Download da URL externa
+   b. Converter para WebP (3 tamanhos)
+   c. Upload para GCS
+   d. Publicar mensagem Pub/Sub (async)
+   e. Criar Photo no Firestore (sem metadata ainda)
+4. Cloud Function (async, paralelo):
+   a. Receber mensagem Pub/Sub
+   b. Executar Vision API
+   c. Atualizar Photo no Firestore com room_type, quality, suggested_order
+5. Frontend admin (PROMPT 04b):
+   a. Exibe fotos com badges de qualidade
+   b. Botão "Aplicar Sugestão de IA" reordena fotos
+```
+
+### ESTRUTURA DE DADOS ATUALIZADA
+
+```go
+type Photo struct {
+    ID             string    `firestore:"id" json:"id"`
+    URL            string    `firestore:"url" json:"url"`
+    ThumbURL       string    `firestore:"thumb_url" json:"thumb_url"`
+    MediumURL      string    `firestore:"medium_url" json:"medium_url"`
+    LargeURL       string    `firestore:"large_url" json:"large_url"`
+    Order          int       `firestore:"order" json:"order"`
+    IsCover        bool      `firestore:"is_cover" json:"is_cover"`
+
+    // 🆕 Vision API metadata (preenchido async)
+    RoomType       string    `firestore:"room_type,omitempty" json:"room_type,omitempty"`
+    Quality        float64   `firestore:"quality,omitempty" json:"quality,omitempty"`
+    SuggestedOrder int       `firestore:"suggested_order,omitempty" json:"suggested_order,omitempty"`
+
+    // Auditoria
+    AnalyzedAt     *time.Time `firestore:"analyzed_at,omitempty" json:"analyzed_at,omitempty"`
+    AnalysisError  string     `firestore:"analysis_error,omitempty" json:"analysis_error,omitempty"`
+}
+
+type ImportBatch struct {
+    // ... campos existentes
+
+    // 🆕 Estatísticas de mídia
+    TotalPhotosProcessed      int `firestore:"total_photos_processed" json:"total_photos_processed"`
+    TotalPhotosAnalyzed       int `firestore:"total_photos_analyzed" json:"total_photos_analyzed"`
+    TotalPhotoAnalysisErrors  int `firestore:"total_photo_analysis_errors" json:"total_photo_analysis_errors"`
+}
+```
+
+========================
+CRITÉRIO DE SUCESSO
+========================
+✅ XML Union parseado corretamente
+✅ XLS enriquece dados do Owner (quando disponível)
+✅ Deduplicação via external_source + external_id
+✅ Fingerprint heurístico funcional
+✅ Owner placeholder criado se dados incompletos
+✅ Fotos baixadas e convertidas para WebP (3 tamanhos) ⭐ CRÍTICO
+✅ Fotos armazenadas em GCS com paths estruturados
+✅ Listing criado com Photos corretamente vinculadas
+✅ Canonical listing definido (primeiro Listing)
+✅ PropertyBrokerRole criado (originating_broker)
+✅ Import batch com resumo completo
+✅ Erros salvos em import_errors (não bloqueia importação)
+✅ ActivityLog registra todos os eventos
+✅ Multi-tenancy respeitado (isolamento por tenant)
+
+🆕 ✅ Vision API integrada para análise de qualidade (Seção 23)
+🆕 ✅ Detecção automática de tipo de cômodo (living_room, kitchen, bedroom, etc.)
+🆕 ✅ Cálculo de qualidade da foto (0.0 - 1.0)
+🆕 ✅ Ordenação inteligente sugerida por IA (exterior → sala → cozinha → quartos)
+🆕 ✅ Processamento async via Pub/Sub + Cloud Functions
+🆕 ✅ Safe Search implementado (bloqueia conteúdo inadequado)
+🆕 ✅ Fallback gracioso se Vision API falhar
+🆕 ✅ Cache de análises (evita re-processamento)
+🆕 ✅ ffmpeg integrado para processamento de vídeos
+🆕 ✅ Extração de thumbnail (frame do meio do vídeo)
+🆕 ✅ Detecção de duração via ffprobe
+🆕 ✅ Dockerfile atualizado com ffmpeg
+🆕 ✅ Estatísticas de mídia no ImportBatch

@@ -1,0 +1,152 @@
+Você agora atua EXCLUSIVAMENTE como AUDITOR TÉCNICO E DE PRODUTO.
+
+IMPORTANTE:
+- NÃO implementar código.
+- NÃO sugerir novas features.
+- NÃO expandir escopo.
+- NÃO flexibilizar regras do MVP.
+
+Seu papel é VALIDAR se o MVP final respeita integralmente:
+- AI_DEV_DIRECTIVE.md
+- PROMPT 01 (Foundation)
+- PROMPT 02 (Importação + Deduplicação)
+- PROMPT 03 (Auditoria intermediária)
+- PROMPT 04 (Frontend)
+
+========================
+OBJETIVO DESTE PROMPT
+========================
+Garantir que o MVP esteja:
+- tecnicamente correto
+- aderente ao modelo de negócios
+- pronto para uso real sem refatoração estrutural
+- coerente com a governança imobiliária brasileira
+
+========================
+CHECKLIST OBRIGATÓRIO
+========================
+
+## 1) GOVERNANÇA DO ATIVO (CRÍTICO)
+- [ ] Cada imóvel físico existe UMA ÚNICA VEZ (Property).
+- [ ] Não há duplicação de Property por erro de importação.
+- [ ] Property é separado claramente de Listing.
+- [ ] Existe exatamente UM canonical_listing_id por Property.
+- [ ] Nunca existem múltiplos anúncios públicos para o mesmo imóvel.
+
+## 2) PROPRIETÁRIO (PASSIVO NO MVP)
+- [ ] Todo Property possui referência a um Owner.
+- [ ] Owner não possui login, telas ou fluxos.
+- [ ] Owner não recebe leads.
+- [ ] Owner existe apenas para governança e auditoria.
+- [ ] Criação/atualização de Owner gera ActivityLog.
+
+## 3) OPERADORES E CO-CORRETAGEM
+- [ ] Um Property pode ter múltiplos vínculos de operadores.
+- [ ] Papéis corretos: captador | vendedor | co_corretor.
+- [ ] Não existe exclusividade implícita.
+- [ ] Comissão é apenas registrada, nunca processada.
+- [ ] O frontend NÃO expõe conflitos entre operadores.
+
+## 4) IMPORTAÇÃO E DEDUPLICAÇÃO
+- [ ] Importação usa arquitetura de adapters por source.
+- [ ] Union é o único adapter implementado no MVP.
+- [ ] Normalização acontece antes da deduplicação.
+- [ ] external_source + external_id tratados corretamente.
+- [ ] possible_duplicate é marcado quando há ambiguidade.
+- [ ] Merge automático é PROIBIDO.
+
+## 5) AUDITORIA E RASTREABILIDADE
+- [ ] ActivityLog existe para:
+      - criação/atualização de Property
+      - criação/atualização de Owner
+      - criação de Listing
+      - criação de vínculos
+      - importação (batch)
+      - criação e mudança de status de Lead
+- [ ] Todos os eventos possuem:
+      - event_id determinístico
+      - event_hash
+      - request_id
+
+## 6) FRONTEND PÚBLICO (CLIENTE FINAL)
+- [ ] URL pública segue `/imovel/[propertyId]`.
+- [ ] Página pública renderiza SOMENTE o canonical listing.
+- [ ] Não existe exposição de múltiplos listings.
+- [ ] Lead é criado sempre para o Property.
+- [ ] Não existe cadastro/login do cliente final.
+- [ ] CTA principal é simples e claro (WhatsApp / formulário).
+
+## 7) SEO E CONTEÚDO (CRÍTICO - OBRIGATÓRIO)
+- [ ] Title dinâmico por imóvel (formato: "Tipo quartos em Bairro, Cidade | Marca").
+- [ ] Meta description dinâmica (máximo 155 caracteres).
+- [ ] OpenGraph configurado (title, description, url, images, type, locale).
+- [ ] Twitter Cards configurado (card, title, description, images).
+- [ ] JSON-LD RealEstateListing (name, description, price, address, numberOfRooms, floorSize).
+- [ ] JSON-LD BreadcrumbList (Home > Imóveis > Cidade > Bairro > Imóvel).
+- [ ] JSON-LD Organization na homepage (name, url, logo, contactPoint).
+- [ ] **sitemap.xml OBRIGATÓRIO** (app/sitemap.ts com todas as properties publicadas).
+- [ ] **robots.txt OBRIGATÓRIO** (app/robots.ts bloqueando /admin/, /api/, /app/).
+- [ ] Breadcrumbs component visível em todas as páginas de imóvel.
+- [ ] Canonical URLs implementadas (<link rel="canonical">).
+- [ ] Redirect 301 para slugs antigos (RedirectType.permanent).
+- [ ] URLs amigáveis e estáveis (slug semântico com keywords).
+- [ ] Fonts otimizadas (display:swap + preload para evitar FOUT).
+- [ ] Images com blur placeholder (blur_hash do Vision API para CLS < 0.1).
+- [ ] Preconnect para storage.googleapis.com (reduz latência LCP).
+
+**Validação SEO (Testes Obrigatórios Antes de Deploy):**
+- [ ] Google Rich Results Test: sem erros (https://search.google.com/test/rich-results).
+- [ ] PageSpeed Insights: Score > 90 mobile E desktop (https://pagespeed.web.dev/).
+- [ ] Lighthouse SEO: Score 100 (Chrome DevTools > Lighthouse > SEO).
+- [ ] Schema.org Validator: sem warnings (https://validator.schema.org/).
+- [ ] /sitemap.xml acessível e lista TODAS as properties publicadas.
+- [ ] /robots.txt acessível e bloqueia /admin/, /api/, /app/.
+
+## 8) WhatsApp
+- [ ] Todo clique em WhatsApp cria um Lead antes do redirect
+- [ ] WhatsApp não é origem primária de dados
+- [ ] Nenhum fluxo cria lead apenas fora da plataforma
+- [ ] Não existe integração com WhatsApp Business API no MVP
+
+
+## 9) ESCOPO DO MVP
+- [ ] Não existe pagamento.
+- [ ] Não existe split financeiro.
+- [ ] Não existe blockchain ativa.
+- [ ] Não existe chat complexo.
+- [ ] Não existe área do proprietário.
+- [ ] Não existe lógica que force exclusividade.
+
+## 10) Gestão de Disponibilidade e Preço do Imóvel
+- [ ] status e preço possuem validade temporal
+- [ ] confirmações são auditadas
+- [ ] imóvel pode ser ocultado se desatualizado
+- [ ] proprietário não possui acesso a leads
+
+
+========================
+FORMATO DA RESPOSTA
+========================
+Responder OBRIGATORIAMENTE com:
+
+1) **Resumo Executivo**
+   - Aprovado / Aprovado com ressalvas / Reprovado
+
+2) **Achados Críticos**
+   - Listar qualquer violação grave (se houver)
+
+3) **Riscos de Refatoração**
+   - Pontos que podem gerar retrabalho futuro
+
+4) **Checklist Final**
+   - Tabela com status:
+     - OK
+     - ATENÇÃO
+     - VIOLAÇÃO
+
+========================
+ENCERRAMENTO
+========================
+Se e somente se TODOS os itens críticos estiverem OK,
+o MVP pode ser considerado:
+**estruturalmente estável, coerente com o plano de negócios e pronto para evolução futura.**

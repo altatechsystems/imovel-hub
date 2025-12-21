@@ -1,0 +1,259 @@
+Você é um engenheiro sênior responsável por implementar, no MVP, o mecanismo de
+ATUALIZAÇÃO DE DISPONIBILIDADE E PREÇO do imóvel (Property), incluindo:
+
+(1) Confirmação operacional por corretor/imobiliária
+(2) Validade temporal + sinalização “pendente de confirmação” + regra de ocultação pública
+(3) Confirmação PASSIVA pelo proprietário via link seguro (sem login)
+
+IMPORTANTE (INVIOLÁVEL):
+- Respeitar integralmente `AI_DEV_DIRECTIVE.md` (imóvel único, canonical listing, co-corretagem, owner passivo, lead pertence ao Property).
+- Proprietário permanece PASSIVO no MVP:
+  - sem login
+  - sem acesso a leads
+  - sem negociação
+  - apenas confirmar status/preço do imóvel.
+- Considerar que o Owner pode estar INCOMPLETO no MVP:
+  - A importação (Union XML) pode não conter dados do proprietário.
+  - Dados de Owner podem ser enriquecidos posteriormente via planilha (XLS) ou atualização manual.
+  - O fluxo de confirmação passiva NÃO pode depender de Owner “completo”.
+- NÃO implementar WhatsApp Business API, bots, automação de mensagens, split financeiro.
+- NÃO expor múltiplos listings publicamente.
+- Toda ação crítica gera ActivityLog com event_id determinístico, event_hash e request_id.
+
+========================
+OBJETIVO
+========================
+Reduzir anúncios desatualizados no Brasil sem depender de equipe grande,
+garantindo que disponibilidade e preço sejam atributos do Property,
+com rastreabilidade e baixa fricção.
+
+========================
+DEFINIÇÕES E REGRAS
+========================
+
+A) DONO DA VERDADE
+- Disponibilidade e preço pertencem ao Property, não ao corretor.
+- Operadores apenas CONFIRMAM/ATUALIZAM e tudo é auditável.
+
+B) VALIDADE TEMPORAL (MVP)
+Implementar campos no Property:
+- status: available | unavailable | pending_confirmation
+- status_confirmed_at (timestamp)
+- price_amount (num)
+- price_currency (ex.: BRL)
+- price_confirmed_at (timestamp)
+- pending_reason (opcional: stale_status | stale_price | owner_reported | operator_reported)
+- visibility_public: public | hidden_stale | hidden_unavailable (ou enum equivalente)
+- status_ttl_days (config global) -> ex.: 15
+- hide_after_days (config global) -> ex.: 30
+
+Regras:
+- Se status_confirmed_at estiver vazio ou for antigo > status_ttl_days:
+  - status vira pending_confirmation (ou mantém available/unavailable mas marca flag “pendente”)
+  - visibility_public pode permanecer public, mas com aviso no app privado.
+- Se status_confirmed_at antigo > hide_after_days:
+  - visibility_public deve mudar para hidden_stale (não exibir publicamente).
+- Se status = unavailable:
+  - visibility_public deve ser hidden_unavailable.
+- O frontend público exibe SOMENTE imóveis com visibility_public = public.
+- O canonical listing continua existindo; a regra é apenas de visibilidade do Property.
+
+C) CONFIRMAÇÃO POR OPERADOR (MVP)
+Operador pode:
+- confirmar disponibilidade (available/unavailable)
+- confirmar preço (price_amount)
+- registrar timestamp de confirmação
+- motivo opcional e nota interna
+
+D) CONFIRMAÇÃO PASSIVA POR PROPRIETÁRIO (MVP)
+- Gerar um "Owner Confirmation Link" seguro, único e com expiração (ex.: 7 dias).
+- Sem login. Apenas uma página pública simples:
+  - “Confirmar disponibilidade”
+  - “Confirmar preço”
+  - “Marcar como indisponível”
+- Proprietário não vê leads, não escolhe corretor, não acessa dados comerciais.
+
+Regra essencial:
+- Se Owner estiver incompleto (sem nome/telefone/email), o link AINDA DEVE ser gerado.
+- O sistema retorna o link para o operador copiar e enviar manualmente.
+- A entidade Owner pode ser "placeholder" (ex.: owner_status=incomplete), sem bloquear o fluxo.
+
+========================
+BACKEND (OBRIGATÓRIO)
+========================
+
+1) MODELOS / COLEÇÕES (conceitual)
+- Properties
+- Owners
+  - owner_id
+  - owner_status: incomplete | partial | verified (ou enum simples)
+  - campos opcionais (nome, telefone, email, documento) — podem estar vazios no MVP
+- OwnerConfirmationTokens (ou property_confirmation_tokens)
+  - token_id
+  - property_id (obrigatório)
+  - owner_id (opcional; pode ser null se Owner ainda não estiver definido)
+  - token_hash (armazenar hash, não token puro)
+  - expires_at
+  - created_at
+  - created_by_actor_id (operador que gerou o link)
+  - used_at (nullable)
+  - last_action (nullable)
+  - owner_snapshot (opcional e mínimo, ex.: nome mascarado) — NÃO obrigatório no MVP
+
+2) ENDPOINTS (mínimos)
+(A) Operador (privado)
+- PATCH /api/v1/properties/{propertyId}/confirmations
+  Body:
+  - confirm_status: available | unavailable (opcional)
+  - confirm_price_amount: number (opcional)
+  - note: string (opcional)
+  - reason: operator_reported | owner_reported | stale_refresh (opcional)
+  Behavior:
+  - Atualiza status/status_confirmed_at se confirm_status enviado
+  - Atualiza price_amount/price_confirmed_at se confirm_price_amount enviado
+  - Recalcula visibility_public conforme regras de validade
+  - ActivityLog: property_status_confirmed / property_price_confirmed
+
+(B) Gerar link passivo do proprietário (privado)
+- POST /api/v1/properties/{propertyId}/owner-confirmation-link
+  Body:
+  - delivery_hint: whatsapp | sms | email (opcional, apenas para registro; NÃO enviar mensagens automaticamente no MVP)
+  - owner_id (opcional)
+  Response:
+  - confirmation_url (contendo token)
+  - expires_at
+  Behavior:
+  - cria token (salvar hash)
+  - token deve referenciar property_id sempre
+  - owner_id pode ser null se Owner ainda estiver incompleto/ausente
+  - ActivityLog: owner_confirmation_link_created
+  Observação:
+  - Não enviar mensagem automaticamente no MVP. Apenas retornar link.
+
+(C) Página pública do token (pública)
+- GET /confirmar/{token}
+  - renderiza página simples (SSR no Next)
+  - valida token + expiração + usado
+  - NÃO expor dados sensíveis; mostrar apenas informações essenciais do imóvel (ex.: tipo, cidade/bairro, referência interna)
+  - NÃO exigir Owner completo
+
+(D) Submeter confirmação do proprietário (pública)
+- POST /api/v1/owner-confirmations/{token}/submit
+  Body:
+  - action: confirm_available | confirm_unavailable | confirm_price
+  - price_amount (obrigatório se action=confirm_price)
+  Behavior:
+  - validar token
+  - aplicar atualização no Property
+  - set used_at e last_action
+  - ActivityLog: owner_confirmed_status / owner_confirmed_price
+  - retornar sucesso e instrução “obrigado”
+
+3) JOB/ROTINA DE STALE (MVP simples)
+- Implementar função simples acionada:
+  - no GET /properties (público)
+  - e/ou em uma rotina diária (se já existir infra)
+para recalcular:
+- pending_confirmation
+- visibility_public
+sem custo alto.
+
+Se não houver scheduler no MVP:
+- recalcular “on read” é aceitável, desde que eficiente.
+
+4) AUDITORIA (OBRIGATÓRIA)
+ActivityLog para:
+- confirmação por operador (status / preço)
+- geração de link proprietário (mesmo com Owner incompleto)
+- confirmação por proprietário
+- mudança de visibilidade (public -> hidden_stale etc.)
+- enriquecimento/atualização de Owner (quando ocorrer via XLS ou manual)
+
+Cada evento deve conter:
+- event_id determinístico (ex.: hash(propertyId + action + timestamp_bucket))
+- event_hash (hash do payload normalizado)
+- request_id
+
+========================
+FRONTEND / UX (OBRIGATÓRIO)
+========================
+
+A) APP PRIVADO (/app)
+1) Tela de detalhe do imóvel (/app/imoveis/[propertyId])
+Adicionar um card “Status & Preço” com:
+- Status atual (available/unavailable/pending_confirmation)
+- Última confirmação de status (data)
+- Última confirmação de preço (data)
+- Indicador visual:
+  - OK (confirmado recente)
+  - ATENÇÃO (pendente)
+  - BLOQUEADO (oculto por stale ou indisponível)
+
+Ações:
+- Botão "Confirmar Disponibilidade"
+  - modal: Available / Unavailable
+  - salvar -> PATCH confirmations
+- Botão "Confirmar Preço"
+  - input price_amount
+  - salvar -> PATCH confirmations
+
+- Seção "Confirmação pelo Proprietário (sem login)"
+  - Exibir status do Owner: incomplete/partial/verified (se disponível)
+  - Botão "Gerar link p/ proprietário"
+    - chama POST owner-confirmation-link
+    - exibe URL + botão "Copiar link"
+    - opcional: “Copiar mensagem pronta” (somente texto; não enviar automaticamente)
+    - registrar delivery_hint apenas como anotação
+  Regra:
+  - Mesmo que Owner esteja incompleto, o botão deve funcionar (gera link do mesmo jeito).
+
+2) Tela de lista (/app/imoveis)
+- Filtro/coluna: “Pendente de confirmação”
+- Badge em imóveis stale
+
+B) PÚBLICO
+1) Listagem pública e /imovel/[propertyId]
+- Não exibir imóveis com visibility_public != public
+- Se alguém acessar URL de imóvel oculto:
+  - retornar 404 ou página “Imóvel indisponível” (definir padrão consistente)
+  - NÃO mostrar detalhes sensíveis
+
+2) Página pública do token (/confirmar/[token])
+- Visual extremamente simples:
+  - título: “Confirmação rápida do imóvel”
+  - botões:
+    - “Disponível”
+    - “Não disponível”
+    - “Atualizar preço”
+  - se atualizar preço: input + confirmar
+- Exibir mensagem de sucesso:
+  - “Obrigado! Informação atualizada.”
+- Se token inválido/expirado/usado:
+  - “Link expirado. Solicite um novo ao corretor.”
+
+========================
+RESTRIÇÕES (NÃO FAZER)
+========================
+- Não criar login do proprietário
+- Não permitir proprietário ver leads ou mensagens
+- Não criar chat
+- Não integrar WhatsApp Business API
+- Não criar automações de envio (WhatsApp/SMS/email)
+- Não expor múltiplos listings publicamente
+- Não quebrar co-corretagem
+- Não bloquear o fluxo por falta de dados completos do Owner
+
+========================
+ENTREGA ESPERADA
+========================
+1) Backend com endpoints e validações
+2) Modelos/campos de Property para validade temporal
+3) Páginas e componentes do app privado para confirmação
+4) Página pública de confirmação do proprietário
+5) ActivityLog completo em todas as ações, incluindo Owner incompleto/enriquecimento
+6) Checklist final confirmando:
+   - lead continua pertencendo ao Property
+   - owner continua passivo (sem login/negociação/leads)
+   - owner pode estar incompleto no MVP sem bloquear confirmação
+   - imóveis stale podem ser ocultados
+   - canonical listing permanece único/publicamente exibido

@@ -1,0 +1,699 @@
+Você é um engenheiro backend sênior responsável por implementar
+AUTENTICAÇÃO E MULTI-TENANCY no MVP.
+
+IMPORTANTE:
+Este prompt deve ser executado JUNTO com PROMPT 01 (Foundation),
+pois autenticação é requisito para todas as features subsequentes.
+
+========================
+CONTEXTO
+========================
+O sistema deve suportar múltiplas imobiliárias (tenants) desde o MVP,
+com isolamento completo de dados entre elas.
+
+Cada tenant possui:
+- Corretores (brokers)
+- Imóveis (properties)
+- Leads
+- Configurações próprias
+
+Corretores podem compartilhar imóveis via co-corretagem EXPLÍCITA,
+mas NUNCA deve haver vazamento acidental de dados entre tenants.
+
+========================
+STACK TÉCNICA
+========================
+- Backend: Go (Golang) + Gin framework
+- Banco: Google Cloud Firestore
+- Autenticação: Firebase Authentication
+- Storage: Google Cloud Storage (GCS)
+
+========================
+OBJETIVO DESTE PROMPT
+========================
+Implementar:
+1. Sistema de autenticação com Firebase Auth
+2. Estrutura multi-tenant no Firestore
+3. Middleware de isolamento de tenant
+4. Gestão de usuários e corretores
+5. Permissões básicas (admin vs corretor)
+
+========================
+FIRESTORE STRUCTURE (MULTI-TENANT)
+========================
+
+```
+/tenants/{tenantId}
+  - name: string
+  - slug: string (unique, ex: "imobiliaria-xyz")
+  - created_at: timestamp
+  - status: "active" | "suspended" | "trial"
+  - settings: map
+    - whatsapp_default: string
+    - business_name: string
+    - logo_url: string
+
+/tenants/{tenantId}/brokers/{brokerId}
+  - user_id: string (ref Firebase Auth UID)
+  - email: string
+  - name: string
+  - creci: string (opcional no MVP)
+  - phone: string
+  - role: "admin" | "broker" (admin pode gerenciar tenant)
+  - status: "active" | "inactive"
+  - created_at: timestamp
+  - photo_url: string (opcional)
+
+/tenants/{tenantId}/properties/{propertyId}
+  (ver PROMPT 01 para estrutura completa)
+
+/tenants/{tenantId}/listings/{listingId}
+  (ver PROMPT 01)
+
+/tenants/{tenantId}/owners/{ownerId}
+  (ver PROMPT 01)
+
+/tenants/{tenantId}/leads/{leadId}
+  (ver PROMPT 01)
+
+/tenants/{tenantId}/activity_logs/{logId}
+  (ver AI_DEV_DIRECTIVE.md seção 17)
+
+/tenants/{tenantId}/import_batches/{batchId}
+  (ver PROMPT 02)
+```
+
+**IMPORTANTE**:
+- TODA coleção de dados do tenant DEVE estar sob `/tenants/{tenantId}/`
+- Firestore Security Rules DEVEM validar tenant_id em TODAS as queries
+- Índices compostos: criar para queries frequentes (ex: properties por tenant + status)
+
+========================
+FIREBASE AUTH CUSTOM CLAIMS
+========================
+
+Ao criar/autenticar usuário, setar custom claims:
+
+```go
+claims := map[string]interface{}{
+    "tenant_id": "tenant-abc123",
+    "role": "broker", // ou "admin"
+}
+client.SetCustomUserClaims(ctx, uid, claims)
+```
+
+**No JWT decode** (middleware):
+```go
+type AuthClaims struct {
+    TenantID string `json:"tenant_id"`
+    Role     string `json:"role"`
+    UID      string `json:"user_id"`
+}
+```
+
+========================
+MODELOS GO (BACKEND)
+========================
+
+### Tenant
+```go
+type Tenant struct {
+    ID        string                 `firestore:"-" json:"id"`
+    Name      string                 `firestore:"name" json:"name"`
+    Slug      string                 `firestore:"slug" json:"slug"` // unique
+    Status    TenantStatus           `firestore:"status" json:"status"`
+    Settings  map[string]interface{} `firestore:"settings" json:"settings"`
+    CreatedAt time.Time              `firestore:"created_at" json:"created_at"`
+    UpdatedAt time.Time              `firestore:"updated_at" json:"updated_at"`
+}
+
+type TenantStatus string
+const (
+    TenantStatusActive    TenantStatus = "active"
+    TenantStatusSuspended TenantStatus = "suspended"
+    TenantStatusTrial     TenantStatus = "trial"
+)
+```
+
+### Broker (Corretor)
+```go
+type Broker struct {
+    ID        string       `firestore:"-" json:"id"`
+    TenantID  string       `firestore:"tenant_id" json:"tenant_id"`
+    UserID    string       `firestore:"user_id" json:"user_id"` // Firebase Auth UID
+    Email     string       `firestore:"email" json:"email" validate:"required,email"`
+    Name      string       `firestore:"name" json:"name" validate:"required"`
+    CRECI     string       `firestore:"creci,omitempty" json:"creci,omitempty"`
+
+    // ⭐ OBRIGATÓRIO - Formato E.164 (AI_DEV_DIRECTIVE Seção 20.7)
+    // Exemplo: +5511999999999 (Brasil)
+    // CRÍTICO para distribuição de leads via WhatsApp
+    Phone     string       `firestore:"phone" json:"phone" validate:"required,e164"`
+
+    Role      BrokerRole   `firestore:"role" json:"role"`
+    Status    BrokerStatus `firestore:"status" json:"status"`
+    PhotoURL  string       `firestore:"photo_url,omitempty" json:"photo_url,omitempty"`
+    CreatedAt time.Time    `firestore:"created_at" json:"created_at"`
+    UpdatedAt time.Time    `firestore:"updated_at" json:"updated_at"`
+}
+
+type BrokerRole string
+const (
+    BrokerRoleAdmin  BrokerRole = "admin"  // pode gerenciar tenant
+    BrokerRoleBroker BrokerRole = "broker" // corretor padrão
+)
+
+type BrokerStatus string
+const (
+    BrokerStatusActive   BrokerStatus = "active"
+    BrokerStatusInactive BrokerStatus = "inactive"
+)
+```
+
+========================
+ENDPOINTS (BACKEND GO + GIN)
+========================
+
+### Autenticação
+
+**POST /api/v1/auth/signup**
+Body:
+```json
+{
+  "email": "corretor@email.com",
+  "password": "senha123",
+  "name": "João Silva",
+  "phone": "+5511999999999",
+  "tenant_name": "Imobiliária XYZ" // criar novo tenant
+}
+```
+Response:
+```json
+{
+  "tenant_id": "tenant-abc123",
+  "broker_id": "broker-xyz",
+  "firebase_token": "eyJhbGc...",
+  "user": { ... }
+}
+```
+
+Behavior:
+1. Criar usuário no Firebase Auth
+2. Criar Tenant (se tenant_name fornecido) OU associar a tenant existente
+3. Gerar slug do tenant (normalizar nome)
+4. Criar Broker na subcoleção do tenant
+5. Setar custom claims (tenant_id, role: "admin" se primeiro usuário)
+6. ActivityLog: tenant_created, broker_created
+7. Retornar token JWT
+
+---
+
+**POST /api/v1/auth/login**
+Body:
+```json
+{
+  "email": "corretor@email.com",
+  "password": "senha123"
+}
+```
+Response:
+```json
+{
+  "firebase_token": "eyJhbGc...",
+  "tenant_id": "tenant-abc123",
+  "broker": { ... }
+}
+```
+
+Behavior:
+1. Firebase Auth verifica credenciais
+2. Buscar Broker por user_id
+3. Validar status do Broker e Tenant (ambos devem ser "active")
+4. Retornar token + dados do corretor
+
+---
+
+**POST /api/v1/auth/refresh**
+Headers: `Authorization: Bearer {firebase_token}`
+Response:
+```json
+{
+  "firebase_token": "eyJhbGc...",
+  "broker": { ... }
+}
+```
+
+Behavior:
+1. Validar token atual
+2. Gerar novo token (se necessário)
+3. Retornar dados atualizados do corretor
+
+---
+
+### Gestão de Corretores (PRIVADO - requer autenticação)
+
+**GET /api/v1/tenants/{tenantId}/brokers**
+Headers: `Authorization: Bearer {token}`
+Query params:
+- `status=active` (opcional)
+- `limit=20` (padrão)
+- `offset=0`
+
+Response:
+```json
+{
+  "brokers": [ ... ],
+  "total": 15,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+Behavior:
+- Middleware valida tenant_id do JWT == tenantId da URL
+- Listar corretores do tenant
+- Apenas admin pode ver corretores inativos
+
+---
+
+**POST /api/v1/tenants/{tenantId}/brokers**
+Headers: `Authorization: Bearer {token}` (role: admin)
+Body:
+```json
+{
+  "email": "novo@corretor.com",
+  "name": "Maria Santos",
+  "phone": "+5511988888888",
+  "role": "broker",
+  "creci": "12345-F" // opcional
+}
+```
+
+Response:
+```json
+{
+  "broker_id": "broker-new123",
+  "temp_password": "senha-temporaria-xyz",
+  "message": "Corretor criado. Envie a senha temporária por canal seguro."
+}
+```
+
+Behavior:
+1. Validar que usuário autenticado é admin do tenant
+2. Criar usuário no Firebase Auth com senha temporária
+3. Criar Broker na subcoleção do tenant
+4. Setar custom claims
+5. ActivityLog: broker_invited
+6. Retornar senha temporária (corretor deve alterar no primeiro login)
+
+---
+
+**PATCH /api/v1/tenants/{tenantId}/brokers/{brokerId}**
+Headers: `Authorization: Bearer {token}`
+Body:
+```json
+{
+  "name": "João Silva Jr.",
+  "phone": "+5511977777777",
+  "status": "inactive" // apenas admin pode alterar
+}
+```
+
+Behavior:
+1. Validar que usuário é admin OU é o próprio corretor (self-update)
+2. Corretor pode editar: name, phone, photo_url
+3. Admin pode editar: tudo + status + role
+4. ActivityLog: broker_updated
+
+---
+
+### Gestão de Tenant
+
+**GET /api/v1/tenants/{tenantId}**
+Headers: `Authorization: Bearer {token}`
+
+Response:
+```json
+{
+  "id": "tenant-abc123",
+  "name": "Imobiliária XYZ",
+  "slug": "imobiliaria-xyz",
+  "status": "active",
+  "settings": { ... }
+}
+```
+
+---
+
+**PATCH /api/v1/tenants/{tenantId}**
+Headers: `Authorization: Bearer {token}` (role: admin)
+Body:
+```json
+{
+  "name": "Imobiliária XYZ Ltda",
+  "settings": {
+    "whatsapp_default": "+5511999999999",
+    "business_name": "XYZ Imóveis"
+  }
+}
+```
+
+Behavior:
+1. Validar que usuário é admin
+2. Atualizar tenant
+3. ActivityLog: tenant_updated
+
+========================
+MIDDLEWARE GO (CRÍTICO)
+========================
+
+### AuthMiddleware
+```go
+func AuthMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // 1. Extrair token do header Authorization
+        tokenString := c.GetHeader("Authorization")
+        if tokenString == "" {
+            c.JSON(401, gin.H{"error": "unauthorized"})
+            c.Abort()
+            return
+        }
+
+        // 2. Validar token Firebase
+        token, err := firebaseAuth.VerifyIDToken(ctx, tokenString)
+        if err != nil {
+            c.JSON(401, gin.H{"error": "invalid token"})
+            c.Abort()
+            return
+        }
+
+        // 3. Extrair custom claims
+        claims := token.Claims
+        tenantID, _ := claims["tenant_id"].(string)
+        role, _ := claims["role"].(string)
+
+        // 4. Salvar no contexto Gin
+        c.Set("user_id", token.UID)
+        c.Set("tenant_id", tenantID)
+        c.Set("role", role)
+
+        c.Next()
+    }
+}
+```
+
+### TenantIsolationMiddleware
+```go
+func TenantIsolationMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // 1. Extrair tenant_id do JWT
+        authTenantID, _ := c.Get("tenant_id")
+
+        // 2. Extrair tenant_id da URL (ex: /api/v1/tenants/{tenantId}/...)
+        urlTenantID := c.Param("tenantId")
+
+        // 3. Validar que são iguais
+        if urlTenantID != "" && authTenantID != urlTenantID {
+            c.JSON(403, gin.H{"error": "forbidden: tenant mismatch"})
+            c.Abort()
+            return
+        }
+
+        c.Next()
+    }
+}
+```
+
+### AdminOnlyMiddleware
+```go
+func AdminOnlyMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        role, _ := c.Get("role")
+        if role != "admin" {
+            c.JSON(403, gin.H{"error": "forbidden: admin only"})
+            c.Abort()
+            return
+        }
+        c.Next()
+    }
+}
+```
+
+**Uso nas rotas:**
+```go
+router := gin.Default()
+
+// Rotas públicas
+router.POST("/api/v1/auth/signup", handlers.Signup)
+router.POST("/api/v1/auth/login", handlers.Login)
+
+// Rotas privadas (requer autenticação)
+private := router.Group("/api/v1")
+private.Use(AuthMiddleware())
+private.Use(TenantIsolationMiddleware())
+{
+    // Corretores
+    private.GET("/tenants/:tenantId/brokers", handlers.ListBrokers)
+    private.POST("/tenants/:tenantId/brokers", AdminOnlyMiddleware(), handlers.CreateBroker)
+    private.PATCH("/tenants/:tenantId/brokers/:brokerId", handlers.UpdateBroker)
+
+    // Tenant
+    private.GET("/tenants/:tenantId", handlers.GetTenant)
+    private.PATCH("/tenants/:tenantId", AdminOnlyMiddleware(), handlers.UpdateTenant)
+
+    // Properties, Listings, Leads (ver outros prompts)
+}
+```
+
+========================
+FIRESTORE SECURITY RULES (CRÍTICO)
+========================
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function: usuário autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function: tenant_id do token == tenant_id do documento
+    function isSameTenant(tenantId) {
+      return isAuthenticated() && request.auth.token.tenant_id == tenantId;
+    }
+
+    // Helper function: usuário é admin do tenant
+    function isAdmin(tenantId) {
+      return isSameTenant(tenantId) && request.auth.token.role == 'admin';
+    }
+
+    // Tenants (apenas admin pode editar)
+    match /tenants/{tenantId} {
+      allow read: if isSameTenant(tenantId);
+      allow update: if isAdmin(tenantId);
+      allow create, delete: if false; // criar tenant via backend
+    }
+
+    // Brokers
+    match /tenants/{tenantId}/brokers/{brokerId} {
+      allow read: if isSameTenant(tenantId);
+      allow create: if isAdmin(tenantId);
+      allow update: if isAdmin(tenantId) || request.auth.uid == resource.data.user_id;
+      allow delete: if isAdmin(tenantId);
+    }
+
+    // Properties (ver PROMPT 01)
+    match /tenants/{tenantId}/properties/{propertyId} {
+      allow read: if isSameTenant(tenantId);
+      allow write: if isSameTenant(tenantId);
+    }
+
+    // Listings (ver PROMPT 01)
+    match /tenants/{tenantId}/listings/{listingId} {
+      allow read: if isSameTenant(tenantId);
+      allow write: if isSameTenant(tenantId);
+    }
+
+    // Leads (ver PROMPT 01)
+    match /tenants/{tenantId}/leads/{leadId} {
+      allow read: if isSameTenant(tenantId);
+      allow write: if isSameTenant(tenantId);
+    }
+
+    // Activity Logs (apenas leitura para brokers)
+    match /tenants/{tenantId}/activity_logs/{logId} {
+      allow read: if isSameTenant(tenantId);
+      allow write: if false; // apenas backend pode escrever
+    }
+  }
+}
+```
+
+========================
+FRONTEND (NEXT.JS)
+========================
+
+### Firebase Config (lib/firebase.ts)
+```typescript
+import { initializeApp } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+}
+
+const app = initializeApp(firebaseConfig)
+export const auth = getAuth(app)
+```
+
+### Auth Context (contexts/AuthContext.tsx)
+```typescript
+'use client'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { User, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+
+interface AuthContextType {
+  user: User | null
+  tenantId: string | null
+  role: 'admin' | 'broker' | null
+  loading: boolean
+  login: (email: string, password: string) => Promise<void>
+  logout: () => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [role, setRole] = useState<'admin' | 'broker' | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setUser(user)
+      if (user) {
+        const token = await user.getIdTokenResult()
+        setTenantId(token.claims.tenant_id as string)
+        setRole(token.claims.role as 'admin' | 'broker')
+      } else {
+        setTenantId(null)
+        setRole(null)
+      }
+      setLoading(false)
+    })
+    return unsubscribe
+  }, [])
+
+  const login = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password)
+  }
+
+  const logout = async () => {
+    await auth.signOut()
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, tenantId, role, loading, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used within AuthProvider')
+  return context
+}
+```
+
+### Protected Route (middleware.ts)
+```typescript
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('firebase_token')?.value
+
+  // Rotas privadas
+  if (request.nextUrl.pathname.startsWith('/app')) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
+
+  return NextResponse.next()
+}
+```
+
+========================
+ESCOPO PROIBIDO NO MVP
+========================
+- OAuth externo (Google, Facebook) - usar apenas email/senha
+- Recuperação de senha customizada - usar flow padrão Firebase
+- Multi-factor authentication (MFA)
+- Aprovação manual de cadastro de corretores
+- Permissões granulares (ex: "pode editar mas não deletar")
+- Audit trail de login/logout (apenas eventos de negócio no ActivityLog)
+
+========================
+AUDITORIA OBRIGATÓRIA
+========================
+ActivityLog para:
+- tenant_created
+- broker_created
+- broker_invited
+- broker_updated
+- broker_status_changed (active/inactive)
+- tenant_updated
+
+Campos obrigatórios (ver AI_DEV_DIRECTIVE.md seção 17):
+- event_id, event_hash, request_id, tenant_id, actor_type, actor_id, event_type, timestamp, metadata
+
+========================
+ENTREGA ESPERADA
+========================
+1. Backend Go:
+   - Modelos: Tenant, Broker
+   - Endpoints de autenticação (/auth/signup, /auth/login, /auth/refresh)
+   - Endpoints de gestão (/tenants, /brokers)
+   - Middlewares: AuthMiddleware, TenantIsolationMiddleware, AdminOnlyMiddleware
+   - Integração Firebase Auth (Admin SDK)
+   - Firestore queries com isolamento de tenant
+
+2. Firestore:
+   - Estrutura de coleções multi-tenant
+   - Security Rules completas
+   - Índices compostos necessários
+
+3. Frontend Next.js:
+   - Firebase config
+   - AuthContext
+   - Protected routes
+   - Páginas: /login, /signup (se permitir cadastro público)
+
+4. Documentação:
+   - README com setup Firebase
+   - .env.example com variáveis necessárias
+   - Instruções de deploy (Cloud Run + Vercel)
+
+5. Auditoria:
+   - ActivityLog implementado
+   - Todos os eventos de autenticação/gestão registrados
+
+========================
+CRITÉRIO DE SUCESSO
+========================
+✅ Corretor consegue criar conta e tenant
+✅ Corretor consegue fazer login e receber JWT com custom claims
+✅ Middleware valida tenant_id em TODAS as requests privadas
+✅ Firestore Security Rules bloqueiam acesso cross-tenant
+✅ Admin consegue convidar novos corretores
+✅ Corretor consegue editar próprio perfil
+✅ ActivityLog registra todas as ações
+✅ Frontend autentica e protege rotas /app/*

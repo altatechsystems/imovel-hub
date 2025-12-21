@@ -1,0 +1,121 @@
+Você é um engenheiro sênior responsável por implementar o FLUXO DE CONTATO VIA WHATSAPP
+no MVP, respeitando integralmente o AI_DEV_DIRECTIVE.md e os Prompts 01–06.
+
+IMPORTANTE:
+- NÃO implementar WhatsApp Business API.
+- NÃO criar bots, automações ou mensagens programadas.
+- NÃO permitir contato externo sem criação prévia de Lead.
+- NÃO alterar regras de governança do imóvel.
+
+========================
+OBJETIVO DESTE PROMPT
+========================
+Implementar o fluxo de WhatsApp no MVP de forma:
+- alinhada ao comportamento brasileiro
+- com rastreabilidade total de leads
+- simples para o usuário final
+- sem custos ou dependências externas
+- sem refatoração futura
+
+========================
+PRINCÍPIO CENTRAL
+========================
+WhatsApp é um CANAL DE COMUNICAÇÃO, não um sistema de entrada de dados.
+
+Todo lead deve NASCER na plataforma antes da conversa externa.
+
+========================
+FLUXO OBRIGATÓRIO (BACKEND)
+========================
+1) Criar endpoint específico para contato via WhatsApp, por exemplo:
+   POST /api/v1/properties/{propertyId}/leads/whatsapp
+
+2) Ao ser acionado, o backend DEVE:
+   - criar um Lead associado ao Property
+   - registrar:
+     - channel = whatsapp
+     - origem (utm_source, utm_campaign, página)
+   - gerar um lead_id único
+   - registrar ActivityLog (lead_created_whatsapp)
+
+3) Retornar para o frontend:
+   - lead_id
+   - mensagem pré-formatada
+   - número de WhatsApp do operador responsável (regra existente)
+
+========================
+FLUXO OBRIGATÓRIO (FRONTEND)
+========================
+
+### UX — Página Pública do Imóvel
+
+Botão principal:
+[Falar no WhatsApp]
+
+Ao clicar:
+1) Mostrar loading curto ("Conectando...")
+2) Chamar endpoint de criação do lead
+3) Após sucesso:
+   - redirecionar para WhatsApp (wa.me ou whatsapp://)
+   - usar mensagem pré-preenchida
+
+### Exemplo de mensagem pré-preenchida
+"Olá! Tenho interesse no imóvel {{titulo}}.
+Vi pelo site e meu protocolo é #{{lead_id}}."
+
+========================
+REGRAS DE UX (CRÍTICAS)
+========================
+- É PROIBIDO:
+  - link direto para WhatsApp sem backend
+  - abrir WhatsApp antes da criação do lead
+- Em caso de erro ao criar o lead:
+  - NÃO redirecionar para WhatsApp
+  - mostrar mensagem amigável ao usuário
+
+========================
+ASSOCIAÇÃO DO LEAD
+========================
+- Lead pertence sempre ao Property
+- Nunca pertence diretamente ao corretor
+- O operador é apenas responsável pelo atendimento
+
+========================
+AUDITORIA (OBRIGATÓRIA)
+========================
+Registrar ActivityLog para:
+- clique em WhatsApp
+- criação do lead
+- redirecionamento iniciado
+
+Cada log deve conter:
+- event_id
+- event_hash
+- request_id
+
+========================
+ESCOPO EXPLICITAMENTE PROIBIDO
+========================
+- WhatsApp Business API
+- bots ou chat automatizado
+- leitura de mensagens
+- armazenamento de conversas
+- múltiplos atendentes
+- SLA automático
+
+========================
+ENTREGA ESPERADA
+========================
+- Fluxo funcional de WhatsApp
+- UX simples e rápida
+- Lead sempre registrado
+- Governança preservada
+- Nenhuma dependência externa
+
+========================
+CRITÉRIO DE SUCESSO
+========================
+É considerado correto somente se:
+- TODO clique em WhatsApp gerar um Lead antes do redirect
+- NÃO existir nenhum fluxo alternativo
+- Auditoria conseguir rastrear o lead do clique até o imóvel

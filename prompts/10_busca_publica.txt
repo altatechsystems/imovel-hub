@@ -1,0 +1,787 @@
+Você é um engenheiro fullstack sênior responsável por implementar
+BUSCA E LISTAGEM PÚBLICA DE IMÓVEIS conforme `AI_DEV_DIRECTIVE.md`,
+PROMPT 01 (backend) e PROMPT 04 (frontend).
+
+STACK TÉCNICA:
+- Backend: Go + Gin + Firestore
+- Frontend: Next.js 14 + TypeScript + shadcn/ui
+- Busca: Firestore Queries com índices compostos
+
+IMPORTANTE:
+- Executar APÓS PROMPT 01 (modelos) e PROMPT 04 (frontend base)
+- Exibir SOMENTE imóveis com visibility_public = "public"
+- Renderizar SOMENTE canonical listing
+- Multi-tenancy: busca pode ser global OU por tenant (configurável)
+
+========================
+OBJETIVO
+========================
+Implementar sistema de busca pública de imóveis com:
+- Filtros inspirados em portais brasileiros (Zap, Viva Real)
+- Performance otimizada (índices Firestore)
+- SEO-friendly (URL params + SSR)
+- UX mobile-first
+
+========================
+ANÁLISE DE FILTROS (PORTAIS BRASILEIROS)
+========================
+
+Análise dos principais portais imobiliários do Brasil:
+
+### ZapImóveis (zapimoveis.com.br)
+Filtros principais:
+- Tipo de negócio (venda, aluguel, lançamento)
+- Tipo de imóvel (apartamento, casa, terreno, comercial, etc.)
+- Localização (cidade, bairro autocomplete)
+- Quartos (1, 2, 3, 4+)
+- Preço (min/max)
+- Área (min/max)
+- Vagas de garagem (1, 2, 3+)
+
+Filtros secundários:
+- Suítes (1, 2, 3+)
+- Banheiros (1, 2, 3+)
+- Condomínio (valor max)
+- Características (piscina, churrasqueira, elevador, etc.)
+
+### VivaReal (vivareal.com.br)
+Similar ao Zap + filtros adicionais:
+- "Aceita financiamento"
+- "Lançamento"
+- "Com fotos"
+
+### imovelweb.com.br
+Similar aos anteriores + ordem:
+- Mais relevantes
+- Menor preço
+- Maior preço
+- Mais recentes
+
+### **CONCLUSÃO PARA MVP**:
+Filtros ESSENCIAIS:
+1. property_type (tipo de imóvel)
+2. city (cidade)
+3. neighborhood (bairro)
+4. price_min / price_max
+5. bedrooms_min
+6. parking_spaces_min (garagem)
+
+Filtros DESEJÁVEIS (mas opcional no MVP):
+7. total_area_min / total_area_max
+8. bathrooms_min
+
+Ordenação:
+- Mais recentes (padrão)
+- Menor preço
+- Maior preço
+
+========================
+BACKEND (GO + FIRESTORE)
+========================
+
+### Endpoint de Busca
+
+**GET /api/v1/properties/search**
+Query params:
+- `property_type`: apartment | house | land | commercial (opcional)
+- `city`: string (opcional)
+- `neighborhood`: string (opcional)
+- `price_min`: number (opcional)
+- `price_max`: number (opcional)
+- `bedrooms_min`: number (opcional)
+- `parking_spaces_min`: number (opcional)
+- `total_area_min`: number (opcional)
+- `total_area_max`: number (opcional)
+- `bathrooms_min`: number (opcional)
+- `order_by`: recent | price_asc | price_desc (padrão: recent)
+- `limit`: number (padrão: 20, max: 100)
+- `offset`: number (padrão: 0)
+- `tenant_id`: string (opcional) - se multi-tenant mode
+
+Response:
+```json
+{
+  "properties": [
+    {
+      "id": "prop-123",
+      "slug": "apartamento-sao-paulo-jardim-europa-ap00335",
+      "property_type": "apartment",
+      "city": "São Paulo",
+      "neighborhood": "Jardim Europa",
+      "bedrooms": 3,
+      "bathrooms": 2,
+      "parking_spaces": 2,
+      "total_area": 120.5,
+      "price_amount": 1200000,
+      "price_currency": "BRL",
+      "canonical_listing": {
+        "title": "Apartamento 3 quartos...",
+        "description": "...",
+        "photos": [
+          {
+            "thumb_url": "...",
+            "is_cover": true
+          }
+        ]
+      },
+      "status_confirmed_at": "2025-12-15T10:00:00Z"
+    }
+  ],
+  "total": 45,
+  "limit": 20,
+  "offset": 0,
+  "has_more": true
+}
+```
+
+### Implementação Go
+
+```go
+// handlers/search_handler.go
+package handlers
+
+import (
+    "net/http"
+    "strconv"
+
+    "github.com/gin-gonic/gin"
+    "cloud.google.com/go/firestore"
+)
+
+type SearchFilters struct {
+    PropertyType     string   `form:"property_type"`
+    City             string   `form:"city"`
+    Neighborhood     string   `form:"neighborhood"`
+    PriceMin         *float64 `form:"price_min"`
+    PriceMax         *float64 `form:"price_max"`
+    BedroomsMin      *int     `form:"bedrooms_min"`
+    ParkingSpacesMin *int     `form:"parking_spaces_min"`
+    TotalAreaMin     *float64 `form:"total_area_min"`
+    TotalAreaMax     *float64 `form:"total_area_max"`
+    BathroomsMin     *int     `form:"bathrooms_min"`
+    OrderBy          string   `form:"order_by"` // recent, price_asc, price_desc
+    Limit            int      `form:"limit"`
+    Offset           int      `form:"offset"`
+    TenantID         string   `form:"tenant_id"` // opcional
+}
+
+func (h *Handler) SearchProperties(c *gin.Context) {
+    var filters SearchFilters
+    if err := c.ShouldBindQuery(&filters); err != nil {
+        c.JSON(400, gin.H{"error": "invalid filters"})
+        return
+    }
+
+    // Defaults
+    if filters.Limit == 0 || filters.Limit > 100 {
+        filters.Limit = 20
+    }
+    if filters.OrderBy == "" {
+        filters.OrderBy = "recent"
+    }
+
+    // Build Firestore query
+    query := buildSearchQuery(h.firestoreClient, filters)
+
+    // Execute query
+    docs, err := query.Documents(c.Request.Context()).GetAll()
+    if err != nil {
+        c.JSON(500, gin.H{"error": "search failed"})
+        return
+    }
+
+    // Map to response
+    properties := make([]PropertySearchResult, 0, len(docs))
+    for _, doc := range docs {
+        var prop Property
+        doc.DataTo(&prop)
+        prop.ID = doc.Ref.ID
+
+        // Buscar canonical listing
+        listing, _ := h.getCanonicalListing(c, prop.CanonicalListingID)
+
+        properties = append(properties, PropertySearchResult{
+            Property:        prop,
+            CanonicalListing: listing,
+        })
+    }
+
+    // Count total (pode ser otimizado com aggregation queries)
+    totalQuery := buildSearchQuery(h.firestoreClient, filters)
+    total, _ := totalQuery.Documents(c.Request.Context()).GetAll()
+
+    c.JSON(200, gin.H{
+        "properties": properties,
+        "total":      len(total),
+        "limit":      filters.Limit,
+        "offset":     filters.Offset,
+        "has_more":   len(total) > filters.Offset+filters.Limit,
+    })
+}
+
+func buildSearchQuery(client *firestore.Client, filters SearchFilters) firestore.Query {
+    // Base query: apenas imóveis públicos
+    var query firestore.Query
+
+    if filters.TenantID != "" {
+        // Busca dentro de um tenant específico
+        query = client.Collection("tenants").Doc(filters.TenantID).Collection("properties")
+    } else {
+        // Busca global (collection group)
+        query = client.CollectionGroup("properties")
+    }
+
+    // FILTRO OBRIGATÓRIO: apenas visibility_public = "public"
+    query = query.Where("visibility_public", "==", "public")
+
+    // Filtros opcionais
+    if filters.PropertyType != "" {
+        query = query.Where("property_type", "==", filters.PropertyType)
+    }
+
+    if filters.City != "" {
+        query = query.Where("city", "==", filters.City)
+    }
+
+    if filters.Neighborhood != "" {
+        query = query.Where("neighborhood", "==", filters.Neighborhood)
+    }
+
+    if filters.PriceMin != nil {
+        query = query.Where("price_amount", ">=", *filters.PriceMin)
+    }
+
+    if filters.PriceMax != nil {
+        query = query.Where("price_amount", "<=", *filters.PriceMax)
+    }
+
+    if filters.BedroomsMin != nil {
+        query = query.Where("bedrooms", ">=", *filters.BedroomsMin)
+    }
+
+    if filters.ParkingSpacesMin != nil {
+        query = query.Where("parking_spaces", ">=", *filters.ParkingSpacesMin)
+    }
+
+    if filters.TotalAreaMin != nil {
+        query = query.Where("total_area", ">=", *filters.TotalAreaMin)
+    }
+
+    if filters.TotalAreaMax != nil {
+        query = query.Where("total_area", "<=", *filters.TotalAreaMax)
+    }
+
+    if filters.BathroomsMin != nil {
+        query = query.Where("bathrooms", ">=", *filters.BathroomsMin)
+    }
+
+    // Ordenação
+    switch filters.OrderBy {
+    case "price_asc":
+        query = query.OrderBy("price_amount", firestore.Asc)
+    case "price_desc":
+        query = query.OrderBy("price_amount", firestore.Desc)
+    case "recent":
+        fallthrough
+    default:
+        query = query.OrderBy("created_at", firestore.Desc)
+    }
+
+    // Paginação
+    query = query.Limit(filters.Limit).Offset(filters.Offset)
+
+    return query
+}
+```
+
+### Índices Compostos Firestore (CRÍTICO)
+
+Firestore requer índices compostos para queries complexas.
+Criar via Firebase Console ou firestore.indexes.json:
+
+```json
+{
+  "indexes": [
+    {
+      "collectionGroup": "properties",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "visibility_public", "order": "ASCENDING" },
+        { "fieldPath": "property_type", "order": "ASCENDING" },
+        { "fieldPath": "city", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "properties",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "visibility_public", "order": "ASCENDING" },
+        { "fieldPath": "property_type", "order": "ASCENDING" },
+        { "fieldPath": "city", "order": "ASCENDING" },
+        { "fieldPath": "price_amount", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "properties",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "visibility_public", "order": "ASCENDING" },
+        { "fieldPath": "city", "order": "ASCENDING" },
+        { "fieldPath": "neighborhood", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    }
+  ]
+}
+```
+
+**IMPORTANTE**: Firestore tem limite de campos em queries compostas.
+Se muitos filtros forem usados simultaneamente, considerar:
+1. Client-side filtering (para filtros menos comuns)
+2. Algolia/ElasticSearch (evolução futura)
+
+========================
+FRONTEND (NEXT.JS)
+========================
+
+### Página de Busca (`/buscar`)
+
+```tsx
+// app/buscar/page.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { SearchFilters } from '@/components/property/SearchFilters'
+import { PropertyCard } from '@/components/property/PropertyCard'
+import { Pagination } from '@/components/shared/Pagination'
+import { useSearchStore } from '@/lib/store'
+
+export default function BuscarPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { filters, setFilter } = useSearchStore()
+
+  const [properties, setProperties] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const limit = 20
+
+  // Sync URL params with store
+  useEffect(() => {
+    const type = searchParams.get('tipo')
+    const city = searchParams.get('cidade')
+    const neighborhood = searchParams.get('bairro')
+    const priceMin = searchParams.get('preco_min')
+    const priceMax = searchParams.get('preco_max')
+    const bedrooms = searchParams.get('quartos')
+
+    if (type) setFilter('propertyType', type)
+    if (city) setFilter('city', city)
+    if (neighborhood) setFilter('neighborhood', neighborhood)
+    if (priceMin) setFilter('priceMin', parseFloat(priceMin))
+    if (priceMax) setFilter('priceMax', parseFloat(priceMax))
+    if (bedrooms) setFilter('bedrooms', parseInt(bedrooms))
+  }, [searchParams])
+
+  // Fetch properties
+  useEffect(() => {
+    async function fetchProperties() {
+      setLoading(true)
+
+      const params = new URLSearchParams()
+      if (filters.propertyType) params.set('property_type', filters.propertyType)
+      if (filters.city) params.set('city', filters.city)
+      if (filters.neighborhood) params.set('neighborhood', filters.neighborhood)
+      if (filters.priceMin) params.set('price_min', filters.priceMin.toString())
+      if (filters.priceMax) params.set('price_max', filters.priceMax.toString())
+      if (filters.bedrooms) params.set('bedrooms_min', filters.bedrooms.toString())
+      params.set('limit', limit.toString())
+      params.set('offset', ((page - 1) * limit).toString())
+
+      const res = await fetch(`/api/properties/search?${params}`)
+      const data = await res.json()
+
+      setProperties(data.properties)
+      setTotal(data.total)
+      setLoading(false)
+    }
+
+    fetchProperties()
+  }, [filters, page])
+
+  // Update URL when filters change
+  function updateURL() {
+    const params = new URLSearchParams()
+    if (filters.propertyType) params.set('tipo', filters.propertyType)
+    if (filters.city) params.set('cidade', filters.city)
+    if (filters.neighborhood) params.set('bairro', filters.neighborhood)
+    if (filters.priceMin) params.set('preco_min', filters.priceMin.toString())
+    if (filters.priceMax) params.set('preco_max', filters.priceMax.toString())
+    if (filters.bedrooms) params.set('quartos', filters.bedrooms.toString())
+
+    router.push(`/buscar?${params.toString()}`)
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Filtros laterais */}
+        <aside className="lg:col-span-1">
+          <SearchFilters onApply={updateURL} />
+        </aside>
+
+        {/* Resultados */}
+        <main className="lg:col-span-3">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold">
+              {total} imóveis encontrados
+            </h1>
+
+            {/* Ordenação */}
+            <Select value={orderBy} onValueChange={setOrderBy}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recent">Mais recentes</SelectItem>
+                <SelectItem value="price_asc">Menor preço</SelectItem>
+                <SelectItem value="price_desc">Maior preço</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Grid de imóveis */}
+          {loading ? (
+            <div>Carregando...</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {properties.map((property) => (
+                  <PropertyCard key={property.id} property={property} />
+                ))}
+              </div>
+
+              {/* Paginação */}
+              <Pagination
+                currentPage={page}
+                totalPages={Math.ceil(total / limit)}
+                onPageChange={setPage}
+              />
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  )
+}
+```
+
+### Componente de Filtros
+
+```tsx
+// components/property/SearchFilters.tsx
+'use client'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { useSearchStore } from '@/lib/store'
+
+export function SearchFilters({ onApply }: { onApply: () => void }) {
+  const { filters, setFilter, resetFilters } = useSearchStore()
+
+  return (
+    <div className="space-y-6 bg-white p-6 rounded-lg shadow">
+      <h2 className="text-xl font-semibold">Filtros</h2>
+
+      {/* Tipo de Imóvel */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Tipo de Imóvel
+        </label>
+        <Select
+          value={filters.propertyType || ''}
+          onValueChange={(value) => setFilter('propertyType', value || null)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Todos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos</SelectItem>
+            <SelectItem value="apartment">Apartamento</SelectItem>
+            <SelectItem value="house">Casa</SelectItem>
+            <SelectItem value="land">Terreno</SelectItem>
+            <SelectItem value="commercial">Comercial</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Cidade */}
+      <div>
+        <label className="block text-sm font-medium mb-2">Cidade</label>
+        <Input
+          value={filters.city || ''}
+          onChange={(e) => setFilter('city', e.target.value || null)}
+          placeholder="Ex: São Paulo"
+        />
+      </div>
+
+      {/* Bairro */}
+      <div>
+        <label className="block text-sm font-medium mb-2">Bairro</label>
+        <Input
+          value={filters.neighborhood || ''}
+          onChange={(e) => setFilter('neighborhood', e.target.value || null)}
+          placeholder="Ex: Jardim Europa"
+        />
+      </div>
+
+      {/* Preço */}
+      <div>
+        <label className="block text-sm font-medium mb-2">Preço</label>
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            type="number"
+            value={filters.priceMin || ''}
+            onChange={(e) =>
+              setFilter('priceMin', e.target.value ? parseFloat(e.target.value) : null)
+            }
+            placeholder="Mínimo"
+          />
+          <Input
+            type="number"
+            value={filters.priceMax || ''}
+            onChange={(e) =>
+              setFilter('priceMax', e.target.value ? parseFloat(e.target.value) : null)
+            }
+            placeholder="Máximo"
+          />
+        </div>
+      </div>
+
+      {/* Quartos */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Quartos (mínimo)
+        </label>
+        <Select
+          value={filters.bedrooms?.toString() || ''}
+          onValueChange={(value) =>
+            setFilter('bedrooms', value ? parseInt(value) : null)
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Qualquer" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Qualquer</SelectItem>
+            <SelectItem value="1">1+</SelectItem>
+            <SelectItem value="2">2+</SelectItem>
+            <SelectItem value="3">3+</SelectItem>
+            <SelectItem value="4">4+</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Vagas de Garagem */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Garagem (mínimo)
+        </label>
+        <Select
+          value={filters.parkingSpaces?.toString() || ''}
+          onValueChange={(value) =>
+            setFilter('parkingSpaces', value ? parseInt(value) : null)
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Qualquer" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Qualquer</SelectItem>
+            <SelectItem value="1">1+</SelectItem>
+            <SelectItem value="2">2+</SelectItem>
+            <SelectItem value="3">3+</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Botões */}
+      <div className="space-y-2">
+        <Button className="w-full" onClick={onApply}>
+          Aplicar Filtros
+        </Button>
+        <Button variant="outline" className="w-full" onClick={resetFilters}>
+          Limpar Filtros
+        </Button>
+      </div>
+    </div>
+  )
+}
+```
+
+### PropertyCard
+
+```tsx
+// components/property/PropertyCard.tsx
+import Link from 'next/link'
+import Image from 'next/image'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+
+export function PropertyCard({ property }: { property: any }) {
+  const coverPhoto = property.canonical_listing?.photos.find((p: any) => p.is_cover)
+
+  return (
+    <Link href={`/imovel/${property.slug}`}>
+      <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+        {/* Foto de capa */}
+        <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
+          {coverPhoto ? (
+            <Image
+              src={coverPhoto.thumb_url}
+              alt={property.canonical_listing.title}
+              fill
+              className="object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="bg-gray-200 h-full w-full flex items-center justify-center">
+              <span className="text-gray-400">Sem foto</span>
+            </div>
+          )}
+
+          {/* Badge de status */}
+          <div className="absolute top-2 right-2">
+            <StatusBadge
+              status={property.status}
+              statusConfirmedAt={property.status_confirmed_at}
+            />
+          </div>
+        </div>
+
+        <CardContent className="p-4">
+          {/* Título */}
+          <h3 className="font-semibold text-lg line-clamp-2 mb-2">
+            {property.canonical_listing?.title || 'Imóvel sem título'}
+          </h3>
+
+          {/* Localização */}
+          <p className="text-sm text-gray-600 mb-3">
+            {property.neighborhood}, {property.city} - {property.state}
+          </p>
+
+          {/* Características */}
+          <div className="flex gap-4 text-sm text-gray-700 mb-3">
+            {property.bedrooms > 0 && (
+              <span>{property.bedrooms} quartos</span>
+            )}
+            {property.bathrooms > 0 && (
+              <span>{property.bathrooms} banheiros</span>
+            )}
+            {property.parking_spaces > 0 && (
+              <span>{property.parking_spaces} vagas</span>
+            )}
+          </div>
+
+          {/* Área */}
+          {property.total_area > 0 && (
+            <p className="text-sm text-gray-600 mb-3">
+              {property.total_area} m²
+            </p>
+          )}
+
+          {/* Preço */}
+          <p className="text-2xl font-bold text-blue-600">
+            {new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: property.price_currency || 'BRL'
+            }).format(property.price_amount)}
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+```
+
+========================
+SEO (PÁGINA DE BUSCA)
+========================
+
+```tsx
+// app/buscar/page.tsx
+export const metadata: Metadata = {
+  title: 'Buscar Imóveis | Imobiliária XYZ',
+  description: 'Encontre seu imóvel ideal. Apartamentos, casas e terrenos para venda.',
+  openGraph: {
+    title: 'Buscar Imóveis',
+    description: 'Encontre seu imóvel ideal',
+    url: 'https://example.com/buscar'
+  }
+}
+```
+
+========================
+PERFORMANCE
+========================
+
+### Otimizações:
+1. **Índices Firestore**: configurar índices compostos
+2. **Lazy Loading**: fotos carregadas sob demanda
+3. **Paginação**: limitar 20 resultados por página
+4. **Cache**: React Query cache por 5 min
+5. **SSR para primeira página**: SEO-friendly
+
+========================
+ESCOPO PROIBIDO NO MVP
+========================
+- Busca textual (fulltext search) - usar Algolia em evolução futura
+- Autocomplete de endereço (Google Places API) - evolução futura
+- Mapa com pins (Google Maps + clustering) - evolução futura
+- Salvar buscas favoritas - evolução futura
+- Alertas de novos imóveis - evolução futura
+
+========================
+ENTREGA ESPERADA
+========================
+1. Backend:
+   - Endpoint GET /api/v1/properties/search
+   - Suporte a filtros (tipo, cidade, bairro, preço, quartos, garagem)
+   - Ordenação (recente, preço)
+   - Paginação
+   - Apenas imóveis públicos (visibility_public = "public")
+
+2. Firestore:
+   - Índices compostos configurados
+   - firestore.indexes.json
+
+3. Frontend:
+   - Página /buscar (SSR)
+   - SearchFilters component
+   - PropertyCard component
+   - Pagination component
+   - URL params (compartilhamento)
+
+4. UX:
+   - Mobile-first
+   - Loading states
+   - Empty states ("Nenhum imóvel encontrado")
+   - Contador de resultados
+
+========================
+CRITÉRIO DE SUCESSO
+========================
+✅ Busca filtra apenas imóveis públicos
+✅ Filtros funcionais (tipo, cidade, bairro, preço, quartos, garagem)
+✅ Ordenação funcional (recente, preço asc/desc)
+✅ Paginação funcional
+✅ URL params atualizam ao filtrar (SEO + compartilhamento)
+✅ PropertyCard exibe foto, título, localização, características, preço
+✅ Performance < 1s para busca com até 100 resultados
+✅ Mobile-first responsivo
+✅ Índices Firestore configurados
+✅ Canonical listing renderizado (único)

@@ -1,0 +1,40 @@
+Você agora atua como AUDITOR TÉCNICO.
+NÃO implementar código novo.
+
+========================
+OBJETIVO
+========================
+Validar aderência total a:
+- AI_DEV_DIRECTIVE.md
+- PROMPT 01
+- PROMPT 02
+
+========================
+VALIDAR
+========================
+- Property único
+- Separação Property vs Listing
+- Canonical listing único
+- Owner passivo
+- Co-corretagem
+- Importação multi-fonte correta
+- ActivityLog completo
+- Verificar que todo fluxo de WhatsApp cria Lead ANTES do redirect.
+- Verificar que WhatsApp não é tratado como origem primária do lead.
+- Verificar que Lead pertence ao Property, não ao corretor.
+- existência de status_confirmed_at e price_confirmed_at
+- confirmação registrada em ActivityLog
+- ausência de dependência exclusiva do corretor
+
+
+
+========================
+FORMATO DA RESPOSTA
+========================
+1. Resumo executivo (aprovado / ressalvas / reprovado)
+2. Achados críticos
+3. Recomendações
+4. Checklist final (OK / Atenção / Violação)
+
+NÃO sugerir novas features.
+NÃO expandir escopo.
