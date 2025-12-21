@@ -271,19 +271,29 @@ Pagamentos, split financeiro, área do proprietário, exclusividade automática.
 
 ## 19. Estrutura de Diretórios do Projeto
 
-O projeto será dividido em **TRÊS pastas separadas na raiz**:
+O projeto será dividido em **MÚLTIPLAS pastas separadas na raiz** (arquitetura de frontends separados por contexto):
 
 ```
 ecosistema-imob/
-├── backend/                    # Projeto Go (API)
+├── backend/                    # Projeto Go (API ÚNICA para todos os frontends)
 │   ├── cmd/
 │   │   └── api/
 │   │       └── main.go
 │   ├── internal/
 │   │   ├── models/
+│   │   │   ├── property.go
+│   │   │   ├── listing.go
+│   │   │   ├── lead.go
+│   │   │   ├── rental_contract.go      # MVP+4 (Locação)
+│   │   │   ├── rental_payment.go       # MVP+4 (Locação)
+│   │   │   └── maintenance_request.go  # MVP+5 (Locação)
 │   │   ├── repositories/
 │   │   ├── services/
 │   │   ├── handlers/
+│   │   │   ├── property_handler.go
+│   │   │   ├── lead_handler.go
+│   │   │   ├── contract_handler.go     # MVP+4 (Locação)
+│   │   │   └── payment_handler.go      # MVP+4 (Locação)
 │   │   ├── middleware/
 │   │   ├── adapters/
 │   │   └── utils/
@@ -302,9 +312,14 @@ ecosistema-imob/
 │   │   ├── page.tsx           # Homepage
 │   │   ├── buscar/
 │   │   │   └── page.tsx       # Busca de imóveis
-│   │   └── imovel/
-│   │       └── [slug]/
-│   │           └── page.tsx   # Detalhes do imóvel (SSR)
+│   │   ├── imoveis/
+│   │   │   ├── venda/
+│   │   │   │   └── [slug]/page.tsx    # Detalhes venda (SSR)
+│   │   │   └── aluguel/               # MVP+3 (Locação)
+│   │   │       └── [slug]/page.tsx    # Detalhes aluguel (SSR)
+│   │   └── busca/
+│   │       ├── venda/page.tsx
+│   │       └── aluguel/page.tsx       # MVP+3 (Locação)
 │   ├── components/
 │   │   ├── ui/                # shadcn/ui components
 │   │   ├── property/          # PropertyCard, PropertyGallery, etc.
@@ -322,24 +337,26 @@ ecosistema-imob/
 │   ├── package.json
 │   └── README.md
 │
-├── frontend-admin/             # Projeto Next.js ADMIN (corretores/imobiliárias)
+├── frontend-admin-sales/       # Projeto Next.js ADMIN - VENDAS (corretores/imobiliárias)
 │   ├── app/
 │   │   ├── login/
 │   │   │   └── page.tsx       # Login Firebase Auth
 │   │   ├── (dashboard)/       # Grupo protegido
 │   │   │   ├── layout.tsx     # Dashboard layout
-│   │   │   ├── page.tsx       # Overview
+│   │   │   ├── page.tsx       # Overview (vendas)
 │   │   │   ├── imoveis/
-│   │   │   │   ├── page.tsx   # Lista de imóveis
+│   │   │   │   ├── page.tsx   # Lista de imóveis (vendas)
 │   │   │   │   └── [id]/
 │   │   │   │       └── page.tsx # Editar imóvel
 │   │   │   ├── leads/
 │   │   │   │   └── page.tsx   # Gestão de leads
+│   │   │   ├── parceiros/
+│   │   │   │   └── page.tsx   # Co-corretagem
 │   │   │   └── importacao/
 │   │   │       └── page.tsx   # Upload XML/XLS
 │   │   └── api/
 │   ├── components/
-│   │   ├── ui/                # shadcn/ui components
+│   │   ├── ui/                # shadcn/ui components (compartilhados)
 │   │   ├── dashboard/         # Sidebar, DashboardHeader
 │   │   ├── properties/        # PropertyForm, PropertyTable
 │   │   ├── leads/             # LeadTable, LeadDetails
@@ -359,6 +376,68 @@ ecosistema-imob/
 │   ├── tailwind.config.ts
 │   ├── package.json
 │   └── README.md
+│
+├── frontend-admin-rentals/     # Projeto Next.js ADMIN - LOCAÇÃO (MVP+4)
+│   ├── app/
+│   │   ├── login/
+│   │   │   └── page.tsx       # Login Firebase Auth (compartilhado)
+│   │   ├── (dashboard)/       # Grupo protegido
+│   │   │   ├── layout.tsx     # Dashboard layout
+│   │   │   ├── page.tsx       # Overview (contratos ativos, inadimplência, manutenções)
+│   │   │   ├── contratos/
+│   │   │   │   ├── page.tsx   # Lista de contratos
+│   │   │   │   ├── [id]/page.tsx # Detalhe contrato
+│   │   │   │   └── novo/page.tsx # Criar contrato
+│   │   │   ├── pagamentos/
+│   │   │   │   ├── page.tsx   # Lista de cobranças
+│   │   │   │   └── [id]/page.tsx # Detalhe pagamento
+│   │   │   ├── manutencoes/
+│   │   │   │   ├── page.tsx   # Tickets abertos
+│   │   │   │   └── [id]/page.tsx # Detalhe manutenção
+│   │   │   └── inquilinos/
+│   │   │       ├── page.tsx   # Lista inquilinos
+│   │   │       └── [id]/page.tsx # Perfil + histórico
+│   │   └── api/
+│   ├── components/
+│   │   ├── ui/                # shadcn/ui components (compartilhados)
+│   │   ├── dashboard/         # Sidebar, DashboardHeader
+│   │   ├── contracts/         # ContractForm, ContractTable
+│   │   ├── payments/          # PaymentTable, PaymentCalendar
+│   │   └── maintenance/       # MaintenanceTicket, SLATracker
+│   ├── lib/
+│   │   ├── api.ts             # API client (backend)
+│   │   └── firebase.ts        # Firebase Auth config (compartilhado)
+│   ├── contexts/
+│   │   └── AuthContext.tsx    # Firebase Auth provider (compartilhado)
+│   ├── hooks/
+│   │   ├── use-auth.ts        # Auth hook (compartilhado)
+│   │   ├── use-contracts.ts   # React Query hooks
+│   │   └── use-payments.ts    # React Query hooks
+│   ├── middleware.ts           # Route protection
+│   ├── types/
+│   │   ├── contract.ts
+│   │   ├── payment.ts
+│   │   └── maintenance.ts
+│   ├── public/
+│   ├── next.config.js
+│   ├── tailwind.config.ts
+│   ├── package.json
+│   └── README.md
+│
+├── shared/                     # Código compartilhado entre frontends (OPCIONAL)
+│   ├── ui/                    # Design system (shadcn/ui components)
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   └── data-table.tsx
+│   ├── lib/
+│   │   ├── api-client.ts      # Cliente HTTP base
+│   │   ├── auth.ts            # Firebase Auth utilities
+│   │   └── utils.ts
+│   ├── types/
+│   │   ├── property.ts
+│   │   ├── contract.ts
+│   │   └── payment.ts
+│   └── package.json
 │
 ├── docs/                       # Documentação geral
 │   ├── AI_DEV_DIRECTIVE.md    # Contrato supremo
@@ -385,17 +464,73 @@ ecosistema-imob/
 └── README.md                   # README principal do monorepo
 ```
 
-### Justificativa da Separação em TRÊS Projetos:
+### Justificativa da Separação de Frontends por Contexto (Decisão Arquitetural v1.7):
 
-**Backend (Go):**
+**Decisão**: Frontends separados por bounded context (Vendas vs Locação)
+**Data**: 2025-12-21
+**Rationale**: Domain-Driven Design (DDD) aplicado ao frontend
+
+**Opções Avaliadas**:
+1. ❌ **Dashboard Admin Único** (Monolito Frontend)
+   - Problemas: Diferentes personas, navegação confusa, bundle pesado, deploy acoplado
+2. ✅ **Frontends Separados** (ESCOLHIDO)
+   - Benefícios: Separação de contextos, deploy independente, performance, escalabilidade
+3. ⚠️ **Micro-Frontends** (Module Federation)
+   - Descartado: Over-engineering para MVP, complexidade alta, debugging difícil
+
+**Estrutura de Projetos**:
+
+**Backend (Go) - API ÚNICA:**
 - Deploy independente no Cloud Run
 - Versionamento independente
 - Testes independentes
 - CI/CD separado
+- **Serve TODOS os frontends** (público, admin-sales, admin-rentals)
 
 **Frontend Público (Next.js):**
 - Deploy independente no Vercel (ou subdomínio: `www.example.com`)
 - **SSR obrigatório** para SEO
+- Contexto: Busca e visualização pública de imóveis (vendas + aluguel)
+- Personas: Compradores, locatários, público geral
+
+**Frontend Admin - Vendas (Next.js):**
+- Deploy independente no Vercel (subdomínio: `admin-vendas.example.com`)
+- Contexto: Gestão de imóveis para venda, leads, co-corretagem
+- Personas: Corretores de vendas, imobiliárias (foco em venda)
+- Bundle size: ~200kb (otimizado para vendas)
+
+**Frontend Admin - Locação (Next.js) - MVP+4:**
+- Deploy independente no Vercel (subdomínio: `admin-locacao.example.com`)
+- Contexto: Gestão de contratos, pagamentos, manutenções
+- Personas: Gestores de locação, administradores de imóveis
+- Bundle size: ~250kb (inclui calendário, pagamentos, SLA)
+- **Implementar APENAS em MVP+4** (mês 10-12)
+
+**Benefícios da Separação**:
+1. ✅ **UX Otimizada**: Navegação específica por contexto (vendas vs locação)
+2. ✅ **Performance**: Bundles menores, carregamento rápido
+3. ✅ **Deploy Independente**: Bug em locação NÃO afeta vendas (zero downtime)
+4. ✅ **Desenvolvimento Paralelo**: Equipes trabalham sem conflitos
+5. ✅ **Permissões Granulares**: Usuário pode ter acesso a um ou ambos dashboards
+6. ✅ **Escalabilidade**: Adicionar novos contextos (ex: lançamentos) sem refatorar existentes
+7. ✅ **Monitoramento**: Erros e métricas isoladas por contexto
+
+**Compartilhamento de Código**:
+- **Opção MVP** (manual): Copiar componentes compartilhados entre projetos
+- **Opção Futura** (monorepo): Usar Turborepo ou pnpm workspaces + pacote `@ecosistema/ui`
+
+**Autenticação Unificada**:
+- Firebase Auth compartilhado entre todos os frontends admin
+- Login único: usuário faz login UMA vez, acessa ambos dashboards
+- Token JWT válido para todos os frontends (compartilhado via cookie httpOnly)
+- Navegação entre dashboards: AppSwitcher dropdown (Grid icon)
+
+**Custo de Infraestrutura**:
+- Frontend Público: R$ 100/mês (Vercel Pro, high traffic)
+- Frontend Admin Sales: R$ 100/mês (Vercel Pro)
+- Frontend Admin Rentals: R$ 100/mês (Vercel Pro) - apenas MVP+4
+- **Total**: R$ 300/mês (~$60/mês USD)
+- **ROI**: Economia de 10-20h/mês debug = R$ 1.5k-3k/mês (vs custo R$ 300/mês)
 - **SEM autenticação** (apenas exibição de imóveis públicos)
 - **Bundle otimizado** (apenas componentes de busca/exibição)
 - Acesso: usuários finais navegando imóveis
