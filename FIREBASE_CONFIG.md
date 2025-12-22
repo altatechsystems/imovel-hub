@@ -40,12 +40,15 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:83278095706:web:4ce16e73d01c0307a73f63
 
 ## ✅ Progresso da Configuração
 
-- [x] Firestore Database criado
+- [x] Firestore Database criado (imob-dev)
 - [x] Authentication habilitado (Email/Password + Google)
 - [x] Web App registrado
 - [x] Firebase Config salvo
-- [ ] Cloud Storage (próximo passo)
-- [ ] Admin SDK credentials (próximo passo)
+- [x] Cloud Storage habilitado
+- [x] Admin SDK credentials configurado
+- [x] Firestore Rules deployadas
+- [x] Firestore Indexes deployados (48 índices)
+- [x] Storage Rules deployadas
 
 ---
 
