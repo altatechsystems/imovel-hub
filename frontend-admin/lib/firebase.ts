@@ -28,7 +28,11 @@ if (typeof window !== 'undefined') {
   }
 
   auth = getAuth(app);
+
+  // Initialize Firestore with the same database ID as backend
   db = getFirestore(app);
+  // Note: The backend uses 'imob-dev' database, but client SDK should use default
+
   storage = getStorage(app);
 }
 

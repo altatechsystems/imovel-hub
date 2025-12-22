@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithCustomToken } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Building2, Loader2, Eye, EyeOff } from 'lucide-react';
 
@@ -97,15 +97,23 @@ export function SignupForm({
 
       console.log('Signup successful:', signupResponse.data);
 
-      // 2. Fazer login no Firebase com as credenciais criadas
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const data = signupResponse.data;
 
-      // 3. Callback de sucesso (se fornecido)
+      // 2. Sign in with custom token from backend
+      await signInWithCustomToken(auth, data.firebase_token);
+
+      // 3. Store tenant info in localStorage
+      localStorage.setItem('tenant_id', data.tenant_id);
+      localStorage.setItem('broker_id', data.broker_id);
+      localStorage.setItem('broker_role', data.user.role);
+      localStorage.setItem('broker_name', data.user.name);
+
+      // 4. Callback de sucesso (se fornecido)
       if (onSuccess) {
         onSuccess();
       }
 
-      // 4. Redirecionar
+      // 5. Redirecionar
       router.push(redirectTo);
     } catch (err: any) {
       console.error('Signup error:', err);

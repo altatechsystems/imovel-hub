@@ -202,12 +202,20 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// 2. Find broker by Firebase UID
+	log.Printf("Looking for broker with firebase_uid: %s", userRecord.UID)
 	brokersQuery := h.firestoreDB.CollectionGroup("brokers").
 		Where("firebase_uid", "==", userRecord.UID).
 		Limit(1)
 
 	docs, err := brokersQuery.Documents(ctx).GetAll()
-	if err != nil || len(docs) == 0 {
+	if err != nil {
+		log.Printf("Error querying brokers: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query brokers"})
+		return
+	}
+
+	if len(docs) == 0 {
+		log.Printf("No broker found for firebase_uid: %s (email: %s)", userRecord.UID, userRecord.Email)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Broker not found"})
 		return
 	}
@@ -245,13 +253,22 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 5. Generate custom token
-	token, err := h.firebaseAuth.CustomToken(ctx, userRecord.UID)
+	// 5. Generate custom token with claims
+	claims := map[string]interface{}{
+		"tenant_id": broker.TenantID,
+		"broker_id": broker.ID,
+		"role":      broker.Role,
+	}
+
+	token, err := h.firebaseAuth.CustomTokenWithClaims(ctx, userRecord.UID, claims)
 	if err != nil {
 		log.Printf("Error creating custom token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create token"})
 		return
 	}
+
+	log.Printf("✅ Custom token generated successfully for broker %s (tenant: %s)", broker.ID, broker.TenantID)
+	log.Printf("   Token length: %d", len(token))
 
 	// 6. Return response
 	c.JSON(http.StatusOK, LoginResponse{

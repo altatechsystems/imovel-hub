@@ -228,6 +228,20 @@
       ]
     },
     {
+      "collectionGroup": "brokers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "firebase_uid", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "brokers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "email", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "activity_logs",
       "queryScope": "COLLECTION",
       "fields": [

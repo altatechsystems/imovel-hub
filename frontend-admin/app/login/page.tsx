@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithCustomToken } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Home } from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,11 +21,42 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // Call backend API login endpoint
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao fazer login');
+      }
+
+      const data = await response.json();
+
+      console.log('Login response:', data);
+      console.log('Custom token:', data.firebase_token);
+      console.log('Token type:', typeof data.firebase_token);
+      console.log('Token length:', data.firebase_token?.length);
+
+      // Sign in with custom token from backend
+      console.log('Attempting to sign in with custom token...');
+      await signInWithCustomToken(auth, data.firebase_token);
+      console.log('Successfully signed in with custom token');
+
+      // Store tenant info in localStorage
+      localStorage.setItem('tenant_id', data.tenant_id);
+      localStorage.setItem('broker_id', data.broker.id);
+      localStorage.setItem('broker_role', data.broker.role);
+      localStorage.setItem('broker_name', data.broker.name);
+
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Login error:', err);
-      setError('Email ou senha inválidos. Tente novamente.');
+      setError(err.message || 'Email ou senha inválidos. Tente novamente.');
     } finally {
       setLoading(false);
     }
