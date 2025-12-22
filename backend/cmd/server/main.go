@@ -21,6 +21,7 @@ import (
 	"github.com/altatech/ecosistema-imob/backend/internal/middleware"
 	"github.com/altatech/ecosistema-imob/backend/internal/repositories"
 	"github.com/altatech/ecosistema-imob/backend/internal/services"
+	"github.com/altatech/ecosistema-imob/backend/internal/storage"
 )
 
 func main() {
@@ -49,7 +50,7 @@ func main() {
 	log.Println("Repositories initialized")
 
 	// Initialize services
-	services := initializeServices(repos)
+	services := initializeServices(ctx, cfg, repos)
 	log.Println("Services initialized")
 
 	// Initialize handlers
@@ -161,10 +162,22 @@ type Services struct {
 	PropertyBrokerRoleService *services.PropertyBrokerRoleService
 	LeadService               *services.LeadService
 	ActivityLogService        *services.ActivityLogService
+	StorageService            *storage.StorageService
 }
 
 // initializeServices initializes all services
-func initializeServices(repos *Repositories) *Services {
+func initializeServices(ctx context.Context, cfg *config.Config, repos *Repositories) *Services {
+	// Initialize Storage service
+	storageService, err := storage.NewStorageService(
+		ctx,
+		cfg.GCSBucketName,
+		repos.ActivityLogRepo,
+	)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Storage service: %v", err)
+		// Continue without storage service for now
+	}
+
 	return &Services{
 		TenantService: services.NewTenantService(
 			repos.TenantRepo,
@@ -211,6 +224,7 @@ func initializeServices(repos *Repositories) *Services {
 			repos.ActivityLogRepo,
 			repos.TenantRepo,
 		),
+		StorageService: storageService,
 	}
 }
 
@@ -224,10 +238,16 @@ type Handlers struct {
 	PropertyBrokerRoleHandler *handlers.PropertyBrokerRoleHandler
 	LeadHandler               *handlers.LeadHandler
 	ActivityLogHandler        *handlers.ActivityLogHandler
+	StorageHandler            *handlers.StorageHandler
 }
 
 // initializeHandlers initializes all handlers
 func initializeHandlers(services *Services) *Handlers {
+	var storageHandler *handlers.StorageHandler
+	if services.StorageService != nil {
+		storageHandler = handlers.NewStorageHandler(services.StorageService)
+	}
+
 	return &Handlers{
 		TenantHandler:             handlers.NewTenantHandler(services.TenantService),
 		BrokerHandler:             handlers.NewBrokerHandler(services.BrokerService),
@@ -237,6 +257,7 @@ func initializeHandlers(services *Services) *Handlers {
 		PropertyBrokerRoleHandler: handlers.NewPropertyBrokerRoleHandler(services.PropertyBrokerRoleService),
 		LeadHandler:               handlers.NewLeadHandler(services.LeadService),
 		ActivityLogHandler:        handlers.NewActivityLogHandler(services.ActivityLogService),
+		StorageHandler:            storageHandler,
 	}
 }
 
@@ -296,6 +317,9 @@ func setupRouter(cfg *config.Config, handlers *Handlers, authMiddleware *middlew
 			handlers.PropertyBrokerRoleHandler.RegisterRoutes(tenantScoped)
 			handlers.LeadHandler.RegisterRoutes(tenantScoped)
 			handlers.ActivityLogHandler.RegisterRoutes(tenantScoped)
+			if handlers.StorageHandler != nil {
+				handlers.StorageHandler.RegisterRoutes(tenantScoped)
+			}
 		}
 	}
 
