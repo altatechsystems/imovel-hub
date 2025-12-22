@@ -1,15 +1,21 @@
 # Firestore Database Setup
 
-## Problema Identificado
+## ✅ Status Atual
 
-Durante os testes de integração, foi identificado que o Firestore Database não está criado no projeto Firebase `ecosistema-imob-dev`.
+- ✅ Firestore Database `imob-dev` criado
+- ✅ Backend configurado para usar database nomeado
+- ✅ Rotas públicas criadas (sem autenticação)
+- ⏸️ **Índices compostos precisam ser criados**
 
-**Erro:**
+## 🔧 Problema Atual: Índices Firestore
+
+O Firestore requer índices compostos para queries com múltiplos filtros. Quando você tentar listar propriedades, verá este erro:
+
 ```
-The database (default) does not exist for project ecosistema-imob-dev
+The query requires an index. You can create it here: https://console.firebase.google.com/...
 ```
 
-## Solução: Criar Firestore Database
+## Solução: Criar Índices Compostos
 
 ### Opção 1: Firebase Console (Produção)
 

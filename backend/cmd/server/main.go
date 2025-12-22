@@ -102,6 +102,10 @@ func main() {
 
 // initializeFirebase initializes Firebase Admin SDK
 func initializeFirebase(ctx context.Context, cfg *config.Config) (*firebase.App, *auth.Client, *firestore.Client, error) {
+	// Set environment variable for Firestore database
+	// This tells Firestore SDK to use the named database instead of (default)
+	os.Setenv("FIRESTORE_DATABASE", "imob-dev")
+
 	// Initialize Firebase app
 	opt := option.WithCredentialsFile(cfg.FirebaseCredentials)
 	app, err := firebase.NewApp(ctx, &firebase.Config{
@@ -117,8 +121,9 @@ func initializeFirebase(ctx context.Context, cfg *config.Config) (*firebase.App,
 		return nil, nil, nil, fmt.Errorf("failed to initialize Firebase Auth: %w", err)
 	}
 
-	// Initialize Firestore client
-	firestoreClient, err := app.Firestore(ctx)
+	// Initialize Firestore client directly with named database
+	// Use firestore.NewClient with DatabaseID to connect to non-default database
+	firestoreClient, err := firestore.NewClientWithDatabase(ctx, cfg.FirebaseProjectID, "imob-dev", opt)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to initialize Firestore: %w", err)
 	}
@@ -301,34 +306,39 @@ func setupRouter(cfg *config.Config, handlers *Handlers, authMiddleware *middlew
 	// Tenant routes (public for creation, auth required for others)
 	handlers.TenantHandler.RegisterRoutes(router)
 
-	// Protected API routes (require authentication)
-	protected := api.Group("")
+	// Public routes FIRST (no authentication) - frontend público
+	public := api.Group("/:tenant_id")
+	{
+		// Public property endpoints
+		public.GET("/properties", handlers.PropertyHandler.ListProperties)
+		public.GET("/properties/:id", handlers.PropertyHandler.GetProperty)
+		public.GET("/properties/slug/:slug", handlers.PropertyHandler.GetPropertyBySlug)
+
+		// Public lead creation
+		public.POST("/leads", handlers.LeadHandler.CreateLead)
+
+		// Public images
+		public.GET("/property-images/:property_id", handlers.StorageHandler.ListImages)
+		public.GET("/property-images/:property_id/:image_id", handlers.StorageHandler.GetImageURL)
+	}
+
+	// Protected routes (require authentication) - admin dashboard
+	protected := api.Group("/admin")
 	protected.Use(authMiddleware.AuthRequired())
 	{
-		// Routes that require tenant validation
 		tenantScoped := protected.Group("")
 		tenantScoped.Use(tenantMiddleware.ValidateTenant())
 		{
-			// Register tenant-scoped routes
+			// Admin-only routes
 			handlers.BrokerHandler.RegisterRoutes(tenantScoped)
 			handlers.OwnerHandler.RegisterRoutes(tenantScoped)
-			handlers.PropertyHandler.RegisterRoutes(tenantScoped)
 			handlers.ListingHandler.RegisterRoutes(tenantScoped)
 			handlers.PropertyBrokerRoleHandler.RegisterRoutes(tenantScoped)
-			handlers.LeadHandler.RegisterRoutes(tenantScoped)
 			handlers.ActivityLogHandler.RegisterRoutes(tenantScoped)
 			if handlers.StorageHandler != nil {
 				handlers.StorageHandler.RegisterRoutes(tenantScoped)
 			}
 		}
-	}
-
-	// Public listings endpoint (optional auth for personalized results)
-	public := api.Group("/public")
-	public.Use(authMiddleware.OptionalAuth())
-	{
-		// Public property listings can be added here
-		// Example: public.GET("/listings", handlers.ListingHandler.PublicListings)
 	}
 
 	return router
