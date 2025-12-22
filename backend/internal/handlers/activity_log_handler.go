@@ -28,17 +28,9 @@ func (h *ActivityLogHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		activityLogs.GET("", h.GetActivityLogs)
 		activityLogs.GET("/:id", h.GetActivityLog)
-	}
-
-	// Timeline endpoints
-	properties := router.Group("/:tenant_id/properties/:property_id")
-	{
-		properties.GET("/timeline", h.GetPropertyTimeline)
-	}
-
-	leads := router.Group("/:tenant_id/leads/:lead_id")
-	{
-		leads.GET("/timeline", h.GetLeadTimeline)
+		// Timeline endpoints as sub-routes
+		activityLogs.GET("/property/:property_id", h.GetPropertyTimeline)
+		activityLogs.GET("/lead/:lead_id", h.GetLeadTimeline)
 	}
 }
 

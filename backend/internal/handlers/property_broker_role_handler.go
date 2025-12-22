@@ -23,13 +23,14 @@ func NewPropertyBrokerRoleHandler(roleService *services.PropertyBrokerRoleServic
 
 // RegisterRoutes registers property broker role routes (tenant-scoped)
 func (h *PropertyBrokerRoleHandler) RegisterRoutes(router *gin.RouterGroup) {
-	propertyBrokers := router.Group("/:tenant_id/properties/:property_id/brokers")
+	// Using /property-brokers as a separate route to avoid conflict with /properties/:id
+	propertyBrokers := router.Group("/:tenant_id/property-brokers")
 	{
-		propertyBrokers.POST("", h.AssignBroker)
-		propertyBrokers.DELETE("/:broker_id", h.RemoveBroker)
-		propertyBrokers.PUT("/:broker_id", h.UpdateRole)
-		propertyBrokers.GET("", h.GetPropertyBrokers)
-		propertyBrokers.POST("/:broker_id/set-primary", h.SetPrimaryBroker)
+		propertyBrokers.POST("/:property_id/assign", h.AssignBroker)
+		propertyBrokers.DELETE("/:property_id/:broker_id", h.RemoveBroker)
+		propertyBrokers.PUT("/:property_id/:broker_id", h.UpdateRole)
+		propertyBrokers.GET("/:property_id", h.GetPropertyBrokers)
+		propertyBrokers.POST("/:property_id/:broker_id/set-primary", h.SetPrimaryBroker)
 	}
 }
 

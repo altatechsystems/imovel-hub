@@ -290,7 +290,9 @@
       "Bash(firebase deploy:*)",
       "Bash(git reset:*)",
       "Bash(test:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cmd /c \"netstat -ano | findstr :8080\")",
+      "Bash(cmd /c \"timeout /t 8\")"
     ],
     "deny": [],
     "ask": []
