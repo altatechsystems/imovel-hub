@@ -9,9 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Imobiliária - Encontre seu imóvel ideal",
-  description: "Encontre apartamentos, casas e imóveis comerciais para venda e aluguel",
-  keywords: ["imóveis", "apartamentos", "casas", "venda", "aluguel", "imobiliária"],
+  title: "Admin - Ecosistema Imobiliário",
+  description: "Painel administrativo para gerenciamento de imóveis, leads e corretores",
 };
 
 export default function RootLayout({

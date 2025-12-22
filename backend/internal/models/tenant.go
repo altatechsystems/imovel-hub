@@ -29,7 +29,8 @@ type Tenant struct {
 	Country      string `firestore:"country,omitempty" json:"country,omitempty"` // default "BR"
 
 	// Settings
-	IsActive bool `firestore:"is_active" json:"is_active"`
+	Settings map[string]interface{} `firestore:"settings,omitempty" json:"settings,omitempty"`
+	IsActive bool                    `firestore:"is_active" json:"is_active"`
 
 	// Metadata
 	CreatedAt time.Time `firestore:"created_at" json:"created_at"`

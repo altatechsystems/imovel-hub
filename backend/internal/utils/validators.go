@@ -54,6 +54,92 @@ func ExtractCRECIState(creci string) string {
 }
 
 // ============================================================================
+// Phone Number Validation (E.164 International Format)
+// ============================================================================
+
+// ValidatePhoneE164 validates phone number in E.164 international format
+// E.164 format: +[country code][area code][local number]
+// Examples:
+// - "+5511999999999" (Brazil mobile - São Paulo)
+// - "+5521988888888" (Brazil mobile - Rio de Janeiro)
+// - "+551140001000" (Brazil landline - São Paulo)
+//
+// Rules:
+// - Must start with '+'
+// - Country code: 1-3 digits
+// - Total length: 8-15 digits (including country code)
+// - Brazil country code: 55
+func ValidatePhoneE164(phone string) error {
+	if phone == "" {
+		return errors.New("telefone é obrigatório")
+	}
+
+	// Must start with +
+	if !strings.HasPrefix(phone, "+") {
+		return errors.New("telefone deve estar no formato E.164 (ex: +5511999999999)")
+	}
+
+	// Remove + for digit validation
+	digitsOnly := phone[1:]
+
+	// Must contain only digits after +
+	phoneRegex := regexp.MustCompile(`^\d+$`)
+	if !phoneRegex.MatchString(digitsOnly) {
+		return errors.New("telefone deve conter apenas dígitos após o '+' (ex: +5511999999999)")
+	}
+
+	// E.164 allows 8 to 15 digits total
+	if len(digitsOnly) < 8 || len(digitsOnly) > 15 {
+		return errors.New("telefone deve ter entre 8 e 15 dígitos (ex: +5511999999999)")
+	}
+
+	// Brazil-specific validation (country code 55)
+	if strings.HasPrefix(digitsOnly, "55") {
+		// Brazil mobile: +55 + 2 digit area code + 9 digits = 13 total digits
+		// Brazil landline: +55 + 2 digit area code + 8 digits = 12 total digits
+		if len(digitsOnly) != 12 && len(digitsOnly) != 13 {
+			return errors.New("telefone brasileiro deve ter 12 dígitos (fixo) ou 13 dígitos (celular) incluindo código do país (ex: +5511999999999)")
+		}
+	}
+
+	return nil
+}
+
+// NormalizePhoneE164 removes common phone number formatting and converts to E.164
+// Examples:
+// - "(11) 99999-9999" -> "+5511999999999"
+// - "11 9 9999-9999" -> "+5511999999999"
+// - "5511999999999" -> "+5511999999999"
+func NormalizePhoneE164(phone string, defaultCountryCode string) string {
+	// Remove all non-digit characters except +
+	normalized := strings.TrimSpace(phone)
+
+	// If already in E.164 format, return as is
+	if strings.HasPrefix(normalized, "+") {
+		return regexp.MustCompile(`[^\d+]`).ReplaceAllString(normalized, "")
+	}
+
+	// Remove all non-digits
+	digitsOnly := regexp.MustCompile(`[^\d]`).ReplaceAllString(normalized, "")
+
+	// If starts with country code, add +
+	if len(digitsOnly) >= 11 {
+		// Check if already has country code (Brazil = 55)
+		if !strings.HasPrefix(digitsOnly, "55") && defaultCountryCode != "" {
+			digitsOnly = defaultCountryCode + digitsOnly
+		}
+		return "+" + digitsOnly
+	}
+
+	// If local number only, add country code
+	if defaultCountryCode != "" {
+		return "+" + defaultCountryCode + digitsOnly
+	}
+
+	return "+" + digitsOnly
+}
+
+// ============================================================================
 // CPF Validation (Cadastro de Pessoa Física)
 // ============================================================================
 

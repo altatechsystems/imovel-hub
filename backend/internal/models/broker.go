@@ -29,6 +29,9 @@ type Broker struct {
 	Role     string `firestore:"role,omitempty" json:"role,omitempty"` // "admin", "broker", "manager"
 	IsActive bool   `firestore:"is_active" json:"is_active"`
 
+	// Profile
+	PhotoURL string `firestore:"photo_url,omitempty" json:"photo_url,omitempty"`
+
 	// Metadata
 	CreatedAt time.Time `firestore:"created_at" json:"created_at"`
 	UpdatedAt time.Time `firestore:"updated_at" json:"updated_at"`

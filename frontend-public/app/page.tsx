@@ -62,9 +62,14 @@ export default function HomePage() {
               <Link href="/contato" className="text-gray-700 hover:text-blue-600 font-medium">
                 Contato
               </Link>
-              <Button variant="primary" size="sm">
-                Anunciar Imóvel
-              </Button>
+              <Link href="/cadastro-imobiliaria" className="text-gray-700 hover:text-blue-600 font-medium">
+                Para Imobiliárias
+              </Link>
+              <Link href="http://localhost:3002/login" target="_blank">
+                <Button variant="outline" size="sm">
+                  Login Admin
+                </Button>
+              </Link>
             </nav>
           </div>
         </div>
@@ -201,6 +206,105 @@ export default function HomePage() {
                   Buscar Imóveis
                 </Button>
               </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA for Real Estate Agencies */}
+      <section className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                  Você é uma Imobiliária?
+                </h2>
+                <p className="text-xl text-gray-300 mb-6">
+                  Junte-se à nossa plataforma e alcance milhares de potenciais compradores
+                </p>
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-gray-200">Gerenciamento completo de imóveis</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-gray-200">Sistema de leads automatizado</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-gray-200">Importação em massa de anúncios</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-gray-200">Co-corretagem facilitada entre parceiros</span>
+                  </li>
+                </ul>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Link href="/cadastro-imobiliaria">
+                    <Button variant="primary" size="lg" className="bg-blue-600 hover:bg-blue-700">
+                      Cadastre-se
+                    </Button>
+                  </Link>
+                  <Link href="http://localhost:3002/login" target="_blank">
+                    <Button variant="outline" size="lg" className="border-gray-400 text-white hover:bg-gray-700">
+                      Já sou cadastrado
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="hidden md:block">
+                <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-8 shadow-2xl">
+                  <h3 className="text-2xl font-bold mb-6">Comece Grátis</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold">1</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Crie sua conta</p>
+                        <p className="text-sm text-blue-100">Em menos de 2 minutos</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold">2</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Cadastre seus imóveis</p>
+                        <p className="text-sm text-blue-100">Manual ou importação em massa</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold">3</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Receba leads qualificados</p>
+                        <p className="text-sm text-blue-100">Direto no seu WhatsApp</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

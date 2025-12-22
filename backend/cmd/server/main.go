@@ -54,7 +54,7 @@ func main() {
 	log.Println("Services initialized")
 
 	// Initialize handlers
-	handlers := initializeHandlers(services)
+	handlers := initializeHandlers(authClient, firestoreClient, services)
 	log.Println("Handlers initialized")
 
 	// Initialize middleware
@@ -235,6 +235,7 @@ func initializeServices(ctx context.Context, cfg *config.Config, repos *Reposito
 
 // Handlers holds all handler instances
 type Handlers struct {
+	AuthHandler               *handlers.AuthHandler
 	TenantHandler             *handlers.TenantHandler
 	BrokerHandler             *handlers.BrokerHandler
 	OwnerHandler              *handlers.OwnerHandler
@@ -247,13 +248,14 @@ type Handlers struct {
 }
 
 // initializeHandlers initializes all handlers
-func initializeHandlers(services *Services) *Handlers {
+func initializeHandlers(authClient *auth.Client, firestoreClient *firestore.Client, services *Services) *Handlers {
 	var storageHandler *handlers.StorageHandler
 	if services.StorageService != nil {
 		storageHandler = handlers.NewStorageHandler(services.StorageService)
 	}
 
 	return &Handlers{
+		AuthHandler:               handlers.NewAuthHandler(authClient, firestoreClient),
 		TenantHandler:             handlers.NewTenantHandler(services.TenantService),
 		BrokerHandler:             handlers.NewBrokerHandler(services.BrokerService),
 		OwnerHandler:              handlers.NewOwnerHandler(services.OwnerService),
@@ -301,7 +303,15 @@ func setupRouter(cfg *config.Config, handlers *Handlers, authMiddleware *middlew
 	})
 
 	// API routes
-	api := router.Group("/api")
+	api := router.Group("/api/v1")
+
+	// Authentication routes (PUBLIC - no auth required)
+	auth := api.Group("/auth")
+	{
+		auth.POST("/signup", handlers.AuthHandler.Signup)
+		auth.POST("/login", handlers.AuthHandler.Login)
+		auth.POST("/refresh", authMiddleware.AuthRequired(), handlers.AuthHandler.RefreshToken)
+	}
 
 	// Tenant routes (public for creation, auth required for others)
 	handlers.TenantHandler.RegisterRoutes(router)
