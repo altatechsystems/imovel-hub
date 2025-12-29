@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Property, PropertyFilters, TransactionType, PropertyStatus, PropertyVisibility } from '@/types/property';
 import { api } from '@/lib/api';
 import { Search, MapPin, Home, TrendingUp, PhoneCall } from 'lucide-react';
+import { OrganizationStructuredData } from '@/components/seo/organization-structured-data';
 
 export default function HomePage() {
   const [featuredProperties, setFeaturedProperties] = React.useState<Property[]>([]);
@@ -42,9 +43,13 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
+    <>
+      {/* SEO Structured Data */}
+      <OrganizationStructuredData />
+
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2">
@@ -357,6 +362,7 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-    </div>
+      </div>
+    </>
   );
 }

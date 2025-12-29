@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import Head from 'next/head';
 import { useParams } from 'next/navigation';
 import { Property } from '@/types/property';
 import { PropertyCard } from '@/components/property/property-card';
@@ -34,6 +35,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { LeadChannel } from '@/types/lead';
+import { PropertyStructuredData } from '@/components/seo/property-structured-data';
+import { BreadcrumbStructuredData } from '@/components/seo/breadcrumb-structured-data';
 
 export default function PropertyDetailsPage() {
   const params = useParams();
@@ -173,9 +176,20 @@ export default function PropertyDetailsPage() {
   const amenities = getPropertyAmenities(property);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
+    <>
+      {/* SEO Structured Data */}
+      <PropertyStructuredData property={property} />
+      <BreadcrumbStructuredData
+        items={[
+          { name: 'Início', url: '/' },
+          { name: 'Imóveis', url: '/imoveis' },
+          { name: property.title || `${getPropertyTypeLabel(property.property_type)} em ${property.city}`, url: `/imoveis/${slug}` },
+        ]}
+      />
+
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2">
@@ -194,12 +208,12 @@ export default function PropertyDetailsPage() {
 
       <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Image Gallery - Exact Zillow Style */}
-        <div className="relative h-[300px] sm:h-[400px] md:h-[500px] mb-6 sm:mb-8">
+        <div className="relative h-[400px] sm:h-[500px] md:h-[600px] mb-6 sm:mb-8">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-1 h-full">
             {/* Main Large Image - Left (8 columns on desktop) */}
             <div className="col-span-1 md:col-span-8 h-full">
               <div
-                className="relative w-full h-full rounded-l-lg overflow-hidden cursor-pointer group"
+                className="relative w-full h-full rounded-lg md:rounded-l-lg md:rounded-r-none overflow-hidden cursor-pointer group bg-gray-100"
                 onClick={() => {
                   setCurrentImageIndex(0);
                   setIsLightboxOpen(true);
@@ -571,6 +585,7 @@ export default function PropertyDetailsPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
