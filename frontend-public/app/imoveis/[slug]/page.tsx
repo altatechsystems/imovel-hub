@@ -193,14 +193,14 @@ export default function PropertyDetailsPage() {
 
       <div className="container mx-auto px-4 py-8">
         {/* Image Gallery */}
-        <div className="relative w-full h-96 md:h-[500px] mb-8 rounded-lg overflow-hidden">
+        <div className="relative w-full h-96 md:h-[500px] mb-8 rounded-lg overflow-hidden bg-gray-900">
           {property.images && property.images.length > 0 ? (
             <>
               <Image
                 src={property.images[currentImageIndex]?.large_url || property.cover_image_url || '/placeholder-property.jpg'}
                 alt={property.title || 'Imóvel'}
                 fill
-                className="object-cover"
+                className="object-contain"
                 priority
               />
               {property.images.length > 1 && (

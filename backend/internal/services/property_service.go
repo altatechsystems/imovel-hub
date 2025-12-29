@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -182,11 +183,23 @@ func (s *PropertyService) populatePropertyPhotos(ctx context.Context, tenantID s
 		return
 	}
 
-	// Set cover image URL (first photo thumb)
-	property.CoverImageURL = listing.Photos[0].ThumbURL
+	// Sort photos: cover first, then by order
+	photos := make([]models.Photo, len(listing.Photos))
+	copy(photos, listing.Photos)
+	sort.SliceStable(photos, func(i, j int) bool {
+		// Cover photo always comes first
+		if photos[i].IsCover != photos[j].IsCover {
+			return photos[i].IsCover
+		}
+		// Then sort by Order field
+		return photos[i].Order < photos[j].Order
+	})
 
-	// Populate images array for detail page (copy all photos)
-	property.Images = listing.Photos
+	// Set cover image URL (first photo after sorting should be cover)
+	property.CoverImageURL = photos[0].ThumbURL
+
+	// Populate images array for detail page (sorted photos)
+	property.Images = photos
 }
 
 // UpdateProperty updates a property with validation
