@@ -61,7 +61,7 @@ func (s *ImportService) ImportProperty(ctx context.Context, batch *models.Import
 	}
 
 	if dedupResult.IsDuplicate {
-		// Property already exists - update photos if any
+		// Property already exists - update photos and owner data if any
 		batch.TotalPropertiesMatchedExisting++
 		log.Printf("Property %s already exists (matched by %s)", payload.Property.Reference, dedupResult.MatchType)
 
@@ -73,8 +73,25 @@ func (s *ImportService) ImportProperty(ctx context.Context, batch *models.Import
 			"batch_id":             batch.ID,
 		})
 
-		// Check if canonical listing exists, create if not
+		// Update owner data if XLS has enriched information
 		existingPropertyID := dedupResult.ExistingProperty.ID
+		existingOwnerID := dedupResult.ExistingProperty.OwnerID
+
+		if existingOwnerID != "" && payload.Owner.EnrichedFromXLS {
+			log.Printf("🔄 Updating owner data for existing property %s (owner: %s)", payload.Property.Reference, existingOwnerID)
+			if err := s.updateOwnerFromXLS(ctx, existingOwnerID, payload.Owner, payload.Property.Reference); err != nil {
+				log.Printf("⚠️  Failed to update owner from XLS for property %s: %v", payload.Property.Reference, err)
+			} else {
+				batch.TotalOwnersEnrichedFromXLS++
+				s.logActivity(ctx, batch.TenantID, "owner_enriched_from_xls", map[string]interface{}{
+					"owner_id":    existingOwnerID,
+					"property_id": existingPropertyID,
+					"batch_id":    batch.ID,
+				})
+			}
+		}
+
+		// Check if canonical listing exists, create if not
 		log.Printf("🔍 Checking canonical listing for property %s (ref: %s)", existingPropertyID, payload.Property.Reference)
 		listingID, err := s.findCanonicalListing(ctx, existingPropertyID)
 		log.Printf("🔙 findCanonicalListing returned: listingID='%s', err=%v", listingID, err)
@@ -119,7 +136,7 @@ func (s *ImportService) ImportProperty(ctx context.Context, batch *models.Import
 			}
 		}
 
-		return nil // Skip creating duplicate, but listing and photos are being processed
+		return nil // Skip creating duplicate, but listing, photos, and owner data are being processed
 	}
 
 	if dedupResult.PossibleDuplicate {
@@ -355,6 +372,91 @@ func (s *ImportService) createOwner(ctx context.Context, tenantID string, ownerP
 	return ownerID, ownerPayload.EnrichedFromXLS, nil
 }
 
+// UpdateOwnerFromXLS updates existing owner with enriched data from XLS (exported for handlers)
+func (s *ImportService) UpdateOwnerFromXLS(ctx context.Context, ownerID string, ownerPayload union.OwnerPayload, reference string) error {
+	return s.updateOwnerFromXLS(ctx, ownerID, ownerPayload, reference)
+}
+
+// updateOwnerFromXLS updates existing owner with enriched data from XLS
+func (s *ImportService) updateOwnerFromXLS(ctx context.Context, ownerID string, ownerPayload union.OwnerPayload, reference string) error {
+	if !ownerPayload.EnrichedFromXLS {
+		// No enriched data from XLS, skip update
+		return nil
+	}
+
+	// Get existing owner to check if we should update
+	ownerDoc, err := s.db.Collection("owners").Doc(ownerID).Get(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get existing owner: %w", err)
+	}
+
+	var existingOwner models.Owner
+	if err := ownerDoc.DataTo(&existingOwner); err != nil {
+		return fmt.Errorf("failed to parse existing owner: %w", err)
+	}
+
+	// Prepare updates
+	updates := []firestore.Update{
+		{Path: "updated_at", Value: time.Now()},
+	}
+
+	needsUpdate := false
+
+	// Update name if XLS has it and existing is empty or different
+	if ownerPayload.Name != "" && (existingOwner.Name == "" || existingOwner.Name != ownerPayload.Name) {
+		updates = append(updates, firestore.Update{Path: "name", Value: ownerPayload.Name})
+		needsUpdate = true
+		log.Printf("📝 Updating owner %s name: '%s' -> '%s'", ownerID, existingOwner.Name, ownerPayload.Name)
+	}
+
+	// Update email if XLS has it and existing is empty or different
+	if ownerPayload.Email != "" && (existingOwner.Email == "" || existingOwner.Email != ownerPayload.Email) {
+		updates = append(updates, firestore.Update{Path: "email", Value: ownerPayload.Email})
+		needsUpdate = true
+		log.Printf("📝 Updating owner %s email: '%s' -> '%s'", ownerID, existingOwner.Email, ownerPayload.Email)
+	}
+
+	// Update phone if XLS has it and existing is empty or different
+	if ownerPayload.Phone != "" && (existingOwner.Phone == "" || existingOwner.Phone != ownerPayload.Phone) {
+		updates = append(updates, firestore.Update{Path: "phone", Value: ownerPayload.Phone})
+		needsUpdate = true
+		log.Printf("📝 Updating owner %s phone: '%s' -> '%s'", ownerID, existingOwner.Phone, ownerPayload.Phone)
+	}
+
+	// Update owner status if XLS provides better status
+	if ownerPayload.OwnerStatus != existingOwner.OwnerStatus {
+		// Only upgrade status (incomplete -> partial -> verified)
+		shouldUpgrade := false
+		if existingOwner.OwnerStatus == models.OwnerStatusIncomplete &&
+		   (ownerPayload.OwnerStatus == models.OwnerStatusPartial || ownerPayload.OwnerStatus == models.OwnerStatusVerified) {
+			shouldUpgrade = true
+		} else if existingOwner.OwnerStatus == models.OwnerStatusPartial &&
+		          ownerPayload.OwnerStatus == models.OwnerStatusVerified {
+			shouldUpgrade = true
+		}
+
+		if shouldUpgrade {
+			updates = append(updates, firestore.Update{Path: "owner_status", Value: ownerPayload.OwnerStatus})
+			needsUpdate = true
+			log.Printf("📝 Upgrading owner %s status: %s -> %s", ownerID, existingOwner.OwnerStatus, ownerPayload.OwnerStatus)
+		}
+	}
+
+	if !needsUpdate {
+		log.Printf("ℹ️  Owner %s data is up-to-date, no changes needed", ownerID)
+		return nil
+	}
+
+	// Apply updates
+	_, err = s.db.Collection("owners").Doc(ownerID).Update(ctx, updates)
+	if err != nil {
+		return fmt.Errorf("failed to update owner: %w", err)
+	}
+
+	log.Printf("✅ Successfully updated owner %s with XLS data for property %s", ownerID, reference)
+	return nil
+}
+
 // createProperty saves property to Firestore
 func (s *ImportService) createProperty(ctx context.Context, property *models.Property) error {
 	_, err := s.db.Collection("properties").Doc(property.ID).Set(ctx, property)
@@ -484,21 +586,31 @@ func (s *ImportService) CreateBatch(ctx context.Context, tenantID, source, creat
 
 // CompleteBatch marks batch as completed
 func (s *ImportService) CompleteBatch(ctx context.Context, batch *models.ImportBatch) error {
+	log.Printf("🏁 CompleteBatch called for batch %s", batch.ID)
+	log.Printf("   TotalXMLRecords: %d", batch.TotalXMLRecords)
+	log.Printf("   TotalPropertiesCreated: %d", batch.TotalPropertiesCreated)
+	log.Printf("   TotalPropertiesMatchedExisting: %d", batch.TotalPropertiesMatchedExisting)
+	log.Printf("   TotalOwnersEnrichedFromXLS: %d", batch.TotalOwnersEnrichedFromXLS)
+	log.Printf("   TotalErrors: %d", batch.TotalErrors)
+
 	now := time.Now()
 	batch.CompletedAt = &now
 	batch.Status = "completed"
 
 	_, err := s.db.Collection("import_batches").Doc(batch.ID).Set(ctx, batch)
 	if err != nil {
+		log.Printf("❌ Failed to save batch to Firestore: %v", err)
 		return err
 	}
 
+	log.Printf("✅ Batch %s saved to Firestore successfully", batch.ID)
+
 	s.logActivity(ctx, batch.TenantID, "import_batch_completed", map[string]interface{}{
-		"batch_id":                         batch.ID,
-		"total_properties_created":         batch.TotalPropertiesCreated,
+		"batch_id":                          batch.ID,
+		"total_properties_created":          batch.TotalPropertiesCreated,
 		"total_properties_matched_existing": batch.TotalPropertiesMatchedExisting,
-		"total_possible_duplicates":        batch.TotalPossibleDuplicates,
-		"total_errors":                     batch.TotalErrors,
+		"total_possible_duplicates":         batch.TotalPossibleDuplicates,
+		"total_errors":                      batch.TotalErrors,
 	})
 
 	return nil
@@ -542,4 +654,27 @@ func (s *ImportService) GetBatch(ctx context.Context, batchID string) (*models.I
 
 	batch.ID = doc.Ref.ID
 	return &batch, nil
+}
+
+// FindPropertyByReference finds a property by its reference code
+func (s *ImportService) FindPropertyByReference(ctx context.Context, tenantID, reference string) (*models.Property, error) {
+	// Query properties by tenant_id and reference
+	iter := s.db.Collection("properties").
+		Where("tenant_id", "==", tenantID).
+		Where("reference", "==", reference).
+		Limit(1).
+		Documents(ctx)
+
+	doc, err := iter.Next()
+	if err != nil {
+		return nil, err
+	}
+
+	var property models.Property
+	if err := doc.DataTo(&property); err != nil {
+		return nil, err
+	}
+
+	property.ID = doc.Ref.ID
+	return &property, nil
 }

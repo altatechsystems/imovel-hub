@@ -63,23 +63,26 @@ func (h *ImportHandler) ImportFromFiles(c *gin.Context) {
 		return
 	}
 
-	// Get XML file
+	// Get XML file (optional now)
 	xmlFile, xmlHeader, err := c.Request.FormFile("xml")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "XML file is required", "details": err.Error()})
-		return
+	hasXML := err == nil
+	if hasXML {
+		defer xmlFile.Close()
 	}
-	defer xmlFile.Close()
 
-	// Get optional XLS file
+	// Get XLS file (optional)
 	var xlsFile io.ReadCloser
-	var xlsHeader *http.Header
 	xlsFileMultipart, xlsHeaderMultipart, err := c.Request.FormFile("xls")
-	if err == nil {
+	hasXLS := err == nil
+	if hasXLS {
 		xlsFile = xlsFileMultipart
-		h := http.Header(xlsHeaderMultipart.Header)
-		xlsHeader = &h
 		defer xlsFile.Close()
+	}
+
+	// At least one file must be provided
+	if !hasXML && !hasXLS {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "At least one file (XML or XLS) is required"})
+		return
 	}
 
 	// Get source and created_by from form
@@ -101,16 +104,19 @@ func (h *ImportHandler) ImportFromFiles(c *gin.Context) {
 	}
 	defer os.RemoveAll(tempDir) // cleanup
 
-	// Save XML file
-	xmlPath := filepath.Join(tempDir, xmlHeader.Filename)
-	if err := saveUploadedFile(xmlFile, xmlPath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save XML file", "details": err.Error()})
-		return
+	// Save XML file if provided
+	var xmlPath string
+	if hasXML {
+		xmlPath = filepath.Join(tempDir, xmlHeader.Filename)
+		if err := saveUploadedFile(xmlFile, xmlPath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save XML file", "details": err.Error()})
+			return
+		}
 	}
 
 	// Save XLS file if provided
 	var xlsPath string
-	if xlsFile != nil && xlsHeader != nil {
+	if hasXLS {
 		xlsPath = filepath.Join(tempDir, xlsHeaderMultipart.Filename)
 		if err := saveUploadedFile(xlsFile, xlsPath); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save XLS file", "details": err.Error()})
@@ -147,6 +153,27 @@ func (h *ImportHandler) processImport(ctx context.Context, batch *models.ImportB
 		}
 	}()
 
+	// Parse XLS if provided
+	var xlsRecords []union.XLSRecord
+	if xlsPath != "" {
+		var err error
+		xlsRecords, err = union.ParseXLS(xlsPath)
+		if err != nil {
+			log.Printf("❌ Failed to parse XLS: %v", err)
+			_ = h.importService.LogError(ctx, batch, "xls_parse", err.Error(), nil)
+			batch.Status = "failed"
+			_ = h.importService.CompleteBatch(ctx, batch)
+			return
+		}
+		log.Printf("✅ Parsed XLS with %d records", len(xlsRecords))
+	}
+
+	// If only XLS provided (no XML), process XLS-only mode
+	if xmlPath == "" && xlsPath != "" {
+		h.processXLSOnlyImport(ctx, batch, xlsRecords)
+		return
+	}
+
 	// Parse XML
 	xmlFile, err := os.Open(xmlPath)
 	if err != nil {
@@ -175,16 +202,6 @@ func (h *ImportHandler) processImport(ctx context.Context, batch *models.ImportB
 		log.Printf("🔍 DEBUG XML: First property %s has %d Foto tags in raw XML", firstProp.Referencia, len(firstProp.Fotos))
 		if len(firstProp.Fotos) > 0 {
 			log.Printf("   First Foto: URL='%s', Principal=%d", firstProp.Fotos[0].URL, firstProp.Fotos[0].Principal)
-		}
-	}
-
-	// Parse XLS if provided
-	var xlsRecords []union.XLSRecord
-	if xlsPath != "" {
-		xlsRecords, err = union.ParseXLS(xlsPath)
-		if err != nil {
-			log.Printf("⚠️  Warning: Failed to parse XLS: %v", err)
-			// Continue without XLS data
 		}
 	}
 
@@ -229,6 +246,84 @@ func (h *ImportHandler) processImport(ctx context.Context, batch *models.ImportB
 		log.Printf("❌ Failed to complete batch: %v", err)
 	} else {
 		log.Printf("✅ Import batch %s completed: %d properties created, %d errors", batch.ID, batch.TotalPropertiesCreated, batch.TotalErrors)
+	}
+}
+
+// processXLSOnlyImport processes XLS-only import (update owner data for existing properties)
+func (h *ImportHandler) processXLSOnlyImport(ctx context.Context, batch *models.ImportBatch, xlsRecords []union.XLSRecord) {
+	log.Printf("🔄 Processing XLS-only import: %d records to process", len(xlsRecords))
+
+	batch.TotalXMLRecords = len(xlsRecords) // Use XLS count as total
+	batch.Status = "processing"
+
+	for i, xlsRecord := range xlsRecords {
+		// Build owner payload from XLS
+		ownerPayload := union.OwnerPayload{
+			Name:            xlsRecord.Proprietario,
+			Email:           xlsRecord.Email,
+			Phone:           xlsRecord.CelularTelefone,
+			EnrichedFromXLS: true,
+		}
+
+		// Determine owner status
+		if ownerPayload.Email != "" && ownerPayload.Phone != "" {
+			ownerPayload.OwnerStatus = models.OwnerStatusVerified
+		} else if ownerPayload.Phone != "" || ownerPayload.Email != "" {
+			ownerPayload.OwnerStatus = models.OwnerStatusPartial
+		} else {
+			ownerPayload.OwnerStatus = models.OwnerStatusIncomplete
+		}
+
+		// Find existing property by reference
+		propertyRef := xlsRecord.Referencia
+		if propertyRef == "" {
+			log.Printf("⚠️  Skipping XLS record %d: no reference code", i)
+			continue
+		}
+
+		// Query property by reference
+		property, err := h.importService.FindPropertyByReference(ctx, batch.TenantID, propertyRef)
+		if err != nil || property == nil {
+			log.Printf("⚠️  Property not found for reference %s, skipping", propertyRef)
+			batch.TotalErrors++
+			continue
+		}
+
+		// Update owner if property has one
+		if property.OwnerID != "" {
+			if err := h.importService.UpdateOwnerFromXLS(ctx, property.OwnerID, ownerPayload, propertyRef); err != nil {
+				log.Printf("❌ Failed to update owner for property %s: %v", propertyRef, err)
+				batch.TotalErrors++
+			} else {
+				batch.TotalOwnersEnrichedFromXLS++
+				batch.TotalPropertiesMatchedExisting++
+				log.Printf("✅ Updated owner for property %s", propertyRef)
+			}
+		} else {
+			log.Printf("⚠️  Property %s has no owner, skipping", propertyRef)
+		}
+
+		// Progress log every 50 records
+		if (i+1)%50 == 0 {
+			log.Printf("📥 XLS import progress: %d/%d records", i+1, len(xlsRecords))
+		}
+	}
+
+	// Log final statistics BEFORE completing
+	log.Printf("📊 XLS-only import statistics BEFORE CompleteBatch:")
+	log.Printf("   Batch ID: %s", batch.ID)
+	log.Printf("   Total records: %d", batch.TotalXMLRecords)
+	log.Printf("   Owners updated: %d", batch.TotalOwnersEnrichedFromXLS)
+	log.Printf("   Properties matched: %d", batch.TotalPropertiesMatchedExisting)
+	log.Printf("   Errors: %d", batch.TotalErrors)
+	log.Printf("   Status: %s", batch.Status)
+
+	// Complete batch
+	if err := h.importService.CompleteBatch(ctx, batch); err != nil {
+		log.Printf("❌ Failed to complete batch: %v", err)
+	} else {
+		log.Printf("✅ XLS-only import batch %s completed: %d owners updated, %d errors",
+			batch.ID, batch.TotalOwnersEnrichedFromXLS, batch.TotalErrors)
 	}
 }
 

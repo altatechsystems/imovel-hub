@@ -87,8 +87,8 @@ export default function ImportacaoPage() {
   };
 
   const handleImport = async () => {
-    if (!xmlFile) {
-      alert('Por favor, selecione pelo menos o arquivo XML');
+    if (!xmlFile && !xlsFile) {
+      alert('Por favor, selecione pelo menos um arquivo (XML ou XLS)');
       return;
     }
 
@@ -115,7 +115,10 @@ export default function ImportacaoPage() {
       console.log('✅ Token obtained');
 
       const formData = new FormData();
-      formData.append('xml', xmlFile);
+
+      if (xmlFile) {
+        formData.append('xml', xmlFile);
+      }
 
       if (xlsFile) {
         formData.append('xls', xlsFile);
@@ -148,8 +151,13 @@ export default function ImportacaoPage() {
 
       // Backend returns async response with batch_id
       // Start polling for batch status
-      setBatchId(data.batch_id);
-      startPolling(data.batch_id, tenantId);
+      if (data.batch_id) {
+        setBatchId(data.batch_id);
+        startPolling(data.batch_id, tenantId);
+        // Keep importing state true while polling
+      } else {
+        throw new Error('Batch ID não foi retornado pelo servidor');
+      }
     } catch (error: any) {
       console.error('❌ Erro na importação:', error);
       setResult({
@@ -187,16 +195,22 @@ export default function ImportacaoPage() {
   };
 
   const startPolling = async (batchId: string, tenantId: string) => {
+    console.log('🔄 Starting polling for batch:', batchId);
+
     // Get auth token once for polling
     const { auth } = await import('@/lib/firebase');
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user) {
+      console.error('❌ No user found for polling');
+      return;
+    }
     // Force token refresh
     const token = await user.getIdToken(true);
 
     // Poll every 2 seconds
     const interval = setInterval(async () => {
       try {
+        console.log('📊 Polling batch status...');
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/import/batches/${batchId}`,
           {
@@ -207,14 +221,16 @@ export default function ImportacaoPage() {
         );
 
         if (!response.ok) {
-          console.error('Erro ao buscar status do batch');
+          console.error('❌ Erro ao buscar status do batch:', response.status);
           return;
         }
 
         const batchData = await response.json();
+        console.log('📦 Batch data:', batchData);
 
         // Check if batch is completed
         if (batchData.status === 'completed' || batchData.status === 'failed') {
+          console.log('✅ Batch completed with status:', batchData.status);
           stopPolling();
           setImporting(false);
 
@@ -230,9 +246,11 @@ export default function ImportacaoPage() {
               ? (new Date(batchData.completed_at).getTime() - new Date(batchData.started_at).getTime()) / 1000
               : 0,
           });
+        } else {
+          console.log('⏳ Batch still processing, status:', batchData.status);
         }
       } catch (error) {
-        console.error('Erro no polling:', error);
+        console.error('❌ Erro no polling:', error);
       }
     }, 2000);
 
@@ -348,7 +366,7 @@ export default function ImportacaoPage() {
             </p>
             <p className="text-xs text-gray-500">
               {source === 'union'
-                ? 'XML (obrigatório) + XLS (opcional com dados do proprietário)'
+                ? 'XML (imóveis completos) ou XLS (atualizar dados de proprietários)'
                 : 'Formato a ser definido'}
             </p>
           </div>
@@ -357,7 +375,7 @@ export default function ImportacaoPage() {
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Arquivo XML <span className="text-red-500">*</span>
+                Arquivo XML <span className="text-gray-400">(opcional)</span>
               </label>
               <label className="block">
                 <input
@@ -431,7 +449,7 @@ export default function ImportacaoPage() {
           </div>
 
           {/* Import Button */}
-          {xmlFile && (
+          {(xmlFile || xlsFile) && (
             <div className="flex justify-end gap-3">
               <button
                 onClick={resetImport}
@@ -452,7 +470,7 @@ export default function ImportacaoPage() {
                 ) : (
                   <>
                     <Upload className="w-4 h-4" />
-                    Iniciar Importação
+                    {xlsFile && !xmlFile ? 'Atualizar Dados' : 'Iniciar Importação'}
                   </>
                 )}
               </button>
@@ -594,8 +612,9 @@ export default function ImportacaoPage() {
                 Instruções para Importação Union
               </h3>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• <strong>XML obrigatório:</strong> Contém dados principais dos imóveis (endereço, características, fotos)</li>
-                <li>• <strong>XLS opcional:</strong> Enriquece com dados do proprietário (nome, telefone, email, observações)</li>
+                <li>• <strong>XML:</strong> Contém dados principais dos imóveis (endereço, características, fotos)</li>
+                <li>• <strong>XLS:</strong> Enriquece com dados do proprietário (nome, telefone, email, observações)</li>
+                <li>• <strong>Opções de importação:</strong> XML + XLS (completo) | Apenas XML (sem dados de proprietários) | Apenas XLS (atualiza proprietários existentes)</li>
                 <li>• Os imóveis serão identificados por referência única</li>
                 <li>• Imóveis duplicados serão detectados automaticamente</li>
                 <li>• Proprietários sem dados completos serão marcados como "incompletos"</li>

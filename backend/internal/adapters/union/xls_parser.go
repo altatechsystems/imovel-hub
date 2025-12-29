@@ -2,10 +2,13 @@ package union
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/xuri/excelize/v2"
+	"golang.org/x/net/html"
 )
 
 // XLSRecord represents a row from Union XLS export
@@ -73,8 +76,21 @@ type XLSRecord struct {
 	OutrasCaracteristicas string
 }
 
-// ParseXLS parses Union XLS file
+// ParseXLS parses Union XLS file (supports both XLSX and HTML-based XLS)
 func ParseXLS(filePath string) ([]XLSRecord, error) {
+	// Try to detect if this is an HTML file
+	isHTML, err := isHTMLFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect file format: %w", err)
+	}
+
+	if isHTML {
+		fmt.Printf("📄 Detected HTML-based XLS file, using HTML parser\n")
+		return parseHTMLXLS(filePath)
+	}
+
+	// Try to parse as XLSX
+	fmt.Printf("📊 Attempting to parse as XLSX file\n")
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open XLS: %w", err)
@@ -111,6 +127,121 @@ func ParseXLS(filePath string) ([]XLSRecord, error) {
 	}
 
 	return records, nil
+}
+
+// isHTMLFile checks if the file is HTML by reading the first few bytes
+func isHTMLFile(filePath string) (bool, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	// Read first 512 bytes to detect format
+	buf := make([]byte, 512)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+
+	content := strings.ToLower(string(buf[:n]))
+	return strings.Contains(content, "<html") ||
+		   strings.Contains(content, "<!doctype") ||
+		   strings.Contains(content, "<table"), nil
+}
+
+// parseHTMLXLS parses HTML-based XLS file (common export format)
+func parseHTMLXLS(filePath string) ([]XLSRecord, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open HTML file: %w", err)
+	}
+	defer file.Close()
+
+	doc, err := html.Parse(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HTML: %w", err)
+	}
+
+	// Extract table rows
+	rows := extractTableRows(doc)
+	if len(rows) < 2 {
+		return nil, fmt.Errorf("HTML XLS has no data rows (found %d rows)", len(rows))
+	}
+
+	fmt.Printf("📋 Extracted %d rows from HTML table\n", len(rows))
+
+	// Parse header to create column map
+	headers := rows[0]
+	colMap := makeColumnMap(headers)
+
+	fmt.Printf("📌 Found %d columns: %v\n", len(headers), headers)
+
+	var records []XLSRecord
+	for i, row := range rows[1:] {
+		record, err := parseXLSRow(row, colMap)
+		if err != nil {
+			// Log error but continue
+			fmt.Printf("⚠️  Warning: failed to parse row %d: %v\n", i+2, err)
+			continue
+		}
+		records = append(records, record)
+	}
+
+	fmt.Printf("✅ Successfully parsed %d records from HTML XLS\n", len(records))
+	return records, nil
+}
+
+// extractTableRows extracts all rows from an HTML table
+func extractTableRows(n *html.Node) [][]string {
+	var rows [][]string
+	var f func(*html.Node)
+
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "tr" {
+			row := extractTableCells(n)
+			if len(row) > 0 {
+				rows = append(rows, row)
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+
+	f(n)
+	return rows
+}
+
+// extractTableCells extracts all cells from a table row
+func extractTableCells(tr *html.Node) []string {
+	var cells []string
+
+	for c := tr.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.ElementNode && (c.Data == "td" || c.Data == "th") {
+			cells = append(cells, getNodeText(c))
+		}
+	}
+
+	return cells
+}
+
+// getNodeText extracts text content from an HTML node
+func getNodeText(n *html.Node) string {
+	var text strings.Builder
+
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.TextNode {
+			text.WriteString(n.Data)
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+
+	f(n)
+	return strings.TrimSpace(text.String())
 }
 
 // makeColumnMap creates a map from column name to index
