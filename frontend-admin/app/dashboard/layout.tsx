@@ -3,7 +3,6 @@
 import { AuthGuard } from '@/components/auth-guard';
 import { AdminSidebar } from '@/components/admin-sidebar';
 import { AdminHeader } from '@/components/admin-header';
-import { DebugInfo } from '@/components/debug-info';
 
 export default function DashboardLayout({
   children,
@@ -20,7 +19,6 @@ export default function DashboardLayout({
             {children}
           </main>
         </div>
-        <DebugInfo />
       </div>
     </AuthGuard>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Building2, Plus, Search, Filter, MapPin, Bed, Bath, Maximize } from 'lucide-react';
@@ -28,7 +28,8 @@ export default function ImoveisPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [displayCount, setDisplayCount] = useState(12);
+  const observerTarget = useRef<HTMLDivElement>(null);
   const itemsPerPage = 12;
 
   const fetchProperties = useCallback(async () => {
@@ -104,17 +105,41 @@ export default function ImoveisPage() {
     [properties, searchTerm]
   );
 
-  // Pagination
-  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
-  const paginatedProperties = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredProperties.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredProperties, currentPage, itemsPerPage]);
+  // Infinite scroll - show only displayCount items
+  const displayedProperties = useMemo(() =>
+    filteredProperties.slice(0, displayCount),
+    [filteredProperties, displayCount]
+  );
 
-  // Reset to page 1 when search changes
+  const hasMore = displayCount < filteredProperties.length;
+
+  // Reset display count when search changes
   useEffect(() => {
-    setCurrentPage(1);
+    setDisplayCount(12);
   }, [searchTerm]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          setDisplayCount(prev => prev + itemsPerPage);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loading, itemsPerPage]);
 
   return (
     <div className="p-6">
@@ -256,7 +281,7 @@ export default function ImoveisPage() {
       {!loading && !error && filteredProperties.length > 0 && (
         <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-          {paginatedProperties.map((property) => (
+          {displayedProperties.map((property) => (
             <div key={property.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
               {/* Property Image */}
               <div className="h-48 bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center relative overflow-hidden">
@@ -335,59 +360,22 @@ export default function ImoveisPage() {
           ))}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredProperties.length)} de {filteredProperties.length} imóveis
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Anterior
-                </button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-2 rounded-lg transition-colors ${
-                          currentPage === pageNum
-                            ? 'bg-blue-600 text-white'
-                            : 'border border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Próxima
-                </button>
-              </div>
+        {/* Infinite Scroll Trigger & Loading Indicator */}
+        <div ref={observerTarget} className="py-8">
+          {hasMore && (
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="text-gray-600 mt-2">Carregando mais imóveis...</p>
             </div>
-          </div>
-        )}
+          )}
+          {!hasMore && filteredProperties.length > 12 && (
+            <div className="text-center">
+              <p className="text-gray-600">
+                Mostrando todos os {filteredProperties.length} imóveis
+              </p>
+            </div>
+          )}
+        </div>
         </>
       )}
     </div>
