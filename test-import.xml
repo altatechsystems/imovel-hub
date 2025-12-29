@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Imoveis>
+  <Imovel>
+    <CodigoImovel>TEST001</CodigoImovel>
+    <TipoOferta>Venda</TipoOferta>
+    <TipoImovel>Apartamento</TipoImovel>
+    <SubTipoImovel>Padrão</SubTipoImovel>
+    <CategoriaImovel>Residencial</CategoriaImovel>
+    <Endereco>Rua de Teste</Endereco>
+    <Numero>123</Numero>
+    <Bairro>Centro</Bairro>
+    <Cidade>São Paulo</Cidade>
+    <UF>SP</UF>
+    <CEP>01000-000</CEP>
+    <PrecoVenda>500000</PrecoVenda>
+    <AreaTotal>100</AreaTotal>
+    <AreaUtil>80</AreaUtil>
+    <Quartos>3</Quartos>
+    <Suites>1</Suites>
+    <Banheiros>2</Banheiros>
+    <Vagas>1</Vagas>
+    <Descricao>Apartamento de teste para validar importação de fotos</Descricao>
+    <Foto>
+      <URLArquivo>https://picsum.photos/1600/1200?random=1</URLArquivo>
+      <NomeArquivo>foto1.jpg</NomeArquivo>
+      <Ordem>0</Ordem>
+    </Foto>
+    <Foto>
+      <URLArquivo>https://picsum.photos/1600/1200?random=2</URLArquivo>
+      <NomeArquivo>foto2.jpg</NomeArquivo>
+      <Ordem>1</Ordem>
+    </Foto>
+    <Foto>
+      <URLArquivo>https://picsum.photos/1600/1200?random=3</URLArquivo>
+      <NomeArquivo>foto3.jpg</NomeArquivo>
+      <Ordem>2</Ordem>
+    </Foto>
+  </Imovel>
+</Imoveis>

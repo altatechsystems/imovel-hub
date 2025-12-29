@@ -23,7 +23,7 @@ func NewPropertyHandler(propertyService *services.PropertyService) *PropertyHand
 
 // RegisterRoutes registers property routes (tenant-scoped)
 func (h *PropertyHandler) RegisterRoutes(router *gin.RouterGroup) {
-	properties := router.Group("/:tenant_id/properties")
+	properties := router.Group("/properties")
 	{
 		properties.POST("", h.CreateProperty)
 		properties.GET("/:id", h.GetProperty)

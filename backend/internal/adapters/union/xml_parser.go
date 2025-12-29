@@ -11,6 +11,13 @@ type XMLUnion struct {
 	Imoveis []XMLImovel  `xml:"Imoveis>Imovel"`
 }
 
+// XMLFoto represents a photo from Union XML
+type XMLFoto struct {
+	URL       string `xml:"URL"`       // Union uses <URL> not <URLArquivo>
+	Descricao string `xml:"Descricao"`
+	Principal int    `xml:"Principal"` // 1 if main photo
+}
+
 // XMLImovel represents a property from Union XML
 type XMLImovel struct {
 	// Identificação
@@ -95,8 +102,8 @@ type XMLImovel struct {
 	// Links
 	LinkImovelSite string `xml:"LinkImovelSite"`
 
-	// Fotos (podem ser múltiplas tags <Foto>)
-	Fotos []string `xml:"Fotos>Foto"`
+	// Fotos (podem ser múltiplas tags <Foto> dentro de <Fotos>)
+	Fotos []XMLFoto `xml:"Fotos>Foto"`
 
 	// Condomínio/Empreendimento
 	Condominio     int    `xml:"Condominio"`     // 0 ou 1

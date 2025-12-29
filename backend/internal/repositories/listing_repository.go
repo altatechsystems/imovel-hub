@@ -23,9 +23,10 @@ func NewListingRepository(client *firestore.Client) *ListingRepository {
 	}
 }
 
-// getListingsCollection returns the collection path for listings within a tenant
+// getListingsCollection returns the collection path for listings
+// Listings are stored in root collection with tenant_id field, not subcollection
 func (r *ListingRepository) getListingsCollection(tenantID string) string {
-	return fmt.Sprintf("tenants/%s/listings", tenantID)
+	return "listings"
 }
 
 // Create creates a new listing
@@ -63,9 +64,13 @@ func (r *ListingRepository) Get(ctx context.Context, tenantID, id string) (*mode
 	}
 
 	var listing models.Listing
-	collectionPath := r.getListingsCollection(tenantID)
-	if err := r.GetDocument(ctx, collectionPath, id, &listing); err != nil {
+	if err := r.GetDocument(ctx, "listings", id, &listing); err != nil {
 		return nil, err
+	}
+
+	// Verify tenant ownership
+	if listing.TenantID != tenantID {
+		return nil, ErrNotFound
 	}
 
 	listing.ID = id

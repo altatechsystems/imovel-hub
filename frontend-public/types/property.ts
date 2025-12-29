@@ -106,11 +106,12 @@ export interface Property {
 
 export interface PropertyImage {
   id: string;
-  url: string;
-  original_filename: string;
-  content_type: string;
-  size: number;
-  uploaded_at: Date | string;
+  url: string; // Original URL from backend Photo model
+  thumb_url: string; // 400x300 WebP
+  medium_url: string; // 800x600 WebP
+  large_url: string; // 1600x1200 WebP
+  order: number;
+  is_cover: boolean;
 }
 
 export interface PropertyFilters {

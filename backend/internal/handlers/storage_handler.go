@@ -22,7 +22,7 @@ func NewStorageHandler(storageService *storage.StorageService) *StorageHandler {
 // RegisterRoutes registers storage routes (tenant-scoped)
 func (h *StorageHandler) RegisterRoutes(router *gin.RouterGroup) {
 	// Using /property-images as a separate route to avoid conflict with /properties/:id
-	images := router.Group("/:tenant_id/property-images/:property_id")
+	images := router.Group("/property-images/:property_id")
 	{
 		images.POST("", h.UploadImage)
 		images.GET("", h.ListImages)

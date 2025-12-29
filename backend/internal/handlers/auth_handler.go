@@ -52,9 +52,10 @@ type LoginRequest struct {
 
 // LoginResponse represents the login response
 type LoginResponse struct {
-	FirebaseToken string                 `json:"firebase_token"`
-	TenantID      string                 `json:"tenant_id"`
-	Broker        map[string]interface{} `json:"broker"`
+	FirebaseToken   string                 `json:"firebase_token"`
+	TenantID        string                 `json:"tenant_id"`
+	Broker          map[string]interface{} `json:"broker"`
+	IsPlatformAdmin bool                   `json:"is_platform_admin"`
 }
 
 // Signup creates a new tenant and admin broker
@@ -272,8 +273,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// 6. Return response
 	c.JSON(http.StatusOK, LoginResponse{
-		FirebaseToken: token,
-		TenantID:      broker.TenantID,
+		FirebaseToken:   token,
+		TenantID:        broker.TenantID,
+		IsPlatformAdmin: tenant.IsPlatformAdmin,
 		Broker: map[string]interface{}{
 			"id":    broker.ID,
 			"name":  broker.Name,

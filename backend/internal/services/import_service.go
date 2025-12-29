@@ -60,7 +60,7 @@ func (s *ImportService) ImportProperty(ctx context.Context, batch *models.Import
 	}
 
 	if dedupResult.IsDuplicate {
-		// Property already exists - skip or update
+		// Property already exists - update photos if any
 		batch.TotalPropertiesMatchedExisting++
 		log.Printf("Property %s already exists (matched by %s)", payload.Property.Reference, dedupResult.MatchType)
 
@@ -72,7 +72,53 @@ func (s *ImportService) ImportProperty(ctx context.Context, batch *models.Import
 			"batch_id":             batch.ID,
 		})
 
-		return nil // Skip duplicate
+		// Check if canonical listing exists, create if not
+		existingPropertyID := dedupResult.ExistingProperty.ID
+		log.Printf("🔍 Checking canonical listing for property %s (ref: %s)", existingPropertyID, payload.Property.Reference)
+		listingID, err := s.findCanonicalListing(ctx, existingPropertyID)
+		log.Printf("🔙 findCanonicalListing returned: listingID='%s', err=%v", listingID, err)
+
+		if err != nil {
+			log.Printf("⚠️  Error finding canonical listing for property %s: %v", existingPropertyID, err)
+		} else if listingID == "" {
+			log.Printf("❌ NO CANONICAL LISTING FOUND - will create one for property %s", payload.Property.Reference)
+			// No canonical listing exists - create one
+			log.Printf("🆕 Creating canonical listing for existing property %s", payload.Property.Reference)
+
+			// Use the existing property from database
+			property := dedupResult.ExistingProperty
+			newListingID, err := s.createListing(ctx, batch.TenantID, property, payload.Photos)
+			if err != nil {
+				log.Printf("❌ Failed to create listing for existing property %s: %v", payload.Property.Reference, err)
+			} else {
+				listingID = newListingID
+				batch.TotalListingsCreated++
+				log.Printf("✅ Created listing %s for existing property %s", listingID, payload.Property.Reference)
+
+				// Update property with canonical_listing_id
+				_, err := s.db.Collection("properties").Doc(existingPropertyID).Update(ctx, []firestore.Update{
+					{Path: "canonical_listing_id", Value: listingID},
+					{Path: "updated_at", Value: time.Now()},
+				})
+				if err != nil {
+					log.Printf("⚠️  Failed to update property with canonical_listing_id: %v", err)
+				}
+			}
+		}
+
+		// Process photos for existing property if any
+		if len(payload.Photos) > 0 && listingID != "" {
+			log.Printf("📸 Updating %d photos for existing property %s (ID: %s, Listing: %s)", len(payload.Photos), payload.Property.Reference, existingPropertyID, listingID)
+
+			if s.photoProcessor != nil {
+				// Process photos asynchronously
+				go s.processPhotosAsync(ctx, batch, listingID, payload)
+			} else {
+				log.Printf("⚠️  Photo processor not configured - skipping photo update for existing property %s", payload.Property.Reference)
+			}
+		}
+
+		return nil // Skip creating duplicate, but listing and photos are being processed
 	}
 
 	if dedupResult.PossibleDuplicate {
@@ -195,6 +241,49 @@ func (s *ImportService) updateListingPhotos(ctx context.Context, listingID strin
 		{Path: "updated_at", Value: time.Now()},
 	})
 	return err
+}
+
+// findCanonicalListing finds the canonical listing ID for a property
+func (s *ImportService) findCanonicalListing(ctx context.Context, propertyID string) (string, error) {
+	log.Printf("  📋 findCanonicalListing: Looking up property %s", propertyID)
+
+	// Get the property to find its canonical_listing_id
+	propertyDoc, err := s.db.Collection("properties").Doc(propertyID).Get(ctx)
+	if err != nil {
+		log.Printf("  ❌ findCanonicalListing: Failed to get property %s: %v", propertyID, err)
+		return "", fmt.Errorf("failed to get property: %w", err)
+	}
+
+	var property models.Property
+	if err := propertyDoc.DataTo(&property); err != nil {
+		log.Printf("  ❌ findCanonicalListing: Failed to parse property %s: %v", propertyID, err)
+		return "", fmt.Errorf("failed to parse property: %w", err)
+	}
+
+	log.Printf("  📄 findCanonicalListing: Property %s has canonical_listing_id='%s'", propertyID, property.CanonicalListingID)
+
+	if property.CanonicalListingID == "" {
+		log.Printf("  ⚠️  findCanonicalListing: No canonical_listing_id set for property %s", propertyID)
+		return "", nil // No canonical listing set
+	}
+
+	// Verify if the listing actually exists in Firestore
+	log.Printf("  🔎 findCanonicalListing: Checking if listing %s exists in Firestore...", property.CanonicalListingID)
+	listingDoc, err := s.db.Collection("listings").Doc(property.CanonicalListingID).Get(ctx)
+	if err != nil {
+		log.Printf("  ❌ findCanonicalListing: Error getting listing %s: %v", property.CanonicalListingID, err)
+		log.Printf("  ⚠️  Listing %s referenced by property %s does not exist (error)", property.CanonicalListingID, propertyID)
+		return "", nil // Listing doesn't exist, return empty string to trigger creation
+	}
+
+	if !listingDoc.Exists() {
+		log.Printf("  ❌ findCanonicalListing: Listing %s does NOT exist in Firestore", property.CanonicalListingID)
+		log.Printf("  ⚠️  Listing %s referenced by property %s does not exist (Exists()=false)", property.CanonicalListingID, propertyID)
+		return "", nil // Listing doesn't exist, return empty string to trigger creation
+	}
+
+	log.Printf("  ✅ findCanonicalListing: Listing %s exists!", property.CanonicalListingID)
+	return property.CanonicalListingID, nil
 }
 
 // createOwner creates or finds existing owner
@@ -400,4 +489,20 @@ func (s *ImportService) LogError(ctx context.Context, batch *models.ImportBatch,
 
 	batch.TotalErrors++
 	return nil
+}
+
+// GetBatch retrieves a batch by ID
+func (s *ImportService) GetBatch(ctx context.Context, batchID string) (*models.ImportBatch, error) {
+	doc, err := s.db.Collection("import_batches").Doc(batchID).Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var batch models.ImportBatch
+	if err := doc.DataTo(&batch); err != nil {
+		return nil, err
+	}
+
+	batch.ID = doc.Ref.ID
+	return &batch, nil
 }

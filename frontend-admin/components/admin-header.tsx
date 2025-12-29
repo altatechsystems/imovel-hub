@@ -1,10 +1,22 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
+import { TenantSelector } from '@/components/tenant-selector';
 import { Bell, Search } from 'lucide-react';
 
 export function AdminHeader() {
   const { user } = useAuth();
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
+  useEffect(() => {
+    // Check if user is platform admin from localStorage
+    // This will be set during login
+    const platformAdminFlag = localStorage.getItem('is_platform_admin');
+    console.log('Platform Admin Flag from localStorage:', platformAdminFlag);
+    console.log('Is Platform Admin:', platformAdminFlag === 'true');
+    setIsPlatformAdmin(platformAdminFlag === 'true');
+  }, []);
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
@@ -23,6 +35,9 @@ export function AdminHeader() {
 
         {/* Right side */}
         <div className="flex items-center gap-4 ml-6">
+          {/* Tenant Selector (only for platform admins) */}
+          <TenantSelector isPlatformAdmin={isPlatformAdmin} />
+
           {/* Notifications */}
           <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
             <Bell className="w-5 h-5" />

@@ -76,28 +76,28 @@ class ApiClient {
     }
 
     const response = await this.client.get<PropertyListResponse>(
-      `/${this.tenantId}/properties?${params.toString()}`
+      `/v1/${this.tenantId}/properties?${params.toString()}`
     );
     return response.data;
   }
 
   async getProperty(id: string): Promise<Property> {
     const response = await this.client.get<PropertyResponse>(
-      `/${this.tenantId}/properties/${id}`
+      `/v1/${this.tenantId}/properties/${id}`
     );
     return response.data.data;
   }
 
   async getPropertyBySlug(slug: string): Promise<Property> {
     const response = await this.client.get<PropertyResponse>(
-      `/${this.tenantId}/properties/slug/${slug}`
+      `/v1/${this.tenantId}/properties/slug/${slug}`
     );
     return response.data.data;
   }
 
   async getPropertyImages(propertyId: string): Promise<any> {
     const response = await this.client.get(
-      `/${this.tenantId}/properties/${propertyId}/images`
+      `/v1/${this.tenantId}/properties/${propertyId}/images`
     );
     return response.data.data;
   }
@@ -105,7 +105,7 @@ class ApiClient {
   // Leads
   async createLead(data: CreateLeadRequest): Promise<CreateLeadResponse> {
     const response = await this.client.post<CreateLeadResponse>(
-      `/${this.tenantId}/leads`,
+      `/v1/${this.tenantId}/leads`,
       data
     );
     return response.data;

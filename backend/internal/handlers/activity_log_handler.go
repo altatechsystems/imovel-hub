@@ -24,7 +24,7 @@ func NewActivityLogHandler(activityLogService *services.ActivityLogService) *Act
 
 // RegisterRoutes registers activity log routes (tenant-scoped)
 func (h *ActivityLogHandler) RegisterRoutes(router *gin.RouterGroup) {
-	activityLogs := router.Group("/:tenant_id/activity-logs")
+	activityLogs := router.Group("/activity-logs")
 	{
 		activityLogs.GET("", h.GetActivityLogs)
 		activityLogs.GET("/:id", h.GetActivityLog)

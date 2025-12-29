@@ -23,9 +23,10 @@ func NewPropertyRepository(client *firestore.Client) *PropertyRepository {
 	}
 }
 
-// getPropertiesCollection returns the collection path for properties within a tenant
+// getPropertiesCollection returns the collection path for properties
+// Properties are stored in root collection with tenant_id field, not subcollection
 func (r *PropertyRepository) getPropertiesCollection(tenantID string) string {
-	return fmt.Sprintf("tenants/%s/properties", tenantID)
+	return "properties"
 }
 
 // PropertyFilters contains optional filters for property queries
@@ -50,15 +51,15 @@ func (r *PropertyRepository) Create(ctx context.Context, property *models.Proper
 	}
 
 	if property.ID == "" {
-		property.ID = r.GenerateID(r.getPropertiesCollection(property.TenantID))
+		property.ID = r.GenerateID("properties")
 	}
 
 	now := time.Now()
 	property.CreatedAt = now
 	property.UpdatedAt = now
 
-	collectionPath := r.getPropertiesCollection(property.TenantID)
-	if err := r.CreateDocument(ctx, collectionPath, property.ID, property); err != nil {
+	// Store in root collection with tenant_id field
+	if err := r.CreateDocument(ctx, "properties", property.ID, property); err != nil {
 		return fmt.Errorf("failed to create property: %w", err)
 	}
 
@@ -72,9 +73,13 @@ func (r *PropertyRepository) Get(ctx context.Context, tenantID, id string) (*mod
 	}
 
 	var property models.Property
-	collectionPath := r.getPropertiesCollection(tenantID)
-	if err := r.GetDocument(ctx, collectionPath, id, &property); err != nil {
+	if err := r.GetDocument(ctx, "properties", id, &property); err != nil {
 		return nil, err
+	}
+
+	// Verify tenant ownership
+	if property.TenantID != tenantID {
+		return nil, ErrNotFound
 	}
 
 	property.ID = id
@@ -90,8 +95,8 @@ func (r *PropertyRepository) GetBySlug(ctx context.Context, tenantID, slug strin
 		return nil, fmt.Errorf("%w: slug is required", ErrInvalidInput)
 	}
 
-	collectionPath := r.getPropertiesCollection(tenantID)
-	query := r.Client().Collection(collectionPath).
+	query := r.Client().Collection("properties").
+		Where("tenant_id", "==", tenantID).
 		Where("slug", "==", slug).
 		Limit(1)
 
@@ -124,8 +129,8 @@ func (r *PropertyRepository) GetByExternalID(ctx context.Context, tenantID, exte
 		return nil, fmt.Errorf("%w: external_source and external_id are required", ErrInvalidInput)
 	}
 
-	collectionPath := r.getPropertiesCollection(tenantID)
-	query := r.Client().Collection(collectionPath).
+	query := r.Client().Collection("properties").
+		Where("tenant_id", "==", tenantID).
 		Where("external_source", "==", externalSource).
 		Where("external_id", "==", externalID).
 		Limit(1)
@@ -171,8 +176,7 @@ func (r *PropertyRepository) Update(ctx context.Context, tenantID, id string, up
 		})
 	}
 
-	collectionPath := r.getPropertiesCollection(tenantID)
-	if err := r.UpdateDocument(ctx, collectionPath, id, firestoreUpdates); err != nil {
+	if err := r.UpdateDocument(ctx, "properties", id, firestoreUpdates); err != nil {
 		return fmt.Errorf("failed to update property: %w", err)
 	}
 
@@ -185,8 +189,7 @@ func (r *PropertyRepository) Delete(ctx context.Context, tenantID, id string) er
 		return fmt.Errorf("%w: tenant_id is required", ErrInvalidInput)
 	}
 
-	collectionPath := r.getPropertiesCollection(tenantID)
-	if err := r.DeleteDocument(ctx, collectionPath, id); err != nil {
+	if err := r.DeleteDocument(ctx, "properties", id); err != nil {
 		return fmt.Errorf("failed to delete property: %w", err)
 	}
 	return nil
@@ -203,7 +206,7 @@ func (r *PropertyRepository) List(ctx context.Context, tenantID string, filters 
 	}
 
 	collectionPath := r.getPropertiesCollection(tenantID)
-	query := r.Client().Collection(collectionPath).Query
+	query := r.Client().Collection(collectionPath).Where("tenant_id", "==", tenantID)
 
 	// Apply filters if provided
 	if filters != nil {
@@ -242,7 +245,12 @@ func (r *PropertyRepository) List(ctx context.Context, tenantID string, filters 
 		}
 	}
 
-	query = r.ApplyPagination(query, opts)
+	// Apply pagination limit only (skip ordering to avoid index requirement)
+	if opts.Limit > 0 {
+		query = query.Limit(opts.Limit)
+	}
+	// TODO: Re-enable ordering after creating composite indexes
+	// query = r.ApplyPagination(query, opts)
 
 	iter := query.Documents(ctx)
 	defer iter.Stop()

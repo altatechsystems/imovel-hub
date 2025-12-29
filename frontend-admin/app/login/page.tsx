@@ -52,6 +52,7 @@ export default function LoginPage() {
       localStorage.setItem('broker_id', data.broker.id);
       localStorage.setItem('broker_role', data.broker.role);
       localStorage.setItem('broker_name', data.broker.name);
+      localStorage.setItem('is_platform_admin', data.is_platform_admin ? 'true' : 'false');
 
       router.push('/dashboard');
     } catch (err: any) {

@@ -15,8 +15,9 @@ export default function PropertiesPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = React.useState<PropertyFilters>({
-    status: PropertyStatus.AVAILABLE,
-    visibility: PropertyVisibility.PUBLIC,
+    // Removed default filters to avoid Firestore composite index requirement
+    // status: PropertyStatus.AVAILABLE,
+    // visibility: PropertyVisibility.PUBLIC,
   });
 
   React.useEffect(() => {
@@ -27,7 +28,7 @@ export default function PropertiesPage() {
     try {
       setIsLoading(true);
       const result = await api.getProperties(filters, { limit: 50 });
-      setProperties(result.data);
+      setProperties(result.data || []);
     } catch (error) {
       console.error('Failed to load properties:', error);
     } finally {
@@ -37,8 +38,7 @@ export default function PropertiesPage() {
 
   const handleClearFilters = () => {
     setFilters({
-      status: PropertyStatus.AVAILABLE,
-      visibility: PropertyVisibility.PUBLIC,
+      // Cleared all filters to show all properties
     });
   };
 

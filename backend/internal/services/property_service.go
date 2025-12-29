@@ -15,6 +15,7 @@ import (
 // PropertyService handles business logic for property management
 type PropertyService struct {
 	propertyRepo    *repositories.PropertyRepository
+	listingRepo     *repositories.ListingRepository
 	ownerRepo       *repositories.OwnerRepository
 	tenantRepo      *repositories.TenantRepository
 	activityLogRepo *repositories.ActivityLogRepository
@@ -23,12 +24,14 @@ type PropertyService struct {
 // NewPropertyService creates a new property service
 func NewPropertyService(
 	propertyRepo *repositories.PropertyRepository,
+	listingRepo *repositories.ListingRepository,
 	ownerRepo *repositories.OwnerRepository,
 	tenantRepo *repositories.TenantRepository,
 	activityLogRepo *repositories.ActivityLogRepository,
 ) *PropertyService {
 	return &PropertyService{
 		propertyRepo:    propertyRepo,
+		listingRepo:     listingRepo,
 		ownerRepo:       ownerRepo,
 		tenantRepo:      tenantRepo,
 		activityLogRepo: activityLogRepo,
@@ -141,6 +144,9 @@ func (s *PropertyService) GetProperty(ctx context.Context, tenantID, id string) 
 		return nil, fmt.Errorf("failed to get property: %w", err)
 	}
 
+	// Populate photos from canonical listing
+	s.populatePropertyPhotos(ctx, tenantID, property)
+
 	return property, nil
 }
 
@@ -158,7 +164,29 @@ func (s *PropertyService) GetPropertyBySlug(ctx context.Context, tenantID, slug 
 		return nil, fmt.Errorf("failed to get property by slug: %w", err)
 	}
 
+	// Populate photos from canonical listing
+	s.populatePropertyPhotos(ctx, tenantID, property)
+
 	return property, nil
+}
+
+// populatePropertyPhotos populates cover_image_url and images from canonical listing
+func (s *PropertyService) populatePropertyPhotos(ctx context.Context, tenantID string, property *models.Property) {
+	if property == nil || property.CanonicalListingID == "" {
+		return
+	}
+
+	// Get canonical listing to fetch photos
+	listing, err := s.listingRepo.Get(ctx, tenantID, property.CanonicalListingID)
+	if err != nil || listing == nil || len(listing.Photos) == 0 {
+		return
+	}
+
+	// Set cover image URL (first photo thumb)
+	property.CoverImageURL = listing.Photos[0].ThumbURL
+
+	// Populate images array for detail page (copy all photos)
+	property.Images = listing.Photos
 }
 
 // UpdateProperty updates a property with validation
@@ -285,6 +313,21 @@ func (s *PropertyService) ListProperties(ctx context.Context, tenantID string, f
 	properties, err := s.propertyRepo.List(ctx, tenantID, filters, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list properties: %w", err)
+	}
+
+	// Populate cover image URL from canonical listing
+	for _, property := range properties {
+		if property.CanonicalListingID != "" {
+			// Get listing to fetch first photo
+			listing, err := s.listingRepo.Get(ctx, tenantID, property.CanonicalListingID)
+			if err != nil {
+				// Log error but don't fail the whole request
+				continue
+			}
+			if listing != nil && len(listing.Photos) > 0 {
+				property.CoverImageURL = listing.Photos[0].ThumbURL
+			}
+		}
 	}
 
 	return properties, nil

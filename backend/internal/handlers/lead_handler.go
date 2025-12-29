@@ -23,7 +23,7 @@ func NewLeadHandler(leadService *services.LeadService) *LeadHandler {
 
 // RegisterRoutes registers lead routes (tenant-scoped)
 func (h *LeadHandler) RegisterRoutes(router *gin.RouterGroup) {
-	leads := router.Group("/:tenant_id/leads")
+	leads := router.Group("/leads")
 	{
 		leads.POST("", h.CreateLead)
 		leads.GET("/:id", h.GetLead)

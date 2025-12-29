@@ -23,7 +23,7 @@ func NewListingHandler(listingService *services.ListingService) *ListingHandler 
 
 // RegisterRoutes registers listing routes (tenant-scoped)
 func (h *ListingHandler) RegisterRoutes(router *gin.RouterGroup) {
-	listings := router.Group("/:tenant_id/listings")
+	listings := router.Group("/listings")
 	{
 		listings.POST("", h.CreateListing)
 		listings.GET("/:id", h.GetListing)

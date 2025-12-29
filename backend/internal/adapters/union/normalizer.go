@@ -90,9 +90,17 @@ func NormalizeProperty(xml *XMLImovel, xls *XLSRecord, tenantID string) Property
 	// Determine visibility (default: network for imports)
 	visibility := models.PropertyVisibilityNetwork
 
+	// Extract photo URLs from XMLFoto structs
+	photoURLs := make([]string, 0, len(xml.Fotos))
+	for _, foto := range xml.Fotos {
+		if foto.URL != "" {
+			photoURLs = append(photoURLs, foto.URL)
+		}
+	}
+
 	// Determine data completeness
 	dataCompleteness := "partial"
-	if xml.Titulo != "" && xml.Anuncioparainternet != "" && len(xml.Fotos) > 0 {
+	if xml.Titulo != "" && xml.Anuncioparainternet != "" && len(photoURLs) > 0 {
 		dataCompleteness = "complete"
 	}
 
@@ -160,7 +168,7 @@ func NormalizeProperty(xml *XMLImovel, xls *XLSRecord, tenantID string) Property
 	payload := PropertyPayload{
 		Property: property,
 		Owner:    owner,
-		Photos:   xml.Fotos,
+		Photos:   photoURLs,
 	}
 
 	return payload

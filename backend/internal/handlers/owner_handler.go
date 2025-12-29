@@ -23,7 +23,7 @@ func NewOwnerHandler(ownerService *services.OwnerService) *OwnerHandler {
 
 // RegisterRoutes registers owner routes (tenant-scoped)
 func (h *OwnerHandler) RegisterRoutes(router *gin.RouterGroup) {
-	owners := router.Group("/:tenant_id/owners")
+	owners := router.Group("/owners")
 	{
 		owners.POST("", h.CreateOwner)
 		owners.GET("/:id", h.GetOwner)

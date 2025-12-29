@@ -48,11 +48,14 @@ type ImportResponse struct {
 // Accepts multipart form with XML and optional XLS files
 func (h *ImportHandler) ImportFromFiles(c *gin.Context) {
 	// Get tenant ID from middleware
-	tenantID, exists := c.Get(middleware.TenantIDKey)
+	log.Printf("🔍 Checking for TenantID in context with key: %s", string(middleware.TenantIDKey))
+	tenantID, exists := c.Get(string(middleware.TenantIDKey))
 	if !exists {
+		log.Printf("❌ TenantID not found in context!")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
+	log.Printf("✅ TenantID found: %v", tenantID)
 
 	// Parse multipart form
 	if err := c.Request.ParseMultipartForm(50 << 20); err != nil { // 50 MB max
@@ -166,6 +169,15 @@ func (h *ImportHandler) processImport(ctx context.Context, batch *models.ImportB
 
 	batch.TotalXMLRecords = len(xmlData.Imoveis)
 
+	// Debug: Log photo count in first property from XML
+	if len(xmlData.Imoveis) > 0 {
+		firstProp := xmlData.Imoveis[0]
+		log.Printf("🔍 DEBUG XML: First property %s has %d Foto tags in raw XML", firstProp.Referencia, len(firstProp.Fotos))
+		if len(firstProp.Fotos) > 0 {
+			log.Printf("   First Foto: URL='%s', Principal=%d", firstProp.Fotos[0].URL, firstProp.Fotos[0].Principal)
+		}
+	}
+
 	// Parse XLS if provided
 	var xlsRecords []union.XLSRecord
 	if xlsPath != "" {
@@ -186,6 +198,14 @@ func (h *ImportHandler) processImport(ctx context.Context, batch *models.ImportB
 
 		// Normalize to PropertyPayload
 		payload := union.NormalizeProperty(&xmlImovel, xlsRecord, batch.TenantID)
+
+		// Debug: Log photo count
+		if i < 3 { // Only log first 3 properties to avoid spam
+			log.Printf("🖼️  Property %s has %d photos in payload", xmlImovel.Referencia, len(payload.Photos))
+			if len(payload.Photos) > 0 {
+				log.Printf("   First photo URL: %s", payload.Photos[0])
+			}
+		}
 
 		// Import property
 		if err := h.importService.ImportProperty(ctx, batch, payload); err != nil {
@@ -212,16 +232,23 @@ func (h *ImportHandler) processImport(ctx context.Context, batch *models.ImportB
 	}
 }
 
-// GetImportStatus handles GET /api/v1/tenants/{tenantId}/import/{batchId}
+// GetImportStatus handles GET /api/v1/admin/:tenant_id/import/batches/:batchId
 func (h *ImportHandler) GetImportStatus(c *gin.Context) {
+	ctx := context.Background()
 	batchID := c.Param("batchId")
 
-	// TODO: Implement batch status retrieval from Firestore
-	// For now, return a simple response
-	c.JSON(http.StatusOK, gin.H{
-		"batch_id": batchID,
-		"status":   "Check Firestore console for batch status",
-	})
+	// Get batch from Firestore
+	batch, err := h.importService.GetBatch(ctx, batchID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Batch not found",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, batch)
 }
 
 // saveUploadedFile saves an uploaded file to disk

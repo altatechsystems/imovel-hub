@@ -50,7 +50,7 @@ func main() {
 	log.Println("Repositories initialized")
 
 	// Initialize services
-	services := initializeServices(ctx, cfg, repos)
+	services := initializeServices(ctx, cfg, repos, firestoreClient)
 	log.Println("Services initialized")
 
 	// Initialize handlers
@@ -168,10 +168,11 @@ type Services struct {
 	LeadService               *services.LeadService
 	ActivityLogService        *services.ActivityLogService
 	StorageService            *storage.StorageService
+	ImportService             *services.ImportService
 }
 
 // initializeServices initializes all services
-func initializeServices(ctx context.Context, cfg *config.Config, repos *Repositories) *Services {
+func initializeServices(ctx context.Context, cfg *config.Config, repos *Repositories, client *firestore.Client) *Services {
 	// Initialize Storage service
 	storageService, err := storage.NewStorageService(
 		ctx,
@@ -181,6 +182,22 @@ func initializeServices(ctx context.Context, cfg *config.Config, repos *Reposito
 	if err != nil {
 		log.Printf("Warning: Failed to initialize Storage service: %v", err)
 		// Continue without storage service for now
+	}
+
+	// Initialize GCSClient for photo processing
+	// Use empty credentials file since Firebase already initialized with credentials
+	var importService *services.ImportService
+	gcsClient, err := storage.NewGCSClient(ctx, cfg.FirebaseProjectID, cfg.GCSBucketName, "")
+	if err == nil && gcsClient != nil {
+		photoProcessor := services.NewPhotoProcessor(gcsClient)
+		importService = services.NewImportServiceWithPhotos(client, photoProcessor)
+		log.Println("✅ ImportService initialized with photo processing enabled")
+	} else {
+		if err != nil {
+			log.Printf("⚠️  Failed to initialize GCSClient for photos: %v", err)
+		}
+		importService = services.NewImportService(client)
+		log.Println("⚠️  ImportService initialized WITHOUT photo processing")
 	}
 
 	return &Services{
@@ -200,6 +217,7 @@ func initializeServices(ctx context.Context, cfg *config.Config, repos *Reposito
 		),
 		PropertyService: services.NewPropertyService(
 			repos.PropertyRepo,
+			repos.ListingRepo,
 			repos.OwnerRepo,
 			repos.TenantRepo,
 			repos.ActivityLogRepo,
@@ -230,6 +248,7 @@ func initializeServices(ctx context.Context, cfg *config.Config, repos *Reposito
 			repos.TenantRepo,
 		),
 		StorageService: storageService,
+		ImportService:  importService,
 	}
 }
 
@@ -245,6 +264,7 @@ type Handlers struct {
 	LeadHandler               *handlers.LeadHandler
 	ActivityLogHandler        *handlers.ActivityLogHandler
 	StorageHandler            *handlers.StorageHandler
+	ImportHandler             *handlers.ImportHandler
 }
 
 // initializeHandlers initializes all handlers
@@ -265,6 +285,7 @@ func initializeHandlers(authClient *auth.Client, firestoreClient *firestore.Clie
 		LeadHandler:               handlers.NewLeadHandler(services.LeadService),
 		ActivityLogHandler:        handlers.NewActivityLogHandler(services.ActivityLogService),
 		StorageHandler:            storageHandler,
+		ImportHandler:             handlers.NewImportHandler(services.ImportService),
 	}
 }
 
@@ -336,7 +357,7 @@ func setupRouter(cfg *config.Config, handlers *Handlers, authMiddleware *middlew
 	protected := api.Group("/admin")
 	protected.Use(authMiddleware.AuthRequired())
 	{
-		tenantScoped := protected.Group("")
+		tenantScoped := protected.Group("/:tenant_id")
 		tenantScoped.Use(tenantMiddleware.ValidateTenant())
 		{
 			// Admin-only routes
@@ -347,6 +368,12 @@ func setupRouter(cfg *config.Config, handlers *Handlers, authMiddleware *middlew
 			handlers.ActivityLogHandler.RegisterRoutes(tenantScoped)
 			if handlers.StorageHandler != nil {
 				handlers.StorageHandler.RegisterRoutes(tenantScoped)
+			}
+
+			// Import routes
+			if handlers.ImportHandler != nil {
+				tenantScoped.POST("/import/properties", handlers.ImportHandler.ImportFromFiles)
+				tenantScoped.GET("/import/batches/:batchId", handlers.ImportHandler.GetImportStatus)
 			}
 		}
 	}

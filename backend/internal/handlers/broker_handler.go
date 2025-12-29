@@ -23,7 +23,7 @@ func NewBrokerHandler(brokerService *services.BrokerService) *BrokerHandler {
 
 // RegisterRoutes registers broker routes (tenant-scoped)
 func (h *BrokerHandler) RegisterRoutes(router *gin.RouterGroup) {
-	brokers := router.Group("/:tenant_id/brokers")
+	brokers := router.Group("/brokers")
 	{
 		brokers.POST("", h.CreateBroker)
 		brokers.GET("/:id", h.GetBroker)

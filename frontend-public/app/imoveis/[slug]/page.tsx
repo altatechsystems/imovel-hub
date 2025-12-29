@@ -167,7 +167,7 @@ export default function PropertyDetailsPage() {
           {property.images && property.images.length > 0 ? (
             <>
               <Image
-                src={property.images[currentImageIndex]?.url || property.cover_image_url || '/placeholder-property.jpg'}
+                src={property.images[currentImageIndex]?.large_url || property.cover_image_url || '/placeholder-property.jpg'}
                 alt={property.title || 'Imóvel'}
                 fill
                 className="object-cover"

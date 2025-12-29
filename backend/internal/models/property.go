@@ -51,7 +51,9 @@ type Property struct {
 	PendingReason      string             `firestore:"pending_reason,omitempty" json:"pending_reason,omitempty"` // stale_status, stale_price, owner_reported
 
 	// Canonical Listing
-	CanonicalListingID string `firestore:"canonical_listing_id,omitempty" json:"canonical_listing_id,omitempty"` // ref Listing
+	CanonicalListingID string  `firestore:"canonical_listing_id,omitempty" json:"canonical_listing_id,omitempty"` // ref Listing
+	CoverImageURL      string  `firestore:"-" json:"cover_image_url,omitempty"`                                   // Computed field from listing photos
+	Images             []Photo `firestore:"-" json:"images,omitempty"`                                            // Computed field from listing photos
 
 	// Deduplicação
 	Fingerprint       string `firestore:"fingerprint" json:"fingerprint"` // hash(street+number+city+property_type+area)
