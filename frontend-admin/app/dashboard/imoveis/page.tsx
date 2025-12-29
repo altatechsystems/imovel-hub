@@ -93,6 +93,10 @@ export default function ImoveisPage() {
     available: properties.filter(p => p.status?.toLowerCase() === 'available').length,
     apartments: properties.filter(p => p.property_type?.toLowerCase() === 'apartment').length,
     houses: properties.filter(p => p.property_type?.toLowerCase() === 'house').length,
+    chacaras: properties.filter(p => p.reference?.toUpperCase().startsWith('CH')).length,
+    terrenos: properties.filter(p => p.reference?.toUpperCase().startsWith('TE')).length,
+    fazendas: properties.filter(p => p.reference?.toUpperCase().startsWith('FA')).length,
+    sitios: properties.filter(p => p.reference?.toUpperCase().startsWith('ST')).length,
   }), [properties]);
 
   const filteredProperties = useMemo(() =>
@@ -143,13 +147,7 @@ export default function ImoveisPage() {
 
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Imóveis</h1>
-        <p className="text-gray-600">Gerencie todos os imóveis cadastrados</p>
-      </div>
-
-      {/* Stats Cards */}
+      {/* Stats Cards - Two rows */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between">
@@ -201,6 +199,62 @@ export default function ImoveisPage() {
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <Building2 className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Chácaras</p>
+              <p className="text-2xl font-bold text-teal-600">
+                {stats.chacaras}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-teal-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Terrenos</p>
+              <p className="text-2xl font-bold text-amber-600">
+                {stats.terrenos}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-amber-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Fazendas</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {stats.fazendas}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Sítios</p>
+              <p className="text-2xl font-bold text-lime-600">
+                {stats.sitios}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-lime-100 rounded-lg flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-lime-600" />
             </div>
           </div>
         </div>
