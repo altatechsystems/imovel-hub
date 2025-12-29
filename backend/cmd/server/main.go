@@ -168,6 +168,7 @@ type Services struct {
 	LeadService               *services.LeadService
 	ActivityLogService        *services.ActivityLogService
 	StorageService            *storage.StorageService
+	PhotoProcessor            *services.PhotoProcessor
 	ImportService             *services.ImportService
 }
 
@@ -187,9 +188,10 @@ func initializeServices(ctx context.Context, cfg *config.Config, repos *Reposito
 	// Initialize GCSClient for photo processing
 	// Use empty credentials file since Firebase already initialized with credentials
 	var importService *services.ImportService
+	var photoProcessor *services.PhotoProcessor
 	gcsClient, err := storage.NewGCSClient(ctx, cfg.FirebaseProjectID, cfg.GCSBucketName, "")
 	if err == nil && gcsClient != nil {
-		photoProcessor := services.NewPhotoProcessor(gcsClient)
+		photoProcessor = services.NewPhotoProcessor(gcsClient)
 		importService = services.NewImportServiceWithPhotos(client, photoProcessor)
 		log.Println("✅ ImportService initialized with photo processing enabled")
 	} else {
@@ -248,6 +250,7 @@ func initializeServices(ctx context.Context, cfg *config.Config, repos *Reposito
 			repos.TenantRepo,
 		),
 		StorageService: storageService,
+		PhotoProcessor: photoProcessor,
 		ImportService:  importService,
 	}
 }
@@ -271,7 +274,7 @@ type Handlers struct {
 func initializeHandlers(authClient *auth.Client, firestoreClient *firestore.Client, services *Services) *Handlers {
 	var storageHandler *handlers.StorageHandler
 	if services.StorageService != nil {
-		storageHandler = handlers.NewStorageHandler(services.StorageService)
+		storageHandler = handlers.NewStorageHandler(services.StorageService, services.PhotoProcessor)
 	}
 
 	return &Handlers{

@@ -1,21 +1,42 @@
 package handlers
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 
+	"github.com/altatech/ecosistema-imob/backend/internal/services"
 	"github.com/altatech/ecosistema-imob/backend/internal/storage"
 	"github.com/gin-gonic/gin"
 )
 
+// multipartFileWrapper wraps bytes.Reader to implement multipart.File
+type multipartFileWrapper struct {
+	*bytes.Reader
+}
+
+func (m *multipartFileWrapper) Close() error {
+	return nil
+}
+
+// bytesToMultipartFile converts bytes to multipart.File
+func bytesToMultipartFile(data []byte) multipart.File {
+	return &multipartFileWrapper{bytes.NewReader(data)}
+}
+
 // StorageHandler handles storage-related HTTP requests
 type StorageHandler struct {
 	storageService *storage.StorageService
+	photoProcessor *services.PhotoProcessor
 }
 
 // NewStorageHandler creates a new storage handler
-func NewStorageHandler(storageService *storage.StorageService) *StorageHandler {
+func NewStorageHandler(storageService *storage.StorageService, photoProcessor *services.PhotoProcessor) *StorageHandler {
 	return &StorageHandler{
 		storageService: storageService,
+		photoProcessor: photoProcessor,
 	}
 }
 
@@ -31,15 +52,16 @@ func (h *StorageHandler) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
-// UploadImage handles image upload
+// UploadImage handles image upload with automatic photo processing
 // @Summary Upload property image
-// @Description Upload an image for a property
+// @Description Upload an image for a property (automatically processes into 3 sizes: thumb, medium, large)
 // @Tags storage
 // @Accept multipart/form-data
 // @Produce json
 // @Param tenant_id path string true "Tenant ID"
 // @Param property_id path string true "Property ID"
 // @Param file formData file true "Image file (JPEG, PNG, or WebP, max 10MB)"
+// @Param order formData int false "Display order (0-based, default: 0)"
 // @Success 201 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 413 {object} map[string]interface{}
@@ -94,12 +116,61 @@ func (h *StorageHandler) UploadImage(c *gin.Context) {
 		return
 	}
 
-	// Upload image
-	metadata, err := h.storageService.UploadPropertyImage(
+	// Get optional order parameter
+	order := 0
+	if orderStr := c.PostForm("order"); orderStr != "" {
+		var orderVal int
+		if _, err := fmt.Sscanf(orderStr, "%d", &orderVal); err == nil {
+			order = orderVal
+		}
+	}
+
+	// Check if photo processor is available
+	if h.photoProcessor == nil {
+		// Fallback to simple upload without processing
+		metadata, err := h.storageService.UploadPropertyImage(
+			c.Request.Context(),
+			tenantID,
+			propertyID,
+			file,
+			header,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"data":    metadata,
+		})
+		return
+	}
+
+	// Read file into memory for processing
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "failed to read uploaded file",
+		})
+		return
+	}
+
+	// Create a temporary HTTP server to serve the file for PhotoProcessor
+	// PhotoProcessor expects a URL, so we need to upload to GCS first, then process
+	// Alternative: Modify PhotoProcessor to accept byte data directly
+	// For now, upload original file first, then process it
+
+	// Upload original file temporarily
+	originalMetadata, err := h.storageService.UploadPropertyImage(
 		c.Request.Context(),
 		tenantID,
 		propertyID,
-		file,
+		bytesToMultipartFile(fileBytes),
 		header,
 	)
 	if err != nil {
@@ -110,9 +181,37 @@ func (h *StorageHandler) UploadImage(c *gin.Context) {
 		return
 	}
 
+	// Process photo using the uploaded URL
+	photo, err := h.photoProcessor.ProcessPhoto(
+		c.Request.Context(),
+		tenantID,
+		propertyID,
+		originalMetadata.URL,
+		order,
+	)
+	if err != nil {
+		// Photo processing failed, but we have the original upload
+		// Return the original upload info
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"data":    originalMetadata,
+			"warning": "Photo uploaded but processing failed: " + err.Error(),
+		})
+		return
+	}
+
+	// Return processed photo info
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data":    metadata,
+		"data": gin.H{
+			"id":         photo.ID,
+			"thumb_url":  photo.ThumbURL,
+			"medium_url": photo.MediumURL,
+			"large_url":  photo.LargeURL,
+			"url":        photo.URL,
+			"order":      photo.Order,
+			"is_cover":   photo.IsCover,
+		},
 	})
 }
 
