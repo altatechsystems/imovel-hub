@@ -14,6 +14,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -60,7 +61,12 @@ const menuItems = [
   },
 ];
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function AdminSidebar({ isOpen = true, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
 
   const handleLogout = async () => {
@@ -72,18 +78,52 @@ export function AdminSidebar() {
     }
   };
 
+  const handleLinkClick = () => {
+    // Close sidebar on mobile when a link is clicked
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <aside className="w-64 bg-gray-900 text-white flex flex-col">
+    <>
+      {/* Backdrop for mobile and tablet */}
+      {isOpen && onClose && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 xl:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed xl:static inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white flex flex-col transform transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "-translate-x-full xl:translate-x-0"
+        )}
+      >
       {/* Logo */}
       <div className="p-6 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Home className="w-6 h-6" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Home className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold">Admin</h1>
+              <p className="text-xs text-gray-400">Imobiliária</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold">Admin</h1>
-            <p className="text-xs text-gray-400">Imobiliária</p>
-          </div>
+          {/* Close button for mobile and tablet */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="xl:hidden p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="Fechar menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -101,6 +141,7 @@ export function AdminSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={handleLinkClick}
               className={cn(
                 'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
                 isActive
@@ -126,5 +167,6 @@ export function AdminSidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

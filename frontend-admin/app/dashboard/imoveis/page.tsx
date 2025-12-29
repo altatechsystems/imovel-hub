@@ -179,171 +179,172 @@ export default function ImoveisPage() {
   }, [hasMore, loading, itemsPerPage]);
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       {/* Stats Cards - Compact */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3 mb-4 sm:mb-6">
         <button
           onClick={() => setTypeFilter('all')}
-          className={`bg-white rounded-lg shadow-sm p-3 text-left transition-all hover:shadow-md ${
+          className={`bg-white rounded-lg shadow-sm p-2 sm:p-3 text-left transition-all hover:shadow-md ${
             typeFilter === 'all' ? 'ring-2 ring-blue-500' : ''
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-4 h-4 text-blue-600" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-600">Total</p>
-              <p className="text-lg font-bold text-gray-900">{stats.total}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">Total</p>
+              <p className="text-base sm:text-lg font-bold text-gray-900">{stats.total}</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => setTypeFilter('available')}
-          className={`bg-white rounded-lg shadow-sm p-3 text-left transition-all hover:shadow-md ${
+          className={`bg-white rounded-lg shadow-sm p-2 sm:p-3 text-left transition-all hover:shadow-md ${
             typeFilter === 'available' ? 'ring-2 ring-green-500' : ''
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-4 h-4 text-green-600" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-100 rounded flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-600">Disponíveis</p>
-              <p className="text-lg font-bold text-green-600">{stats.available}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">Disponíveis</p>
+              <p className="text-base sm:text-lg font-bold text-green-600">{stats.available}</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => setTypeFilter('apartment')}
-          className={`bg-white rounded-lg shadow-sm p-3 text-left transition-all hover:shadow-md ${
+          className={`bg-white rounded-lg shadow-sm p-2 sm:p-3 text-left transition-all hover:shadow-md ${
             typeFilter === 'apartment' ? 'ring-2 ring-orange-500' : ''
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-4 h-4 text-orange-600" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-orange-100 rounded flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-600">Aptos</p>
-              <p className="text-lg font-bold text-orange-600">{stats.apartments}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">Aptos</p>
+              <p className="text-base sm:text-lg font-bold text-orange-600">{stats.apartments}</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => setTypeFilter('house')}
-          className={`bg-white rounded-lg shadow-sm p-3 text-left transition-all hover:shadow-md ${
+          className={`bg-white rounded-lg shadow-sm p-2 sm:p-3 text-left transition-all hover:shadow-md ${
             typeFilter === 'house' ? 'ring-2 ring-purple-500' : ''
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-purple-100 rounded flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-4 h-4 text-purple-600" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-purple-100 rounded flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-600">Casas</p>
-              <p className="text-lg font-bold text-purple-600">{stats.houses}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">Casas</p>
+              <p className="text-base sm:text-lg font-bold text-purple-600">{stats.houses}</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => setTypeFilter('chacara')}
-          className={`bg-white rounded-lg shadow-sm p-3 text-left transition-all hover:shadow-md ${
+          className={`bg-white rounded-lg shadow-sm p-2 sm:p-3 text-left transition-all hover:shadow-md ${
             typeFilter === 'chacara' ? 'ring-2 ring-teal-500' : ''
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-teal-100 rounded flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-4 h-4 text-teal-600" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-teal-100 rounded flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-600">Chácaras</p>
-              <p className="text-lg font-bold text-teal-600">{stats.chacaras}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">Chácaras</p>
+              <p className="text-base sm:text-lg font-bold text-teal-600">{stats.chacaras}</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => setTypeFilter('terreno')}
-          className={`bg-white rounded-lg shadow-sm p-3 text-left transition-all hover:shadow-md ${
+          className={`bg-white rounded-lg shadow-sm p-2 sm:p-3 text-left transition-all hover:shadow-md ${
             typeFilter === 'terreno' ? 'ring-2 ring-amber-500' : ''
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-amber-100 rounded flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-4 h-4 text-amber-600" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-amber-100 rounded flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-600">Terrenos</p>
-              <p className="text-lg font-bold text-amber-600">{stats.terrenos}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">Terrenos</p>
+              <p className="text-base sm:text-lg font-bold text-amber-600">{stats.terrenos}</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => setTypeFilter('fazenda')}
-          className={`bg-white rounded-lg shadow-sm p-3 text-left transition-all hover:shadow-md ${
+          className={`bg-white rounded-lg shadow-sm p-2 sm:p-3 text-left transition-all hover:shadow-md ${
             typeFilter === 'fazenda' ? 'ring-2 ring-emerald-500' : ''
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-emerald-100 rounded flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-4 h-4 text-emerald-600" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-emerald-100 rounded flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-600">Fazendas</p>
-              <p className="text-lg font-bold text-emerald-600">{stats.fazendas}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">Fazendas</p>
+              <p className="text-base sm:text-lg font-bold text-emerald-600">{stats.fazendas}</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => setTypeFilter('sitio')}
-          className={`bg-white rounded-lg shadow-sm p-3 text-left transition-all hover:shadow-md ${
+          className={`bg-white rounded-lg shadow-sm p-2 sm:p-3 text-left transition-all hover:shadow-md ${
             typeFilter === 'sitio' ? 'ring-2 ring-lime-500' : ''
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-lime-100 rounded flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-4 h-4 text-lime-600" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-lime-100 rounded flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-lime-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-600">Sítios</p>
-              <p className="text-lg font-bold text-lime-600">{stats.sitios}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">Sítios</p>
+              <p className="text-base sm:text-lg font-bold text-lime-600">{stats.sitios}</p>
             </div>
           </div>
         </button>
       </div>
 
       {/* Actions Bar */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
+      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-between">
           {/* Search */}
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
             <input
               type="text"
-              placeholder="Buscar imóveis por endereço, código, proprietário..."
+              placeholder="Buscar imóveis..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           {/* Filter Button */}
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-            <Filter className="w-5 h-5" />
-            Filtros
+          <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base">
+            <Filter className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Filtros</span>
           </button>
 
           {/* Add Button */}
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            <Plus className="w-5 h-5" />
-            Novo Imóvel
+          <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base">
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Novo Imóvel</span>
+            <span className="sm:hidden">Novo</span>
           </button>
         </div>
       </div>
@@ -393,7 +394,7 @@ export default function ImoveisPage() {
       {/* Properties Grid */}
       {!loading && !error && filteredProperties.length > 0 && (
         <>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
           {displayedProperties.map((property) => (
             <div key={property.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
               {/* Property Image */}

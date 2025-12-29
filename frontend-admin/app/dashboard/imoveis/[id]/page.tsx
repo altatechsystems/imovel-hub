@@ -48,6 +48,13 @@ interface Property {
   canonical_listing_id?: string;
 }
 
+interface Listing {
+  id: string;
+  title?: string;
+  description?: string;
+  photos?: Photo[];
+}
+
 interface Photo {
   id: string;
   url: string;
@@ -64,6 +71,7 @@ export default function PropertyDetailPage() {
   const propertyId = params?.id as string;
 
   const [property, setProperty] = useState<Property | null>(null);
+  const [listing, setListing] = useState<Listing | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -132,12 +140,18 @@ export default function PropertyDetailPage() {
 
       if (response.ok) {
         const listingData = await response.json();
-        if (listingData.success && listingData.data?.photos) {
-          setPhotos(listingData.data.photos);
+        console.log('Listing data:', listingData);
+        if (listingData.success && listingData.data) {
+          // Store the full listing data
+          setListing(listingData.data);
+          // Set photos if available
+          if (listingData.data.photos) {
+            setPhotos(listingData.data.photos);
+          }
         }
       }
     } catch (error) {
-      console.error('Error fetching photos:', error);
+      console.error('Error fetching listing:', error);
     }
   };
 
@@ -231,7 +245,7 @@ export default function PropertyDetailPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="mb-6">
         <button
@@ -239,26 +253,27 @@ export default function PropertyDetailPage() {
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeft className="w-5 h-5" />
-          Voltar para lista
+          <span className="hidden sm:inline">Voltar para lista</span>
+          <span className="sm:hidden">Voltar</span>
         </button>
 
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">
               {property.reference || property.slug || 'Imóvel'}
             </h1>
-            <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(property.status || 'available')}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium ${getStatusColor(property.status || 'available')}`}>
                 {getStatusLabel(property.status || 'available')}
               </span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">
+              <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs md:text-sm font-medium">
                 {getPropertyTypeLabel(property.property_type || '')}
               </span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">
+              <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs md:text-sm font-medium">
                 {getTransactionTypeLabel(property.transaction_type || '')}
               </span>
               {property.featured && (
-                <span className="px-3 py-1 bg-yellow-100 text-yellow-600 rounded-full text-sm font-medium">
+                <span className="px-3 py-1 bg-yellow-100 text-yellow-600 rounded-full text-xs md:text-sm font-medium">
                   Destaque
                 </span>
               )}
@@ -268,10 +283,10 @@ export default function PropertyDetailPage() {
           <div className="flex gap-2">
             <button
               onClick={() => router.push(`/dashboard/imoveis/${propertyId}/editar`)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm md:text-base"
             >
-              <Edit className="w-5 h-5" />
-              Editar
+              <Edit className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline">Editar</span>
             </button>
             <button
               onClick={() => {
@@ -280,10 +295,10 @@ export default function PropertyDetailPage() {
                   console.log('Excluir imóvel:', propertyId);
                 }
               }}
-              className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm md:text-base"
             >
-              <Trash2 className="w-5 h-5" />
-              Excluir
+              <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline">Excluir</span>
             </button>
           </div>
         </div>
@@ -356,94 +371,99 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Property Details */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Características</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Características</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
               {property.bedrooms && property.bedrooms > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Bed className="w-6 h-6 text-blue-600" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Bed className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{property.bedrooms}</p>
-                    <p className="text-sm text-gray-600">Quartos</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900">{property.bedrooms}</p>
+                    <p className="text-xs md:text-sm text-gray-600">Quartos</p>
                   </div>
                 </div>
               )}
 
               {property.bathrooms && property.bathrooms > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Bath className="w-6 h-6 text-blue-600" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Bath className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{property.bathrooms}</p>
-                    <p className="text-sm text-gray-600">Banheiros</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900">{property.bathrooms}</p>
+                    <p className="text-xs md:text-sm text-gray-600">Banheiros</p>
                   </div>
                 </div>
               )}
 
               {property.suites && property.suites > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Bed className="w-6 h-6 text-purple-600" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Bed className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{property.suites}</p>
-                    <p className="text-sm text-gray-600">Suítes</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900">{property.suites}</p>
+                    <p className="text-xs md:text-sm text-gray-600">Suítes</p>
                   </div>
                 </div>
               )}
 
               {property.parking_spaces && property.parking_spaces > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Car className="w-6 h-6 text-green-600" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Car className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{property.parking_spaces}</p>
-                    <p className="text-sm text-gray-600">Vagas</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900">{property.parking_spaces}</p>
+                    <p className="text-xs md:text-sm text-gray-600">Vagas</p>
                   </div>
                 </div>
               )}
 
               {property.total_area && property.total_area > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Maximize className="w-6 h-6 text-orange-600" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Maximize className="w-5 h-5 md:w-6 md:h-6 text-orange-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{property.total_area}</p>
-                    <p className="text-sm text-gray-600">m² Total</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900">{property.total_area}</p>
+                    <p className="text-xs md:text-sm text-gray-600">m² Total</p>
                   </div>
                 </div>
               )}
 
               {property.built_area && property.built_area > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Home className="w-6 h-6 text-yellow-600" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Home className="w-5 h-5 md:w-6 md:h-6 text-yellow-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{property.built_area}</p>
-                    <p className="text-sm text-gray-600">m² Construído</p>
+                    <p className="text-xl md:text-2xl font-bold text-gray-900">{property.built_area}</p>
+                    <p className="text-xs md:text-sm text-gray-600">m² Construído</p>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Description */}
-          {property.description && (
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Descrição</h2>
-              <p className="text-gray-600 whitespace-pre-line">{property.description}</p>
+          {/* Description - Show listing description if available, fallback to property description */}
+          {(listing?.description || property.description) && (
+            <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Descrição</h2>
+              {listing?.title && (
+                <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-3">{listing.title}</h3>
+              )}
+              <p className="text-sm md:text-base text-gray-600 whitespace-pre-line leading-relaxed">
+                {listing?.description || property.description}
+              </p>
             </div>
           )}
 
           {/* Location */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Localização</h2>
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Localização</h2>
             <div className="space-y-3">
               {property.street && (
                 <div className="flex items-start gap-2">
@@ -463,24 +483,24 @@ export default function PropertyDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Price Card */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
             <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-5 h-5 text-gray-400" />
-              <span className="text-sm text-gray-600">
+              <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
+              <span className="text-xs md:text-sm text-gray-600">
                 {getTransactionTypeLabel(property.transaction_type || '')}
               </span>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-2xl md:text-3xl font-bold text-gray-900">
               {property.price_amount ? formatPrice(property.price_amount) : 'Sob consulta'}
             </p>
           </div>
 
           {/* Info Card */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="font-bold text-gray-900 mb-4">Informações</h3>
-            <div className="space-y-3 text-sm">
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+            <h3 className="text-base md:text-lg font-bold text-gray-900 mb-4">Informações</h3>
+            <div className="space-y-3 text-xs md:text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-gray-600">Código</span>
                 <span className="font-medium text-gray-900">{property.reference || '-'}</span>
@@ -523,8 +543,8 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Actions Card */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="font-bold text-gray-900 mb-4">Ações Rápidas</h3>
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+            <h3 className="text-base md:text-lg font-bold text-gray-900 mb-4">Ações Rápidas</h3>
             <div className="space-y-2">
               <button
                 onClick={() => {
@@ -532,16 +552,16 @@ export default function PropertyDetailPage() {
                     window.open(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/imoveis/${property.slug}`, '_blank');
                   }
                 }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base"
               >
-                <Eye className="w-5 h-5" />
+                <Eye className="w-4 h-4 md:w-5 md:h-5" />
                 Ver no Site
               </button>
               <button
                 onClick={() => router.push(`/dashboard/imoveis/${propertyId}/editar`)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm md:text-base"
               >
-                <Edit className="w-5 h-5" />
+                <Edit className="w-4 h-4 md:w-5 md:h-5" />
                 Editar Imóvel
               </button>
             </div>

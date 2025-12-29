@@ -47,8 +47,8 @@ export default function DashboardPage() {
         return;
       }
 
-      // Buscar imóveis
-      const propertiesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/${tenantId}/properties`);
+      // Buscar imóveis (com limit alto para pegar todos)
+      const propertiesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/${tenantId}/properties?limit=10000`);
       const propertiesData = await propertiesResponse.json();
       const properties = propertiesData.data || [];
 

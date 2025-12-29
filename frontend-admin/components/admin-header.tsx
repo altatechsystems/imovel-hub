@@ -3,9 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { TenantSelector } from '@/components/tenant-selector';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, Menu } from 'lucide-react';
 
-export function AdminHeader() {
+interface AdminHeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const { user } = useAuth();
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
 
@@ -19,8 +23,19 @@ export function AdminHeader() {
   }, []);
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4">
       <div className="flex items-center justify-between">
+        {/* Hamburger menu for mobile and tablet */}
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            className="xl:hidden p-2 mr-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Abrir menu"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        )}
+
         {/* Search */}
         <div className="flex-1 max-w-2xl">
           <div className="relative">
