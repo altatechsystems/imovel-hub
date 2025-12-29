@@ -21,6 +21,16 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+interface Owner {
+  id: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  document?: string;
+  document_type?: string;
+  owner_status?: string;
+}
+
 interface Property {
   id: string;
   reference?: string;
@@ -46,6 +56,7 @@ interface Property {
   created_at?: string;
   updated_at?: string;
   canonical_listing_id?: string;
+  owner_id?: string;
 }
 
 interface Listing {
@@ -71,10 +82,12 @@ export default function PropertyDetailPage() {
   const propertyId = params?.id as string;
 
   const [property, setProperty] = useState<Property | null>(null);
+  const [owner, setOwner] = useState<Owner | null>(null);
   const [listing, setListing] = useState<Listing | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingOwner, setLoadingOwner] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -110,11 +123,52 @@ export default function PropertyDetailPage() {
       if (propertyData.canonical_listing_id) {
         await fetchPhotos(tenantId, propertyData.canonical_listing_id);
       }
+
+      // Buscar dados do proprietário se existir owner_id
+      if (propertyData.owner_id) {
+        fetchOwnerDetails(tenantId, propertyData.owner_id);
+      }
     } catch (err: any) {
       console.error('Erro ao buscar detalhes:', err);
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOwnerDetails = async (tenantId: string, ownerId: string) => {
+    try {
+      setLoadingOwner(true);
+
+      const { auth } = await import('@/lib/firebase');
+      const user = auth.currentUser;
+
+      if (!user) {
+        console.error('Usuário não autenticado');
+        return;
+      }
+
+      const token = await user.getIdToken(true);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/owners/${ownerId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Erro ao buscar dados do proprietário');
+      }
+
+      const data = await response.json();
+      setOwner(data.data);
+    } catch (err: any) {
+      console.error('Erro ao buscar proprietário:', err);
+    } finally {
+      setLoadingOwner(false);
     }
   };
 
@@ -540,6 +594,80 @@ export default function PropertyDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Owner Card */}
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+            <h3 className="text-base md:text-lg font-bold text-gray-900 mb-4">Proprietário</h3>
+
+            {loadingOwner ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : owner ? (
+              <div className="space-y-3 text-xs md:text-sm">
+                <div>
+                  <label className="block text-gray-600 mb-1">Nome</label>
+                  <p className="font-medium text-gray-900">{owner.name || 'Não informado'}</p>
+                </div>
+
+                {owner.email && (
+                  <div>
+                    <label className="block text-gray-600 mb-1">E-mail</label>
+                    <p className="font-medium text-gray-900">{owner.email}</p>
+                  </div>
+                )}
+
+                {owner.phone && (
+                  <div>
+                    <label className="block text-gray-600 mb-1">Telefone</label>
+                    <p className="font-medium text-gray-900">{owner.phone}</p>
+                  </div>
+                )}
+
+                {owner.document && (
+                  <div>
+                    <label className="block text-gray-600 mb-1">
+                      {owner.document_type === 'cnpj' ? 'CNPJ' : 'CPF'}
+                    </label>
+                    <p className="font-medium text-gray-900">{owner.document}</p>
+                  </div>
+                )}
+
+                {owner.owner_status && (
+                  <div>
+                    <label className="block text-gray-600 mb-1">Status</label>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      owner.owner_status === 'verified' ? 'bg-green-100 text-green-800' :
+                      owner.owner_status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {owner.owner_status === 'verified' ? 'Verificado' :
+                       owner.owner_status === 'partial' ? 'Parcial' :
+                       'Incompleto'}
+                    </span>
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/dashboard/proprietarios/${property?.owner_id}`)}
+                    className="text-xs md:text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    Ver detalhes do proprietário →
+                  </button>
+                </div>
+              </div>
+            ) : property?.owner_id ? (
+              <div className="text-gray-500 text-xs md:text-sm py-4">
+                <p>Erro ao carregar dados do proprietário</p>
+              </div>
+            ) : (
+              <div className="text-gray-500 text-xs md:text-sm py-4">
+                <p>Nenhum proprietário vinculado</p>
+              </div>
+            )}
           </div>
 
           {/* Actions Card */}
