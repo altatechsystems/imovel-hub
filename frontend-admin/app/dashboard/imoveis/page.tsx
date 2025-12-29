@@ -22,6 +22,8 @@ interface Property {
   image_url?: string;
 }
 
+type PropertyTypeFilter = 'all' | 'available' | 'apartment' | 'house' | 'chacara' | 'terreno' | 'fazenda' | 'sitio';
+
 export default function ImoveisPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,6 +31,7 @@ export default function ImoveisPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [displayCount, setDisplayCount] = useState(12);
+  const [typeFilter, setTypeFilter] = useState<PropertyTypeFilter>('all');
   const observerTarget = useRef<HTMLDivElement>(null);
   const itemsPerPage = 12;
 
@@ -99,15 +102,45 @@ export default function ImoveisPage() {
     sitios: properties.filter(p => p.reference?.toUpperCase().startsWith('ST')).length,
   }), [properties]);
 
-  const filteredProperties = useMemo(() =>
-    properties.filter(property =>
-      property.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.street?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.neighborhood?.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-    [properties, searchTerm]
-  );
+  const filteredProperties = useMemo(() => {
+    let filtered = properties;
+
+    // Apply type filter
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(property => {
+        switch (typeFilter) {
+          case 'available':
+            return property.status?.toLowerCase() === 'available';
+          case 'apartment':
+            return property.property_type?.toLowerCase() === 'apartment';
+          case 'house':
+            return property.property_type?.toLowerCase() === 'house';
+          case 'chacara':
+            return property.reference?.toUpperCase().startsWith('CH');
+          case 'terreno':
+            return property.reference?.toUpperCase().startsWith('TE');
+          case 'fazenda':
+            return property.reference?.toUpperCase().startsWith('FA');
+          case 'sitio':
+            return property.reference?.toUpperCase().startsWith('ST');
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Apply search term filter
+    if (searchTerm) {
+      filtered = filtered.filter(property =>
+        property.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.street?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.neighborhood?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [properties, searchTerm, typeFilter]);
 
   // Infinite scroll - show only displayCount items
   const displayedProperties = useMemo(() =>
@@ -117,10 +150,10 @@ export default function ImoveisPage() {
 
   const hasMore = displayCount < filteredProperties.length;
 
-  // Reset display count when search changes
+  // Reset display count when search or filter changes
   useEffect(() => {
     setDisplayCount(12);
-  }, [searchTerm]);
+  }, [searchTerm, typeFilter]);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -149,7 +182,12 @@ export default function ImoveisPage() {
     <div className="p-6">
       {/* Stats Cards - Two rows */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <button
+          onClick={() => setTypeFilter('all')}
+          className={`bg-white rounded-lg shadow-sm p-4 text-left transition-all hover:shadow-md ${
+            typeFilter === 'all' ? 'ring-2 ring-blue-500' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total de Imóveis</p>
@@ -159,9 +197,14 @@ export default function ImoveisPage() {
               <Building2 className="w-6 h-6 text-blue-600" />
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <button
+          onClick={() => setTypeFilter('available')}
+          className={`bg-white rounded-lg shadow-sm p-4 text-left transition-all hover:shadow-md ${
+            typeFilter === 'available' ? 'ring-2 ring-green-500' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Disponíveis</p>
@@ -173,9 +216,14 @@ export default function ImoveisPage() {
               <Building2 className="w-6 h-6 text-green-600" />
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <button
+          onClick={() => setTypeFilter('apartment')}
+          className={`bg-white rounded-lg shadow-sm p-4 text-left transition-all hover:shadow-md ${
+            typeFilter === 'apartment' ? 'ring-2 ring-orange-500' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Apartamentos</p>
@@ -187,9 +235,14 @@ export default function ImoveisPage() {
               <Building2 className="w-6 h-6 text-orange-600" />
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <button
+          onClick={() => setTypeFilter('house')}
+          className={`bg-white rounded-lg shadow-sm p-4 text-left transition-all hover:shadow-md ${
+            typeFilter === 'house' ? 'ring-2 ring-purple-500' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Casas</p>
@@ -201,9 +254,14 @@ export default function ImoveisPage() {
               <Building2 className="w-6 h-6 text-purple-600" />
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <button
+          onClick={() => setTypeFilter('chacara')}
+          className={`bg-white rounded-lg shadow-sm p-4 text-left transition-all hover:shadow-md ${
+            typeFilter === 'chacara' ? 'ring-2 ring-teal-500' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Chácaras</p>
@@ -215,9 +273,14 @@ export default function ImoveisPage() {
               <Building2 className="w-6 h-6 text-teal-600" />
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <button
+          onClick={() => setTypeFilter('terreno')}
+          className={`bg-white rounded-lg shadow-sm p-4 text-left transition-all hover:shadow-md ${
+            typeFilter === 'terreno' ? 'ring-2 ring-amber-500' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Terrenos</p>
@@ -229,9 +292,14 @@ export default function ImoveisPage() {
               <Building2 className="w-6 h-6 text-amber-600" />
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <button
+          onClick={() => setTypeFilter('fazenda')}
+          className={`bg-white rounded-lg shadow-sm p-4 text-left transition-all hover:shadow-md ${
+            typeFilter === 'fazenda' ? 'ring-2 ring-emerald-500' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Fazendas</p>
@@ -243,9 +311,14 @@ export default function ImoveisPage() {
               <Building2 className="w-6 h-6 text-emerald-600" />
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <button
+          onClick={() => setTypeFilter('sitio')}
+          className={`bg-white rounded-lg shadow-sm p-4 text-left transition-all hover:shadow-md ${
+            typeFilter === 'sitio' ? 'ring-2 ring-lime-500' : ''
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Sítios</p>
@@ -257,7 +330,7 @@ export default function ImoveisPage() {
               <Building2 className="w-6 h-6 text-lime-600" />
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Actions Bar */}
