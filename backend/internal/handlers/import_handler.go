@@ -102,7 +102,7 @@ func (h *ImportHandler) ImportFromFiles(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create temp directory"})
 		return
 	}
-	defer os.RemoveAll(tempDir) // cleanup
+	// Note: cleanup is done in processImport goroutine, not here
 
 	// Save XML file if provided
 	var xmlPath string
@@ -145,6 +145,20 @@ func (h *ImportHandler) ImportFromFiles(c *gin.Context) {
 
 // processImport processes the import in background
 func (h *ImportHandler) processImport(ctx context.Context, batch *models.ImportBatch, xmlPath, xlsPath string) {
+	// Clean up temp directory after import completes
+	if xmlPath != "" || xlsPath != "" {
+		var tempDir string
+		if xmlPath != "" {
+			tempDir = filepath.Dir(xmlPath)
+		} else {
+			tempDir = filepath.Dir(xlsPath)
+		}
+		defer func() {
+			log.Printf("🧹 Cleaning up temp directory: %s", tempDir)
+			os.RemoveAll(tempDir)
+		}()
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("❌ Import panic recovered: %v", r)
@@ -170,6 +184,13 @@ func (h *ImportHandler) processImport(ctx context.Context, batch *models.ImportB
 
 	// If only XLS provided (no XML), process XLS-only mode
 	if xmlPath == "" && xlsPath != "" {
+		log.Printf("🎯 Detected XLS-only import mode (no XML file)")
+		log.Printf("🎯 XLS records count: %d", len(xlsRecords))
+		if len(xlsRecords) > 0 {
+			log.Printf("🎯 First record: Ref=%s, Owner=%s, Phone=%s, Email=%s",
+				xlsRecords[0].Referencia, xlsRecords[0].Proprietario,
+				xlsRecords[0].CelularTelefone, xlsRecords[0].Email)
+		}
 		h.processXLSOnlyImport(ctx, batch, xlsRecords)
 		return
 	}
@@ -256,6 +277,13 @@ func (h *ImportHandler) processXLSOnlyImport(ctx context.Context, batch *models.
 	batch.TotalXMLRecords = len(xlsRecords) // Use XLS count as total
 	batch.Status = "processing"
 
+	// Save batch immediately to update status and total count in Firestore
+	if _, err := h.importService.GetDB().Collection("import_batches").Doc(batch.ID).Set(ctx, batch); err != nil {
+		log.Printf("❌ Failed to save batch initial state: %v", err)
+	} else {
+		log.Printf("✅ Saved initial batch state: TotalXMLRecords=%d", batch.TotalXMLRecords)
+	}
+
 	for i, xlsRecord := range xlsRecords {
 		// Build owner payload from XLS
 		ownerPayload := union.OwnerPayload{
@@ -281,17 +309,33 @@ func (h *ImportHandler) processXLSOnlyImport(ctx context.Context, batch *models.
 			continue
 		}
 
+		// Log detailed info for CH00038
+		if propertyRef == "CH00038" {
+			log.Printf("🔍 Found CH00038 in XLS! Owner=%s, Phone=%s, Email=%s",
+				xlsRecord.Proprietario, xlsRecord.CelularTelefone, xlsRecord.Email)
+		}
+
 		// Query property by reference
 		property, err := h.importService.FindPropertyByReference(ctx, batch.TenantID, propertyRef)
-		if err != nil || property == nil {
-			log.Printf("⚠️  Property not found for reference %s, skipping", propertyRef)
+		if err != nil {
+			log.Printf("⚠️  Error finding property %s: %v", propertyRef, err)
+			batch.TotalErrors++
+			continue
+		}
+		if property == nil {
+			log.Printf("⚠️  Property not found for reference %s (tenant: %s)", propertyRef, batch.TenantID)
 			batch.TotalErrors++
 			continue
 		}
 
+		// Log found property
+		if propertyRef == "CH00038" {
+			log.Printf("🔍 Found property CH00038 in DB! OwnerID=%s", property.OwnerID)
+		}
+
 		// Update owner if property has one
 		if property.OwnerID != "" {
-			if err := h.importService.UpdateOwnerFromXLS(ctx, property.OwnerID, ownerPayload, propertyRef); err != nil {
+			if err := h.importService.UpdateOwnerFromXLS(ctx, batch.TenantID, property.OwnerID, ownerPayload, propertyRef); err != nil {
 				log.Printf("❌ Failed to update owner for property %s: %v", propertyRef, err)
 				batch.TotalErrors++
 			} else {

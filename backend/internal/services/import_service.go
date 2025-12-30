@@ -43,6 +43,11 @@ func (s *ImportService) SetPhotoProcessor(photoProcessor *PhotoProcessor) {
 	s.photoProcessor = photoProcessor
 }
 
+// GetDB returns the Firestore client
+func (s *ImportService) GetDB() *firestore.Client {
+	return s.db
+}
+
 // ImportBatchRequest represents an import request
 type ImportBatchRequest struct {
 	TenantID   string
@@ -79,7 +84,7 @@ func (s *ImportService) ImportProperty(ctx context.Context, batch *models.Import
 
 		if existingOwnerID != "" && payload.Owner.EnrichedFromXLS {
 			log.Printf("🔄 Updating owner data for existing property %s (owner: %s)", payload.Property.Reference, existingOwnerID)
-			if err := s.updateOwnerFromXLS(ctx, existingOwnerID, payload.Owner, payload.Property.Reference); err != nil {
+			if err := s.updateOwnerFromXLS(ctx, batch.TenantID, existingOwnerID, payload.Owner, payload.Property.Reference); err != nil {
 				log.Printf("⚠️  Failed to update owner from XLS for property %s: %v", payload.Property.Reference, err)
 			} else {
 				batch.TotalOwnersEnrichedFromXLS++
@@ -364,28 +369,35 @@ func (s *ImportService) createOwner(ctx context.Context, tenantID string, ownerP
 		UpdatedAt: now,
 	}
 
-	_, err := s.db.Collection("owners").Doc(ownerID).Set(ctx, owner)
+	// Use tenant-scoped collection path
+	ownersPath := fmt.Sprintf("tenants/%s/owners", tenantID)
+	_, err := s.db.Collection(ownersPath).Doc(ownerID).Set(ctx, owner)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to save owner: %w", err)
 	}
 
+	log.Printf("✅ Created owner %s in %s", ownerID, ownersPath)
 	return ownerID, ownerPayload.EnrichedFromXLS, nil
 }
 
 // UpdateOwnerFromXLS updates existing owner with enriched data from XLS (exported for handlers)
-func (s *ImportService) UpdateOwnerFromXLS(ctx context.Context, ownerID string, ownerPayload union.OwnerPayload, reference string) error {
-	return s.updateOwnerFromXLS(ctx, ownerID, ownerPayload, reference)
+func (s *ImportService) UpdateOwnerFromXLS(ctx context.Context, tenantID, ownerID string, ownerPayload union.OwnerPayload, reference string) error {
+	return s.updateOwnerFromXLS(ctx, tenantID, ownerID, ownerPayload, reference)
 }
 
 // updateOwnerFromXLS updates existing owner with enriched data from XLS
-func (s *ImportService) updateOwnerFromXLS(ctx context.Context, ownerID string, ownerPayload union.OwnerPayload, reference string) error {
+func (s *ImportService) updateOwnerFromXLS(ctx context.Context, tenantID, ownerID string, ownerPayload union.OwnerPayload, reference string) error {
 	if !ownerPayload.EnrichedFromXLS {
 		// No enriched data from XLS, skip update
 		return nil
 	}
 
+	// Use tenant-scoped collection path
+	ownersPath := fmt.Sprintf("tenants/%s/owners", tenantID)
+	log.Printf("🔍 Looking for owner %s in %s", ownerID, ownersPath)
+
 	// Get existing owner to check if we should update
-	ownerDoc, err := s.db.Collection("owners").Doc(ownerID).Get(ctx)
+	ownerDoc, err := s.db.Collection(ownersPath).Doc(ownerID).Get(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get existing owner: %w", err)
 	}
@@ -448,12 +460,12 @@ func (s *ImportService) updateOwnerFromXLS(ctx context.Context, ownerID string, 
 	}
 
 	// Apply updates
-	_, err = s.db.Collection("owners").Doc(ownerID).Update(ctx, updates)
+	_, err = s.db.Collection(ownersPath).Doc(ownerID).Update(ctx, updates)
 	if err != nil {
 		return fmt.Errorf("failed to update owner: %w", err)
 	}
 
-	log.Printf("✅ Successfully updated owner %s with XLS data for property %s", ownerID, reference)
+	log.Printf("✅ Successfully updated owner %s with XLS data for property %s in %s", ownerID, reference, ownersPath)
 	return nil
 }
 
@@ -659,6 +671,8 @@ func (s *ImportService) GetBatch(ctx context.Context, batchID string) (*models.I
 // FindPropertyByReference finds a property by its reference code
 func (s *ImportService) FindPropertyByReference(ctx context.Context, tenantID, reference string) (*models.Property, error) {
 	// Query properties by tenant_id and reference
+	log.Printf("🔍 Searching for property: tenant=%s, reference=%s", tenantID, reference)
+
 	iter := s.db.Collection("properties").
 		Where("tenant_id", "==", tenantID).
 		Where("reference", "==", reference).
@@ -667,14 +681,21 @@ func (s *ImportService) FindPropertyByReference(ctx context.Context, tenantID, r
 
 	doc, err := iter.Next()
 	if err != nil {
+		if err.Error() == "no more items in iterator" || err.Error() == "iterator exhausted" {
+			log.Printf("⚠️  Property not found: %s (tenant: %s)", reference, tenantID)
+			return nil, nil // Return nil property instead of error
+		}
+		log.Printf("❌ Error querying property %s: %v", reference, err)
 		return nil, err
 	}
 
 	var property models.Property
 	if err := doc.DataTo(&property); err != nil {
+		log.Printf("❌ Error parsing property %s: %v", reference, err)
 		return nil, err
 	}
 
 	property.ID = doc.Ref.ID
+	log.Printf("✅ Found property %s: ID=%s, OwnerID=%s", reference, property.ID, property.OwnerID)
 	return &property, nil
 }
