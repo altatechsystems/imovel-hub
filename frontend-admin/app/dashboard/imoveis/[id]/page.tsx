@@ -117,6 +117,8 @@ export default function PropertyDetailPage() {
 
       const data = await response.json();
       console.log('Property details:', data);
+      console.log('Captador Name:', data.data?.captador_name);
+      console.log('Captador ID:', data.data?.captador_id);
 
       const propertyData = data.data;
       setProperty(propertyData);
