@@ -6,18 +6,21 @@ import (
 	"github.com/altatech/ecosistema-imob/backend/internal/models"
 	"github.com/altatech/ecosistema-imob/backend/internal/repositories"
 	"github.com/altatech/ecosistema-imob/backend/internal/services"
+	"github.com/altatech/ecosistema-imob/backend/internal/storage"
 	"github.com/gin-gonic/gin"
 )
 
 // BrokerHandler handles broker-related HTTP requests
 type BrokerHandler struct {
-	brokerService *services.BrokerService
+	brokerService  *services.BrokerService
+	storageService *storage.StorageService
 }
 
 // NewBrokerHandler creates a new broker handler
-func NewBrokerHandler(brokerService *services.BrokerService) *BrokerHandler {
+func NewBrokerHandler(brokerService *services.BrokerService, storageService *storage.StorageService) *BrokerHandler {
 	return &BrokerHandler{
-		brokerService: brokerService,
+		brokerService:  brokerService,
+		storageService: storageService,
 	}
 }
 
@@ -32,6 +35,8 @@ func (h *BrokerHandler) RegisterRoutes(router *gin.RouterGroup) {
 		brokers.GET("", h.ListBrokers)
 		brokers.POST("/:id/activate", h.ActivateBroker)
 		brokers.POST("/:id/deactivate", h.DeactivateBroker)
+		brokers.POST("/:id/photo", h.UploadPhoto)
+		brokers.DELETE("/:id/photo", h.DeletePhoto)
 	}
 }
 
@@ -301,6 +306,171 @@ func (h *BrokerHandler) DeactivateBroker(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    gin.H{"message": "broker deactivated successfully"},
+	})
+}
+
+// UploadPhoto handles broker photo upload
+// @Summary Upload broker photo
+// @Description Upload a profile photo for a broker
+// @Tags brokers
+// @Accept multipart/form-data
+// @Produce json
+// @Param tenant_id path string true "Tenant ID"
+// @Param id path string true "Broker ID"
+// @Param file formData file true "Photo file (JPEG, PNG, or WebP, max 5MB)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 413 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/{tenant_id}/brokers/{id}/photo [post]
+func (h *BrokerHandler) UploadPhoto(c *gin.Context) {
+	tenantID := c.Param("tenant_id")
+	id := c.Param("id")
+
+	// Validate broker exists
+	broker, err := h.brokerService.GetBroker(c.Request.Context(), tenantID, id)
+	if err != nil {
+		if err == repositories.ErrNotFound {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"error":   "broker not found",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Get file from form
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "file is required",
+		})
+		return
+	}
+	defer file.Close()
+
+	// Validate file size (max 5MB for profile photos)
+	const maxSize = 5 * 1024 * 1024 // 5MB
+	if header.Size > maxSize {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+			"success": false,
+			"error":   "file size exceeds 5MB limit",
+		})
+		return
+	}
+
+	// Validate content type
+	contentType := header.Header.Get("Content-Type")
+	if err := h.storageService.ValidateContentType(contentType); err != nil {
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Delete old photo if exists
+	if broker.PhotoURL != "" {
+		_ = h.storageService.DeleteBrokerPhoto(c.Request.Context(), tenantID, id)
+	}
+
+	// Upload new photo
+	photoURL, err := h.storageService.UploadBrokerPhoto(c.Request.Context(), tenantID, id, file, header)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Update broker with new photo URL
+	updates := map[string]interface{}{
+		"photo_url": photoURL,
+	}
+	if err := h.brokerService.UpdateBroker(c.Request.Context(), tenantID, id, updates); err != nil {
+		// Try to delete uploaded photo if update fails
+		_ = h.storageService.DeleteBrokerPhoto(c.Request.Context(), tenantID, id)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"photo_url": photoURL,
+			"message":   "photo uploaded successfully",
+		},
+	})
+}
+
+// DeletePhoto handles broker photo deletion
+// @Summary Delete broker photo
+// @Description Delete a broker's profile photo
+// @Tags brokers
+// @Produce json
+// @Param tenant_id path string true "Tenant ID"
+// @Param id path string true "Broker ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/{tenant_id}/brokers/{id}/photo [delete]
+func (h *BrokerHandler) DeletePhoto(c *gin.Context) {
+	tenantID := c.Param("tenant_id")
+	id := c.Param("id")
+
+	// Validate broker exists
+	broker, err := h.brokerService.GetBroker(c.Request.Context(), tenantID, id)
+	if err != nil {
+		if err == repositories.ErrNotFound {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"error":   "broker not found",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Delete photo from storage
+	if broker.PhotoURL != "" {
+		if err := h.storageService.DeleteBrokerPhoto(c.Request.Context(), tenantID, id); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+	}
+
+	// Update broker to remove photo URL
+	updates := map[string]interface{}{
+		"photo_url": "",
+	}
+	if err := h.brokerService.UpdateBroker(c.Request.Context(), tenantID, id, updates); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    gin.H{"message": "photo deleted successfully"},
 	})
 }
 

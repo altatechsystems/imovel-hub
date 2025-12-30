@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, X, User, Mail, Phone, FileText, Award, Globe, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Save, X, User, Mail, Phone, FileText, Award, Globe, MessageCircle, Camera, Trash2 } from 'lucide-react';
 import { Broker } from '@/types/broker';
 
 export default function BrokerDetailPage() {
@@ -15,6 +15,8 @@ export default function BrokerDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (brokerId) {
@@ -131,6 +133,131 @@ export default function BrokerDetailPage() {
     setBroker({ ...broker, [field]: value });
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Formato de arquivo inválido. Use JPEG, PNG ou WebP.');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Arquivo muito grande. O tamanho máximo é 5MB.');
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      setError('');
+
+      const tenantId = localStorage.getItem('tenant_id');
+      if (!tenantId) {
+        setError('Tenant ID não encontrado');
+        return;
+      }
+
+      const { auth } = await import('@/lib/firebase');
+      const user = auth.currentUser;
+      if (!user) {
+        setError('Usuário não autenticado');
+        return;
+      }
+
+      const token = await user.getIdToken(true);
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/brokers/${brokerId}/photo`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erro ao fazer upload da foto');
+      }
+
+      const data = await response.json();
+
+      // Update broker with new photo URL
+      if (broker) {
+        setBroker({ ...broker, photo_url: data.data.photo_url });
+      }
+
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (err: any) {
+      console.error('Erro ao fazer upload da foto:', err);
+      setError(err.message);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handlePhotoDelete = async () => {
+    if (!confirm('Tem certeza que deseja remover a foto do corretor?')) {
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      setError('');
+
+      const tenantId = localStorage.getItem('tenant_id');
+      if (!tenantId) {
+        setError('Tenant ID não encontrado');
+        return;
+      }
+
+      const { auth } = await import('@/lib/firebase');
+      const user = auth.currentUser;
+      if (!user) {
+        setError('Usuário não autenticado');
+        return;
+      }
+
+      const token = await user.getIdToken(true);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/brokers/${brokerId}/photo`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erro ao remover foto');
+      }
+
+      // Update broker to remove photo URL
+      if (broker) {
+        setBroker({ ...broker, photo_url: '' });
+      }
+    } catch (err: any) {
+      console.error('Erro ao remover foto:', err);
+      setError(err.message);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -175,22 +302,58 @@ export default function BrokerDetailPage() {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {broker.photo_url ? (
-              <img
-                src={broker.photo_url}
-                alt={broker.name}
-                className="w-20 h-20 rounded-full object-cover"
+            <div className="relative group">
+              {broker.photo_url ? (
+                <img
+                  src={broker.photo_url}
+                  alt={broker.name}
+                  className="w-20 h-20 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-blue-600">
+                    {broker.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              {isEditing && (
+                <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
+                    title="Alterar foto"
+                  >
+                    <Camera className="w-4 h-4 text-gray-700" />
+                  </button>
+                  {broker.photo_url && (
+                    <button
+                      type="button"
+                      onClick={handlePhotoDelete}
+                      disabled={uploadingPhoto}
+                      className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
+                      title="Remover foto"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  )}
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handlePhotoUpload}
+                className="hidden"
               />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center">
-                <span className="text-3xl font-bold text-blue-600">
-                  {broker.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
+            </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">{broker.name}</h1>
               <p className="text-gray-600">{broker.email}</p>
+              {uploadingPhoto && (
+                <p className="text-sm text-blue-600 mt-1">Enviando foto...</p>
+              )}
             </div>
           </div>
           <div className="flex gap-2">

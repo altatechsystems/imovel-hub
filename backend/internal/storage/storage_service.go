@@ -368,6 +368,149 @@ func (s *StorageService) ValidateFileSize(size int64) error {
 	return nil
 }
 
+// UploadBrokerPhoto uploads a broker profile photo to Firebase Storage
+func (s *StorageService) UploadBrokerPhoto(
+	ctx context.Context,
+	tenantID, brokerID string,
+	file multipart.File,
+	header *multipart.FileHeader,
+) (string, error) {
+	// Validate inputs
+	if tenantID == "" {
+		return "", fmt.Errorf("tenant_id is required")
+	}
+	if brokerID == "" {
+		return "", fmt.Errorf("broker_id is required")
+	}
+
+	// Validate file size (broker photos have 5MB limit as set in handler)
+	if header.Size > MaxFileSize {
+		return "", ErrFileTooLarge
+	}
+
+	// Validate content type
+	contentType := header.Header.Get("Content-Type")
+	if !AllowedContentTypes[contentType] {
+		return "", ErrInvalidFileType
+	}
+
+	// Determine file extension
+	ext := ".jpg"
+	switch contentType {
+	case "image/png":
+		ext = ".png"
+	case "image/webp":
+		ext = ".webp"
+	}
+
+	// Build storage path: /brokers/{tenantID}/{brokerID}/photo{ext}
+	storagePath := fmt.Sprintf("brokers/%s/%s/photo%s", tenantID, brokerID, ext)
+
+	// Get bucket handle
+	bucket := s.storageClient.Bucket(s.bucketName)
+
+	// Create object handle
+	obj := bucket.Object(storagePath)
+
+	// Create writer
+	writer := obj.NewWriter(ctx)
+	writer.ContentType = contentType
+	writer.Metadata = map[string]string{
+		"tenant_id":         tenantID,
+		"broker_id":         brokerID,
+		"original_filename": header.Filename,
+		"uploaded_at":       time.Now().Format(time.RFC3339),
+	}
+
+	// Copy file data to storage
+	if _, err := io.Copy(writer, file); err != nil {
+		writer.Close()
+		return "", fmt.Errorf("failed to upload broker photo: %w", err)
+	}
+
+	// Close the writer
+	if err := writer.Close(); err != nil {
+		return "", fmt.Errorf("failed to finalize broker photo upload: %w", err)
+	}
+
+	// Generate signed URL
+	url, err := s.generateSignedURL(ctx, storagePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate signed URL for broker photo: %w", err)
+	}
+
+	// Log activity
+	_ = s.logActivity(ctx, tenantID, "broker_photo_uploaded", models.ActorTypeSystem, "", map[string]interface{}{
+		"broker_id":         brokerID,
+		"original_filename": header.Filename,
+		"content_type":      contentType,
+		"size":              header.Size,
+	})
+
+	return url, nil
+}
+
+// DeleteBrokerPhoto deletes a broker's profile photo from Firebase Storage
+func (s *StorageService) DeleteBrokerPhoto(
+	ctx context.Context,
+	tenantID, brokerID string,
+) error {
+	// Validate inputs
+	if tenantID == "" {
+		return fmt.Errorf("tenant_id is required")
+	}
+	if brokerID == "" {
+		return fmt.Errorf("broker_id is required")
+	}
+
+	// Build prefix for broker photos: /brokers/{tenantID}/{brokerID}/
+	prefix := fmt.Sprintf("brokers/%s/%s/", tenantID, brokerID)
+
+	// Get bucket handle
+	bucket := s.storageClient.Bucket(s.bucketName)
+
+	// List all objects with the prefix (should be only one photo, but handle multiple extensions)
+	query := &storage.Query{
+		Prefix: prefix,
+	}
+
+	it := bucket.Objects(ctx, query)
+
+	// Delete all photos found (usually just one)
+	deletedCount := 0
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to list broker photos: %w", err)
+		}
+
+		// Delete the object
+		obj := bucket.Object(attrs.Name)
+		if err := obj.Delete(ctx); err != nil {
+			if err == storage.ErrObjectNotExist {
+				continue
+			}
+			return fmt.Errorf("failed to delete broker photo: %w", err)
+		}
+		deletedCount++
+	}
+
+	// If no photos were found or deleted, that's okay - not an error
+	if deletedCount == 0 {
+		return nil
+	}
+
+	// Log activity
+	_ = s.logActivity(ctx, tenantID, "broker_photo_deleted", models.ActorTypeSystem, "", map[string]interface{}{
+		"broker_id": brokerID,
+	})
+
+	return nil
+}
+
 // logActivity logs an activity
 func (s *StorageService) logActivity(
 	ctx context.Context,

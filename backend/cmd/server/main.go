@@ -280,7 +280,7 @@ func initializeHandlers(authClient *auth.Client, firestoreClient *firestore.Clie
 	return &Handlers{
 		AuthHandler:               handlers.NewAuthHandler(authClient, firestoreClient),
 		TenantHandler:             handlers.NewTenantHandler(services.TenantService),
-		BrokerHandler:             handlers.NewBrokerHandler(services.BrokerService),
+		BrokerHandler:             handlers.NewBrokerHandler(services.BrokerService, services.StorageService),
 		OwnerHandler:              handlers.NewOwnerHandler(services.OwnerService),
 		PropertyHandler:           handlers.NewPropertyHandler(services.PropertyService),
 		ListingHandler:            handlers.NewListingHandler(services.ListingService),
