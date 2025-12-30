@@ -203,7 +203,9 @@ export default function BrokerDetailPage() {
       // Add cache-busting parameter to force browser to reload the image
       if (broker) {
         const photoUrl = data.data.photo_url;
-        const cacheBuster = `?t=${Date.now()}`;
+        // Check if URL already has query parameters
+        const separator = photoUrl.includes('?') ? '&' : '?';
+        const cacheBuster = `${separator}t=${Date.now()}`;
         setBroker({ ...broker, photo_url: photoUrl + cacheBuster });
       }
 
