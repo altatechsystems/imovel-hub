@@ -668,6 +668,32 @@ func (s *ImportService) GetBatch(ctx context.Context, batchID string) (*models.I
 	return &batch, nil
 }
 
+// GetBatchErrors retrieves all errors for a specific batch
+func (s *ImportService) GetBatchErrors(ctx context.Context, batchID string) ([]models.ImportError, error) {
+	iter := s.db.Collection("import_errors").
+		Where("batch_id", "==", batchID).
+		Documents(ctx)
+
+	var errors []models.ImportError
+	for {
+		doc, err := iter.Next()
+		if err != nil {
+			break
+		}
+
+		var importError models.ImportError
+		if err := doc.DataTo(&importError); err != nil {
+			log.Printf("⚠️ Error parsing import error document: %v", err)
+			continue
+		}
+
+		importError.ID = doc.Ref.ID
+		errors = append(errors, importError)
+	}
+
+	return errors, nil
+}
+
 // FindPropertyByReference finds a property by its reference code
 func (s *ImportService) FindPropertyByReference(ctx context.Context, tenantID, reference string) (*models.Property, error) {
 	// Query properties by tenant_id and reference

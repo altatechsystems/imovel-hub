@@ -23,8 +23,40 @@ export default function PropertiesPage() {
   const loadProperties = React.useCallback(async () => {
     try {
       setIsLoading(true);
+      const startTime = performance.now();
+
       const result = await api.getProperties(filters, { limit: 500 });
-      setProperties(result.data || []);
+
+      const loadTime = performance.now() - startTime;
+      console.log(`✅ Loaded ${result.data?.length || 0} properties in ${loadTime.toFixed(0)}ms`);
+
+      // Optimize: Process only essential fields for listing view
+      const optimizedProperties = (result.data || []).map((property: Property) => ({
+        id: property.id,
+        slug: property.slug,
+        title: property.title,
+        reference: property.reference,
+        cover_image_url: property.cover_image_url,
+        property_type: property.property_type,
+        transaction_type: property.transaction_type,
+        city: property.city,
+        state: property.state,
+        neighborhood: property.neighborhood,
+        sale_price: property.sale_price,
+        rental_price: property.rental_price,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        parking_spaces: property.parking_spaces,
+        area_sqm: property.area_sqm,
+        featured: property.featured,
+        status: property.status,
+        description: property.description,
+      })) as Property[];
+
+      setProperties(optimizedProperties);
+
+      const processingTime = performance.now() - startTime;
+      console.log(`⚡ Total processing time: ${processingTime.toFixed(0)}ms`);
     } catch (error) {
       console.error('Failed to load properties:', error);
     } finally {
@@ -118,13 +150,20 @@ export default function PropertiesPage() {
                 ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'
                 : 'space-y-6'
               }>
-                {[1, 2, 3, 4, 5, 6].map((i) => (
+                {[...Array(12)].map((_, i) => (
                   <Card key={i} variant="bordered" padding="none" className="animate-pulse">
-                    <div className="w-full h-56 bg-gray-200 rounded-t-lg" />
-                    <div className="p-4 space-y-3">
-                      <div className="h-6 bg-gray-200 rounded w-2/3" />
-                      <div className="h-4 bg-gray-200 rounded w-full" />
-                      <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    <div className="w-full h-48 sm:h-56 bg-gray-200 rounded-t-lg" />
+                    <div className="p-3 sm:p-4 space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-1/4 mb-2" />
+                      <div className="h-7 bg-gray-200 rounded w-2/3 mb-3" />
+                      <div className="h-6 bg-gray-200 rounded w-2/3 mb-2" />
+                      <div className="h-4 bg-gray-200 rounded w-full mb-3" />
+                      <div className="flex gap-3 mb-3">
+                        <div className="h-4 bg-gray-200 rounded w-12" />
+                        <div className="h-4 bg-gray-200 rounded w-12" />
+                        <div className="h-4 bg-gray-200 rounded w-16" />
+                      </div>
+                      <div className="h-9 bg-gray-200 rounded w-full" />
                     </div>
                   </Card>
                 ))}

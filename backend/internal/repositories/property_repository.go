@@ -206,42 +206,52 @@ func (r *PropertyRepository) List(ctx context.Context, tenantID string, filters 
 	}
 
 	collectionPath := r.getPropertiesCollection(tenantID)
-	query := r.Client().Collection(collectionPath).Where("tenant_id", "==", tenantID)
 
-	// Apply filters if provided
-	if filters != nil {
-		if filters.Status != nil {
-			query = query.Where("status", "==", string(*filters.Status))
-		}
-		if filters.PropertyType != nil {
-			query = query.Where("property_type", "==", string(*filters.PropertyType))
-		}
-		if filters.TransactionType != nil {
-			query = query.Where("transaction_type", "==", string(*filters.TransactionType))
-		}
-		if filters.Visibility != nil {
-			query = query.Where("visibility", "==", string(*filters.Visibility))
-		}
-		if filters.OwnerID != "" {
-			query = query.Where("owner_id", "==", filters.OwnerID)
-		}
-		if filters.City != "" {
-			query = query.Where("city", "==", filters.City)
-		}
-		if filters.Neighborhood != "" {
-			query = query.Where("neighborhood", "==", filters.Neighborhood)
-		}
-		if filters.MinPrice != nil {
-			query = query.Where("price_amount", ">=", *filters.MinPrice)
-		}
-		if filters.MaxPrice != nil {
-			query = query.Where("price_amount", "<=", *filters.MaxPrice)
-		}
-		if filters.MinBedrooms != nil {
-			query = query.Where("bedrooms", ">=", *filters.MinBedrooms)
-		}
-		if filters.MinBathrooms != nil {
-			query = query.Where("bathrooms", ">=", *filters.MinBathrooms)
+	// WORKAROUND: If filtering by owner_id, use single Where to avoid composite index requirement
+	// Then filter other fields in memory
+	var query firestore.Query
+	var needsMemoryFilter bool
+
+	if filters != nil && filters.OwnerID != "" {
+		// Query by owner_id only to avoid composite index requirement
+		query = r.Client().Collection(collectionPath).Where("owner_id", "==", filters.OwnerID)
+		needsMemoryFilter = true
+	} else {
+		// Normal query with tenant_id
+		query = r.Client().Collection(collectionPath).Where("tenant_id", "==", tenantID)
+
+		// Apply other filters if provided
+		if filters != nil {
+			if filters.Status != nil {
+				query = query.Where("status", "==", string(*filters.Status))
+			}
+			if filters.PropertyType != nil {
+				query = query.Where("property_type", "==", string(*filters.PropertyType))
+			}
+			if filters.TransactionType != nil {
+				query = query.Where("transaction_type", "==", string(*filters.TransactionType))
+			}
+			if filters.Visibility != nil {
+				query = query.Where("visibility", "==", string(*filters.Visibility))
+			}
+			if filters.City != "" {
+				query = query.Where("city", "==", filters.City)
+			}
+			if filters.Neighborhood != "" {
+				query = query.Where("neighborhood", "==", filters.Neighborhood)
+			}
+			if filters.MinPrice != nil {
+				query = query.Where("price_amount", ">=", *filters.MinPrice)
+			}
+			if filters.MaxPrice != nil {
+				query = query.Where("price_amount", "<=", *filters.MaxPrice)
+			}
+			if filters.MinBedrooms != nil {
+				query = query.Where("bedrooms", ">=", *filters.MinBedrooms)
+			}
+			if filters.MinBathrooms != nil {
+				query = query.Where("bathrooms", ">=", *filters.MinBathrooms)
+			}
 		}
 	}
 
@@ -271,6 +281,14 @@ func (r *PropertyRepository) List(ctx context.Context, tenantID string, filters 
 		}
 
 		property.ID = doc.Ref.ID
+
+		// If we're filtering by owner_id, also filter by tenant_id in memory
+		if needsMemoryFilter {
+			if property.TenantID != tenantID {
+				continue // Skip properties from other tenants
+			}
+		}
+
 		properties = append(properties, &property)
 	}
 

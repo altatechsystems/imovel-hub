@@ -39,17 +39,14 @@ export default function ImoveisPage() {
     try {
       setLoading(true);
       const tenantId = localStorage.getItem('tenant_id');
-      console.log('🏢 Tenant ID:', tenantId);
-      console.log('🌍 API URL:', process.env.NEXT_PUBLIC_API_URL);
 
       if (!tenantId) {
         setError('Tenant ID não encontrado');
         return;
       }
 
-      // Add limit parameter to avoid timeout with large datasets
+      const startTime = performance.now();
       const url = `${process.env.NEXT_PUBLIC_API_URL}/${tenantId}/properties?limit=1000`;
-      console.log('📍 Fetching from:', url);
 
       const response = await fetch(url);
 
@@ -58,19 +55,29 @@ export default function ImoveisPage() {
       }
 
       const data = await response.json();
-      console.log('✅ API Response:', data);
-      console.log('📊 Total properties:', data.data?.length || 0);
+      const loadTime = performance.now() - startTime;
+      console.log(`✅ Loaded ${data.data?.length || 0} properties in ${loadTime.toFixed(0)}ms`);
 
-      // Set properties with cover_image_url from the API response
-      // The backend already includes cover_image_url for each property
+      // Optimize: Only process essential fields
       const propertiesData = data.data || [];
-      const propertiesWithImages = propertiesData.map((property: any) => ({
-        ...property,
-        image_url: property.cover_image_url || undefined,
+      const optimizedProperties = propertiesData.map((property: any) => ({
+        id: property.id,
+        reference: property.reference,
+        slug: property.slug,
+        street: property.street,
+        city: property.city,
+        state: property.state,
+        neighborhood: property.neighborhood,
+        price_amount: property.price_amount,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        total_area: property.total_area,
+        property_type: property.property_type,
+        status: property.status,
+        image_url: property.cover_image_url,
       }));
 
-      setProperties(propertiesWithImages);
-      console.log('✅ Properties loaded with images');
+      setProperties(optimizedProperties);
     } catch (err: any) {
       console.error('Erro ao buscar imóveis:', err);
       setError(err.message);
@@ -90,17 +97,34 @@ export default function ImoveisPage() {
     }).format(price);
   };
 
-  // Memoize expensive calculations
-  const stats = useMemo(() => ({
-    total: properties.length,
-    available: properties.filter(p => p.status?.toLowerCase() === 'available').length,
-    apartments: properties.filter(p => p.property_type?.toLowerCase() === 'apartment').length,
-    houses: properties.filter(p => p.property_type?.toLowerCase() === 'house').length,
-    chacaras: properties.filter(p => p.reference?.toUpperCase().startsWith('CH')).length,
-    terrenos: properties.filter(p => p.reference?.toUpperCase().startsWith('TE')).length,
-    fazendas: properties.filter(p => p.reference?.toUpperCase().startsWith('FA')).length,
-    sitios: properties.filter(p => p.reference?.toUpperCase().startsWith('ST')).length,
-  }), [properties]);
+  // Memoize expensive calculations - optimize by doing single pass
+  const stats = useMemo(() => {
+    const result = {
+      total: properties.length,
+      available: 0,
+      apartments: 0,
+      houses: 0,
+      chacaras: 0,
+      terrenos: 0,
+      fazendas: 0,
+      sitios: 0,
+    };
+
+    // Single pass through properties
+    properties.forEach(p => {
+      if (p.status?.toLowerCase() === 'available') result.available++;
+      if (p.property_type?.toLowerCase() === 'apartment') result.apartments++;
+      if (p.property_type?.toLowerCase() === 'house') result.houses++;
+
+      const ref = p.reference?.toUpperCase();
+      if (ref?.startsWith('CH')) result.chacaras++;
+      else if (ref?.startsWith('TE')) result.terrenos++;
+      else if (ref?.startsWith('FA')) result.fazendas++;
+      else if (ref?.startsWith('ST')) result.sitios++;
+    });
+
+    return result;
+  }, [properties]);
 
   const filteredProperties = useMemo(() => {
     let filtered = properties;
@@ -352,13 +376,24 @@ export default function ImoveisPage() {
         </div>
       </div>
 
-      {/* Loading State */}
+      {/* Loading State - Skeleton */}
       {loading && (
-        <div className="bg-white rounded-lg shadow-sm p-12">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-            <p className="text-gray-600">Carregando imóveis...</p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+          {[...Array(12)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
+              <div className="h-48 bg-gray-200"></div>
+              <div className="p-4">
+                <div className="h-6 bg-gray-200 rounded mb-3"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+                <div className="flex gap-4 mb-3">
+                  <div className="h-4 bg-gray-200 rounded w-12"></div>
+                  <div className="h-4 bg-gray-200 rounded w-12"></div>
+                  <div className="h-4 bg-gray-200 rounded w-16"></div>
+                </div>
+                <div className="h-8 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -414,7 +449,9 @@ export default function ImoveisPage() {
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover"
                     loading="lazy"
-                    quality={75}
+                    quality={60}
+                    placeholder="blur"
+                    blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2RkZCIvPjwvc3ZnPg=="
                   />
                 ) : (
                   <Building2 className="w-16 h-16 text-white opacity-50" />

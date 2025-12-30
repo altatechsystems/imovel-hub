@@ -234,6 +234,36 @@ export default function ImportacaoPage() {
           stopPolling();
           setImporting(false);
 
+          // Fetch detailed errors if there are any
+          let detailedErrors: ImportError[] = [];
+          if (batchData.total_errors > 0) {
+            try {
+              const errorsResponse = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/import/batches/${batchId}/errors`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                  },
+                }
+              );
+
+              if (errorsResponse.ok) {
+                const errorsData = await errorsResponse.json();
+                console.log('📋 Fetched errors:', errorsData);
+
+                // Map backend errors to frontend format
+                detailedErrors = (errorsData.errors || []).map((err: any) => ({
+                  line: 0, // Backend doesn't track line numbers
+                  field: err.error_type || 'unknown',
+                  message: err.error_message || 'Unknown error',
+                  severity: 'error' as const,
+                }));
+              }
+            } catch (error) {
+              console.error('❌ Failed to fetch detailed errors:', error);
+            }
+          }
+
           // Update result with final data
           setResult({
             success: batchData.status === 'completed',
@@ -241,7 +271,7 @@ export default function ImportacaoPage() {
             imported: batchData.total_properties_created || 0,
             updated: batchData.total_properties_matched_existing || 0,
             failed: batchData.total_errors || 0,
-            errors: [], // Backend should provide detailed errors
+            errors: detailedErrors,
             duration: batchData.completed_at
               ? (new Date(batchData.completed_at).getTime() - new Date(batchData.started_at).getTime()) / 1000
               : 0,
@@ -578,17 +608,16 @@ export default function ImportacaoPage() {
                         <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-gray-500">
-                            Linha {error.line}
-                          </span>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           {error.field && (
-                            <>
-                              <span className="text-gray-300">•</span>
-                              <span className="text-xs font-medium text-gray-500">
-                                Campo: {error.field}
-                              </span>
-                            </>
+                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded">
+                              {error.field}
+                            </span>
+                          )}
+                          {error.line > 0 && (
+                            <span className="text-xs text-gray-500">
+                              Linha {error.line}
+                            </span>
                           )}
                         </div>
                         <p className="text-sm text-gray-900">{error.message}</p>

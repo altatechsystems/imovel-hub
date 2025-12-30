@@ -93,7 +93,9 @@ export const PropertyCard = React.memo(function PropertyCard({ property, variant
                 sizes="(max-width: 640px) 100vw, (max-width: 768px) 256px, 320px"
                 className="object-cover rounded-t-lg sm:rounded-l-lg sm:rounded-tr-none"
                 loading="lazy"
-                quality={75}
+                quality={60}
+                placeholder="blur"
+                blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2RkZCIvPjwvc3ZnPg=="
               />
               <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex gap-1.5 sm:gap-2">
                 {property.featured && (
@@ -174,7 +176,9 @@ export const PropertyCard = React.memo(function PropertyCard({ property, variant
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover rounded-t-lg"
             loading="lazy"
-            quality={75}
+            quality={60}
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2RkZCIvPjwvc3ZnPg=="
           />
           <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex gap-1.5 sm:gap-2">
             {property.featured && (

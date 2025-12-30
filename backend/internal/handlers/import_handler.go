@@ -390,6 +390,29 @@ func (h *ImportHandler) GetImportStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, batch)
 }
 
+// GetBatchErrors handles GET /api/v1/admin/:tenant_id/import/batches/:batchId/errors
+func (h *ImportHandler) GetBatchErrors(c *gin.Context) {
+	ctx := context.Background()
+	batchID := c.Param("batchId")
+
+	// Get errors from Firestore
+	errors, err := h.importService.GetBatchErrors(ctx, batchID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to fetch errors",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"errors":  errors,
+		"count":   len(errors),
+	})
+}
+
 // saveUploadedFile saves an uploaded file to disk
 func saveUploadedFile(src io.Reader, dst string) error {
 	out, err := os.Create(dst)

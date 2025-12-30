@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -158,6 +159,44 @@ func parseHTMLXLS(filePath string) ([]XLSRecord, error) {
 	}
 	defer file.Close()
 
+	// Read file content for debugging
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read HTML file: %w", err)
+	}
+
+	fmt.Printf("📄 HTML file size: %d bytes\n", len(content))
+	previewLen := 200
+	if len(content) < previewLen {
+		previewLen = len(content)
+	}
+	fmt.Printf("📄 First %d chars: %s\n", previewLen, string(content[:previewLen]))
+
+	// Check if this is an Excel Workbook Frameset
+	contentStr := string(content)
+	if strings.Contains(contentStr, "Excel Workbook Frameset") {
+		fmt.Println("📋 Detected Excel Workbook Frameset - looking for sheet file...")
+
+		// Try to find the referenced sheet file
+		// Format: univen-imoveis_20-12-2025_18_12_15.xls -> univen-imoveis_20-12-2025_18_12_15_arquivos/sheet001.htm
+		baseName := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+		dir := filepath.Dir(filePath)
+		sheetPath := filepath.Join(dir, baseName+"_arquivos", "sheet001.htm")
+
+		fmt.Printf("📂 Looking for sheet file at: %s\n", sheetPath)
+
+		if _, err := os.Stat(sheetPath); err == nil {
+			fmt.Println("✅ Found sheet file, parsing it instead...")
+			return parseHTMLXLS(sheetPath) // Recursive call with the actual sheet file
+		}
+
+		// If not found, return a user-friendly error
+		return nil, fmt.Errorf("arquivo XLS exportado como 'Página da Web' não é suportado. Por favor, exporte o arquivo do Excel como 'Pasta de Trabalho do Excel (*.xlsx)' ou 'Pasta de Trabalho do Excel 97-2003 (*.xls)' usando 'Salvar Como' no Excel")
+	}
+
+	// Reset file pointer
+	file.Seek(0, 0)
+
 	doc, err := html.Parse(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse HTML: %w", err)
@@ -165,6 +204,8 @@ func parseHTMLXLS(filePath string) ([]XLSRecord, error) {
 
 	// Extract table rows
 	rows := extractTableRows(doc)
+	fmt.Printf("🔍 Extracted %d rows from HTML table\n", len(rows))
+
 	if len(rows) < 2 {
 		return nil, fmt.Errorf("HTML XLS has no data rows (found %d rows)", len(rows))
 	}
@@ -195,21 +236,32 @@ func parseHTMLXLS(filePath string) ([]XLSRecord, error) {
 // extractTableRows extracts all rows from an HTML table
 func extractTableRows(n *html.Node) [][]string {
 	var rows [][]string
-	var f func(*html.Node)
+	var foundTables int
+	var foundTRs int
+	var f func(*html.Node, int)
 
-	f = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "tr" {
-			row := extractTableCells(n)
-			if len(row) > 0 {
-				rows = append(rows, row)
+	f = func(n *html.Node, depth int) {
+		if n.Type == html.ElementNode {
+			if n.Data == "table" {
+				foundTables++
+				fmt.Printf("🔍 Found <table> at depth %d\n", depth)
+			}
+			if n.Data == "tr" {
+				foundTRs++
+				row := extractTableCells(n)
+				fmt.Printf("🔍 Found <tr> with %d cells: %v\n", len(row), row)
+				if len(row) > 0 {
+					rows = append(rows, row)
+				}
 			}
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			f(c)
+			f(c, depth+1)
 		}
 	}
 
-	f(n)
+	f(n, 0)
+	fmt.Printf("📊 Summary: found %d tables, %d rows\n", foundTables, foundTRs)
 	return rows
 }
 

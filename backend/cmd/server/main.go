@@ -367,6 +367,7 @@ func setupRouter(cfg *config.Config, handlers *Handlers, authMiddleware *middlew
 		tenantScoped.Use(tenantMiddleware.ValidateTenant())
 		{
 			// Admin-only routes
+			handlers.PropertyHandler.RegisterRoutes(tenantScoped)
 			handlers.BrokerHandler.RegisterRoutes(tenantScoped)
 			handlers.OwnerHandler.RegisterRoutes(tenantScoped)
 			handlers.ListingHandler.RegisterRoutes(tenantScoped)
@@ -380,6 +381,7 @@ func setupRouter(cfg *config.Config, handlers *Handlers, authMiddleware *middlew
 			if handlers.ImportHandler != nil {
 				tenantScoped.POST("/import/properties", handlers.ImportHandler.ImportFromFiles)
 				tenantScoped.GET("/import/batches/:batchId", handlers.ImportHandler.GetImportStatus)
+				tenantScoped.GET("/import/batches/:batchId/errors", handlers.ImportHandler.GetBatchErrors)
 			}
 		}
 	}
