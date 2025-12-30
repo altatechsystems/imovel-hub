@@ -200,8 +200,11 @@ export default function BrokerDetailPage() {
       const data = await response.json();
 
       // Update broker with new photo URL
+      // Add cache-busting parameter to force browser to reload the image
       if (broker) {
-        setBroker({ ...broker, photo_url: data.data.photo_url });
+        const photoUrl = data.data.photo_url;
+        const cacheBuster = `?t=${Date.now()}`;
+        setBroker({ ...broker, photo_url: photoUrl + cacheBuster });
       }
 
       // Clear file input

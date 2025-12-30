@@ -171,8 +171,18 @@ export default function ImageCropModal({
     const cropCtx = cropCanvas.getContext('2d');
     if (!cropCtx) return;
 
+    // Fill with white background to avoid transparency issues
+    cropCtx.fillStyle = '#FFFFFF';
+    cropCtx.fillRect(0, 0, CROP_SIZE, CROP_SIZE);
+
     // Apply transformations and draw the cropped portion
     cropCtx.save();
+
+    // Create circular clipping path
+    cropCtx.beginPath();
+    cropCtx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2, 0, Math.PI * 2);
+    cropCtx.clip();
+
     cropCtx.translate(CROP_SIZE / 2, CROP_SIZE / 2);
     cropCtx.rotate((rotation * Math.PI) / 180);
     cropCtx.scale(scale, scale);
