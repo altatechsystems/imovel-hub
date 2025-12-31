@@ -24,6 +24,7 @@ export enum PropertyStatus {
   RENTED = 'rented',
   RESERVED = 'reserved',
   UNAVAILABLE = 'unavailable',
+  PENDING_CONFIRMATION = 'pending_confirmation', // PROMPT 08
 }
 
 export enum PropertyVisibility {
@@ -63,6 +64,11 @@ export interface Property {
   rental_price?: number;
   price_amount?: number; // Backend uses this field
   price_currency?: string;
+  price_confirmed_at?: Date | string; // PROMPT 08
+
+  // Status & Confirmation (PROMPT 08)
+  status_confirmed_at?: Date | string;
+  pending_reason?: string; // stale_status | stale_price | owner_reported | operator_reported
 
   // Location
   street: string;
@@ -162,4 +168,42 @@ export interface PropertyListResponse {
 export interface PropertyResponse {
   success: boolean;
   data: Property;
+}
+
+// ========== PROMPT 08: Property Status Confirmation Types ==========
+
+export interface ConfirmPropertyStatusPriceRequest {
+  confirm_status?: PropertyStatus;
+  confirm_price_amount?: number;
+  note?: string;
+  reason?: 'operator_reported' | 'owner_reported' | 'stale_refresh';
+}
+
+export interface GenerateOwnerConfirmationLinkRequest {
+  delivery_hint?: 'whatsapp' | 'sms' | 'email';
+  owner_id?: string;
+}
+
+export interface GenerateOwnerConfirmationLinkResponse {
+  confirmation_url: string;
+  expires_at: string;
+  token_id: string;
+}
+
+export interface OwnerConfirmationPageResponse {
+  valid: boolean;
+  property_id?: string;
+  property_type?: string;
+  neighborhood?: string;
+  city?: string;
+  reference?: string;
+  current_status?: string;
+  current_price?: number;
+  expires_at?: string;
+  error?: string;
+}
+
+export interface SubmitOwnerConfirmationRequest {
+  action: 'confirm_available' | 'confirm_unavailable' | 'confirm_price';
+  price_amount?: number;
 }

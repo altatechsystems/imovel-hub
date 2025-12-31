@@ -8,6 +8,11 @@ import {
   PaginationOptions,
 } from '@/types/property';
 import { Lead, LeadListResponse, CreateLeadRequest, CreateLeadResponse } from '@/types/lead';
+import type {
+  ConfirmPropertyStatusPriceRequest,
+  GenerateOwnerConfirmationLinkRequest,
+  GenerateOwnerConfirmationLinkResponse,
+} from '@/types/property';
 
 class AdminApiClient {
   private client: AxiosInstance;
@@ -307,6 +312,30 @@ class AdminApiClient {
   async getLeadStats(period?: string): Promise<any> {
     const params = period ? `?period=${period}` : '';
     const response = await this.client.get(`/dashboard/lead-stats${params}`);
+    return response.data.data;
+  }
+
+  // ========== PROMPT 08: PROPERTY STATUS CONFIRMATION ==========
+
+  async confirmPropertyStatusPrice(
+    propertyId: string,
+    data: ConfirmPropertyStatusPriceRequest
+  ): Promise<Property> {
+    const response = await this.client.patch<PropertyResponse>(
+      `/properties/${propertyId}/confirmations`,
+      data
+    );
+    return response.data.data;
+  }
+
+  async generateOwnerConfirmationLink(
+    propertyId: string,
+    data: GenerateOwnerConfirmationLinkRequest
+  ): Promise<GenerateOwnerConfirmationLinkResponse> {
+    const response = await this.client.post<{ success: boolean; data: GenerateOwnerConfirmationLinkResponse }>(
+      `/properties/${propertyId}/owner-confirmation-link`,
+      data
+    );
     return response.data.data;
   }
 }
