@@ -158,9 +158,38 @@ O backend está estável e pronto para uso em produção no que diz respeito aos
 **Commits:**
 - d7c23a4: PROMPT 07 backend e frontend public
 - 330a9b6: Admin dashboard pages para leads
+- b2dfd4c: Fix property type usage in lead details page
+- 03175f1: Correct TypeScript types across frontend projects
+
+## Builds de Produção
+
+### Frontend Admin
+✅ **Build completa com sucesso**
+```
+✓ Compiled successfully in 9.2s
+✓ TypeScript validation passed
+✓ Generated 13 routes (static + dynamic)
+```
+
+**Novas rotas de Lead:**
+- /dashboard/leads (listagem)
+- /dashboard/leads/[id] (detalhes)
+
+### Frontend Public
+✅ **Build completa com sucesso**
+```
+✓ Compiled successfully in 17.3s
+✓ TypeScript validation passed
+✓ Generated 8 routes (static + dynamic)
+```
+
+**Rotas otimizadas:**
+- Static: /, /imoveis, /cadastro-imobiliaria
+- Dynamic: /imoveis/[slug], /corretores/[id]
+- SEO: /robots.txt, /sitemap.xml
 
 ---
 
 **Gerado em**: 30 de Dezembro de 2025
-**Ambiente**: Windows 11, Go 1.21+, Node.js 18+
+**Ambiente**: Windows 11, Go 1.21+, Node.js 18+, Next.js 16.1.0
 **Repositório**: ecosistema-imob
