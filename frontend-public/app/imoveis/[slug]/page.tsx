@@ -462,7 +462,7 @@ export default function PropertyDetailsPage() {
               <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">Entre em Contato</h3>
               <div className="space-y-3">
                 <Button
-                  variant="secondary"
+                  variant="primary"
                   size="lg"
                   className="w-full"
                   leftIcon={<MessageCircle className="w-5 h-5" />}

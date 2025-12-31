@@ -23,7 +23,7 @@ export function PropertyStructuredData({ property }: PropertyStructuredDataProps
       streetAddress: property.street && property.number ? `${property.street}, ${property.number}` : property.street,
       addressLocality: property.city,
       addressRegion: property.state,
-      postalCode: property.zip_code,
+      postalCode: property.postal_code,
       addressCountry: 'BR',
     },
     geo: property.latitude && property.longitude ? {
@@ -50,9 +50,9 @@ export function PropertyStructuredData({ property }: PropertyStructuredDataProps
     },
     numberOfRooms: property.bedrooms,
     numberOfBathroomsTotal: property.bathrooms,
-    floorSize: property.total_area ? {
+    floorSize: property.total_area_sqm ? {
       '@type': 'QuantitativeValue',
-      value: property.total_area,
+      value: property.total_area_sqm,
       unitCode: 'MTK',
     } : undefined,
     amenityFeature: [
@@ -71,17 +71,17 @@ export function PropertyStructuredData({ property }: PropertyStructuredDataProps
         name: 'Vagas de Estacionamento',
         value: property.parking_spaces,
       }] : []),
-      ...(property.pool ? [{
+      ...(property.has_pool ? [{
         '@type': 'LocationFeatureSpecification',
         name: 'Piscina',
         value: true,
       }] : []),
-      ...(property.gym ? [{
+      ...(property.has_gym ? [{
         '@type': 'LocationFeatureSpecification',
         name: 'Academia',
         value: true,
       }] : []),
-      ...(property.elevator ? [{
+      ...(property.has_elevator ? [{
         '@type': 'LocationFeatureSpecification',
         name: 'Elevador',
         value: true,

@@ -71,7 +71,7 @@ export default function BrokerProfilePage() {
   const totalProperties = properties.length;
   const soldProperties = 0; // TODO: Get from total_sales
   const averagePrice = properties.length > 0
-    ? properties.reduce((sum, p) => sum + (p.price_amount || 0), 0) / properties.length
+    ? properties.reduce((sum, p) => sum + (p.sale_price || p.rental_price || 0), 0) / properties.length
     : 0;
 
   const formatPrice = (price: number) => {
@@ -85,7 +85,7 @@ export default function BrokerProfilePage() {
 
   const formatPriceRange = () => {
     if (properties.length === 0) return 'N/A';
-    const prices = properties.map(p => p.price_amount || 0).filter(p => p > 0);
+    const prices = properties.map(p => p.sale_price || p.rental_price || 0).filter(p => p > 0);
     if (prices.length === 0) return 'N/A';
     const min = Math.min(...prices);
     const max = Math.max(...prices);
@@ -195,7 +195,7 @@ export default function BrokerProfilePage() {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   {broker.rating !== undefined && broker.rating > 0 && (
-                    <Badge variant="secondary" size="sm">
+                    <Badge variant="default" size="sm">
                       <Star className="w-3 h-3 mr-1 text-yellow-500 fill-yellow-500" />
                       <span className="font-semibold">{broker.rating.toFixed(1)}</span>
                     </Badge>
@@ -302,7 +302,7 @@ export default function BrokerProfilePage() {
                     <div className="mb-4">
                       <div className="flex flex-wrap gap-2">
                         {broker.specialties.split(',').map((specialty, index) => (
-                          <Badge key={index} variant="secondary" size="sm">
+                          <Badge key={index} variant="default" size="sm">
                             {specialty.trim()}
                           </Badge>
                         ))}
@@ -375,7 +375,7 @@ export default function BrokerProfilePage() {
                   <div className="text-center py-6">
                     <Star className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                     <p className="text-sm text-gray-600 mb-4">Ainda não há avaliações</p>
-                    <Button variant="secondary" size="sm">
+                    <Button variant="outline" size="sm">
                       Seja o primeiro a avaliar
                     </Button>
                   </div>

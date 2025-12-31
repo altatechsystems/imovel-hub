@@ -202,7 +202,7 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <Link href="/contato">
-                <Button variant="secondary" size="lg" leftIcon={<PhoneCall className="w-5 h-5" />}>
+                <Button variant="primary" size="lg" leftIcon={<PhoneCall className="w-5 h-5" />}>
                   Fale Conosco
                 </Button>
               </Link>

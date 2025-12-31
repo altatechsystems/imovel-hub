@@ -30,30 +30,8 @@ export default function PropertiesPage() {
       const loadTime = performance.now() - startTime;
       console.log(`✅ Loaded ${result.data?.length || 0} properties in ${loadTime.toFixed(0)}ms`);
 
-      // Optimize: Process only essential fields for listing view
-      const optimizedProperties = (result.data || []).map((property: Property) => ({
-        id: property.id,
-        slug: property.slug,
-        title: property.title,
-        reference: property.reference,
-        cover_image_url: property.cover_image_url,
-        property_type: property.property_type,
-        transaction_type: property.transaction_type,
-        city: property.city,
-        state: property.state,
-        neighborhood: property.neighborhood,
-        sale_price: property.sale_price,
-        rental_price: property.rental_price,
-        bedrooms: property.bedrooms,
-        bathrooms: property.bathrooms,
-        parking_spaces: property.parking_spaces,
-        area_sqm: property.area_sqm,
-        featured: property.featured,
-        status: property.status,
-        description: property.description,
-      })) as Property[];
-
-      setProperties(optimizedProperties);
+      // Use properties directly from API
+      setProperties(result.data || []);
 
       const processingTime = performance.now() - startTime;
       console.log(`⚡ Total processing time: ${processingTime.toFixed(0)}ms`);

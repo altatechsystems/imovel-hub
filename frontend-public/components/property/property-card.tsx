@@ -58,7 +58,7 @@ export const PropertyCard = React.memo(function PropertyCard({ property, variant
       }
 
       // 3. Construir mensagem com Lead ID
-      const reference = property.reference || property.title || `${getPropertyTypeLabel(property.property_type)} - ${property.city}`;
+      const reference = property.title || property.slug || `${getPropertyTypeLabel(property.property_type)} - ${property.city}`;
       const message = `Olá! Tenho interesse no imóvel ${reference}.\n\nLead ID: #${leadResponse.data.id}`;
       const whatsappUrl = buildWhatsAppUrl(process.env.NEXT_PUBLIC_WHATSAPP || '', message);
 
@@ -148,7 +148,7 @@ export const PropertyCard = React.memo(function PropertyCard({ property, variant
                   </div>
 
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     size="sm"
                     leftIcon={<MessageCircle className="w-4 h-4" />}
                     onClick={handleWhatsAppClick}
@@ -226,7 +226,7 @@ export const PropertyCard = React.memo(function PropertyCard({ property, variant
 
         <CardFooter className="p-3 sm:p-4 pt-0">
           <Button
-            variant="secondary"
+            variant="primary"
             size="sm"
             className="w-full text-xs sm:text-sm"
             leftIcon={<MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />}

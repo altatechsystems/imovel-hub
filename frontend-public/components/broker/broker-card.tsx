@@ -70,7 +70,7 @@ export function BrokerCard({
             </Link>
 
             <div className="flex items-center gap-2 mt-1">
-              <Badge variant="secondary" size="sm">
+              <Badge variant="default" size="sm">
                 <Award className="w-3 h-3 mr-1" />
                 CRECI {broker.creci}
               </Badge>
@@ -135,7 +135,7 @@ export function BrokerCard({
           </Link>
 
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant="secondary">
+            <Badge variant="default">
               <Award className="w-3 h-3 mr-1" />
               CRECI {broker.creci}
             </Badge>
