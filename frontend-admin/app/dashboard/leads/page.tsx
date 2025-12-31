@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Search, Filter, MessageSquare, Phone, Mail, UserCheck } from 'lucide-react';
+import { Users, Search, Filter, MessageSquare, Phone, Mail, UserCheck, ChevronDown } from 'lucide-react';
 import { adminApi } from '@/lib/api';
 import { Lead, LeadStatus, LeadChannel } from '@/types/lead';
 
@@ -16,6 +16,8 @@ export default function LeadsPage() {
   const [error, setError] = useState('');
   const [displayCount, setDisplayCount] = useState(20);
   const [statusFilter, setStatusFilter] = useState<LeadStatusFilter>('all');
+  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
   const itemsPerPage = 20;
 
@@ -37,6 +39,36 @@ export default function LeadsPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleStatusChange = async (leadId: string, newStatus: LeadStatus) => {
+    try {
+      setUpdatingLeadId(leadId);
+      setOpenDropdownId(null);
+
+      await adminApi.updateLeadStatus(leadId, newStatus);
+
+      // Update local state
+      setLeads(prevLeads =>
+        prevLeads.map(lead =>
+          lead.id === leadId ? { ...lead, status: newStatus } : lead
+        )
+      );
+    } catch (err: any) {
+      console.error('Erro ao atualizar status do lead:', err);
+      alert('Erro ao atualizar status do lead. Tente novamente.');
+    } finally {
+      setUpdatingLeadId(null);
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenDropdownId(null);
+    if (openDropdownId) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openDropdownId]);
 
   useEffect(() => {
     fetchLeads();
@@ -466,16 +498,21 @@ export default function LeadsPage() {
                   {displayedLeads.map((lead) => (
                     <tr
                       key={lead.id}
-                      onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="hover:bg-gray-50 transition-colors"
                     >
-                      <td className="px-4 py-4">
+                      <td
+                        className="px-4 py-4 cursor-pointer"
+                        onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
+                      >
                         <div>
                           <p className="font-medium text-gray-900">{lead.name || 'Nome não informado'}</p>
                           <p className="text-sm text-gray-500">ID: {lead.id?.slice(0, 8)}...</p>
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td
+                        className="px-4 py-4 cursor-pointer"
+                        onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
+                      >
                         <div className="text-sm">
                           {lead.email && (
                             <p className="text-gray-900 flex items-center gap-1">
@@ -491,18 +528,70 @@ export default function LeadsPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td
+                        className="px-4 py-4 cursor-pointer"
+                        onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
+                      >
                         <div className="flex items-center gap-2">
                           {getChannelIcon(lead.channel)}
                           <span className="text-sm text-gray-700">{getChannelLabel(lead.channel)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
-                          {getStatusLabel(lead.status)}
-                        </span>
+                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => setOpenDropdownId(openDropdownId === lead.id ? null : (lead.id || null))}
+                            disabled={updatingLeadId === lead.id}
+                            className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all ${getStatusColor(lead.status)} ${
+                              updatingLeadId === lead.id ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md cursor-pointer'
+                            }`}
+                          >
+                            {updatingLeadId === lead.id ? (
+                              <>
+                                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                <span>Atualizando...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>{getStatusLabel(lead.status)}</span>
+                                <ChevronDown className="w-3 h-3" />
+                              </>
+                            )}
+                          </button>
+
+                          {/* Dropdown Menu */}
+                          {openDropdownId === lead.id && (
+                            <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[180px]">
+                              {Object.values(LeadStatus).map((status) => (
+                                <button
+                                  key={status}
+                                  onClick={() => handleStatusChange(lead.id!, status)}
+                                  className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                                    lead.status === status ? 'bg-gray-50 font-medium' : ''
+                                  }`}
+                                >
+                                  <span className={`w-2 h-2 rounded-full ${
+                                    status === LeadStatus.NEW ? 'bg-blue-500' :
+                                    status === LeadStatus.CONTACTED ? 'bg-yellow-500' :
+                                    status === LeadStatus.QUALIFIED ? 'bg-purple-500' :
+                                    status === LeadStatus.NEGOTIATING ? 'bg-orange-500' :
+                                    status === LeadStatus.CONVERTED ? 'bg-green-500' :
+                                    'bg-red-500'
+                                  }`}></span>
+                                  <span className="flex-1">{getStatusLabel(status)}</span>
+                                  {lead.status === status && (
+                                    <span className="text-blue-600">✓</span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td
+                        className="px-4 py-4 cursor-pointer"
+                        onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
+                      >
                         <p className="text-sm text-gray-600">{formatDate(lead.created_at)}</p>
                       </td>
                     </tr>
