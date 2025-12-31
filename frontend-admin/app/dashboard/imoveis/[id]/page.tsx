@@ -674,16 +674,6 @@ export default function PropertyDetailPage() {
             </div>
           </div>
 
-          {/* Description - Show listing description if available, fallback to property description */}
-          {(listing?.description || property.description) && (
-            <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Descrição</h2>
-              <p className="text-sm md:text-base text-gray-600 whitespace-pre-line leading-relaxed">
-                {listing?.description || property.description}
-              </p>
-            </div>
-          )}
-
           {/* Location */}
           <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
             <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Localização</h2>
@@ -703,6 +693,16 @@ export default function PropertyDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Description - Show listing description if available, fallback to property description */}
+          {(listing?.description || property.description) && (
+            <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Descrição</h2>
+              <p className="text-sm md:text-base text-gray-600 whitespace-pre-line leading-relaxed">
+                {listing?.description || property.description}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -827,13 +827,6 @@ export default function PropertyDetailPage() {
                       )}
                     </div>
                   </div>
-
-                  {broker.email && (
-                    <div>
-                      <label className="block text-gray-600 mb-1">E-mail</label>
-                      <p className="font-medium text-gray-900">{broker.email}</p>
-                    </div>
-                  )}
 
                   {broker.phone && (
                     <div>
