@@ -472,8 +472,8 @@ export default function LeadsPage() {
       {/* Leads Table */}
       {!loading && !error && filteredLeads.length > 0 && (
         <>
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
-            <div className="overflow-x-auto">
+          <div className="bg-white rounded-lg shadow-sm mb-6" style={{ overflow: 'visible' }}>
+            <div className="overflow-x-auto" style={{ overflow: 'visible' }}>
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
@@ -538,7 +538,7 @@ export default function LeadsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => setOpenDropdownId(openDropdownId === lead.id ? null : (lead.id || null))}
                             disabled={updatingLeadId === lead.id}
@@ -559,18 +559,18 @@ export default function LeadsPage() {
                             )}
                           </button>
 
-                          {/* Dropdown Menu */}
+                          {/* Dropdown Menu - Absolute positioning */}
                           {openDropdownId === lead.id && (
-                            <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[180px]">
+                            <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[9999] min-w-[200px]">
                               {Object.values(LeadStatus).map((status) => (
                                 <button
                                   key={status}
                                   onClick={() => handleStatusChange(lead.id!, status)}
-                                  className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                                  className={`w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors flex items-center gap-3 ${
                                     lead.status === status ? 'bg-gray-50 font-medium' : ''
                                   }`}
                                 >
-                                  <span className={`w-2 h-2 rounded-full ${
+                                  <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                                     status === LeadStatus.NEW ? 'bg-blue-500' :
                                     status === LeadStatus.CONTACTED ? 'bg-yellow-500' :
                                     status === LeadStatus.QUALIFIED ? 'bg-purple-500' :
@@ -580,7 +580,7 @@ export default function LeadsPage() {
                                   }`}></span>
                                   <span className="flex-1">{getStatusLabel(status)}</span>
                                   {lead.status === status && (
-                                    <span className="text-blue-600">✓</span>
+                                    <span className="text-blue-600 font-bold">✓</span>
                                   )}
                                 </button>
                               ))}
