@@ -17,6 +17,7 @@ type OwnerConfirmationService struct {
 	tokenRepo       *repositories.OwnerConfirmationTokenRepository
 	propertyRepo    *repositories.PropertyRepository
 	ownerRepo       *repositories.OwnerRepository
+	brokerRepo      *repositories.BrokerRepository
 	activityLogRepo *repositories.ActivityLogRepository
 }
 
@@ -25,12 +26,14 @@ func NewOwnerConfirmationService(
 	tokenRepo *repositories.OwnerConfirmationTokenRepository,
 	propertyRepo *repositories.PropertyRepository,
 	ownerRepo *repositories.OwnerRepository,
+	brokerRepo *repositories.BrokerRepository,
 	activityLogRepo *repositories.ActivityLogRepository,
 ) *OwnerConfirmationService {
 	return &OwnerConfirmationService{
 		tokenRepo:       tokenRepo,
 		propertyRepo:    propertyRepo,
 		ownerRepo:       ownerRepo,
+		brokerRepo:      brokerRepo,
 		activityLogRepo: activityLogRepo,
 	}
 }
@@ -120,7 +123,7 @@ func (s *OwnerConfirmationService) GenerateOwnerConfirmationLink(
 	// Build confirmation URL
 	// TODO: Get base URL from config/env
 	baseURL := "http://localhost:3000" // Change this to actual domain
-	confirmationURL := fmt.Sprintf("%s/confirmar/%s", baseURL, token)
+	confirmationURL := fmt.Sprintf("%s/confirmar/%s?tenant_id=%s", baseURL, token, tenantID)
 
 	return confirmationURL, confirmationToken.ID, expiresAt, nil
 }
@@ -135,6 +138,10 @@ type GetConfirmationPageResponse struct {
 	Reference     string  `json:"reference,omitempty"`
 	CurrentStatus string  `json:"current_status,omitempty"`
 	CurrentPrice  float64 `json:"current_price,omitempty"`
+	CoverImageURL string  `json:"cover_image_url,omitempty"` // Foto de capa do imóvel
+	BrokerName    string  `json:"broker_name,omitempty"`     // Nome do corretor
+	BrokerPhoto   string  `json:"broker_photo,omitempty"`    // Foto do corretor
+	BrokerPhone   string  `json:"broker_phone,omitempty"`    // Telefone do corretor
 	ExpiresAt     string  `json:"expires_at,omitempty"`
 	Error         string  `json:"error,omitempty"`
 }
@@ -185,6 +192,17 @@ func (s *OwnerConfirmationService) ValidateTokenAndGetPropertyInfo(
 		}, nil
 	}
 
+	// Get broker info for additional trust
+	var brokerName, brokerPhoto, brokerPhone string
+	if property.CaptadorID != "" {
+		broker, err := s.brokerRepo.Get(ctx, tenantID, property.CaptadorID)
+		if err == nil {
+			brokerName = broker.Name
+			brokerPhoto = broker.PhotoURL
+			brokerPhone = broker.Phone
+		}
+	}
+
 	// Return minimal property info (don't expose sensitive data)
 	return &GetConfirmationPageResponse{
 		Valid:         true,
@@ -195,6 +213,10 @@ func (s *OwnerConfirmationService) ValidateTokenAndGetPropertyInfo(
 		Reference:     property.Reference,
 		CurrentStatus: string(property.Status),
 		CurrentPrice:  property.PriceAmount,
+		CoverImageURL: property.CoverImageURL, // Foto de capa para confirmação visual
+		BrokerName:    brokerName,             // Nome do corretor
+		BrokerPhoto:   brokerPhoto,            // Foto do corretor
+		BrokerPhone:   brokerPhone,            // Telefone do corretor
 		ExpiresAt:     confirmationToken.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
 	}, nil
 }

@@ -13,6 +13,10 @@ interface ConfirmationPageData {
   reference?: string;
   current_status?: string;
   current_price?: number;
+  cover_image_url?: string;
+  broker_name?: string;
+  broker_photo?: string;
+  broker_phone?: string;
   expires_at?: string;
   error?: string;
 }
@@ -207,6 +211,17 @@ export default function OwnerConfirmationPage() {
           </div>
         </div>
 
+        {/* Property Cover Image */}
+        {data.cover_image_url && (
+          <div className="mb-6 rounded-lg overflow-hidden">
+            <img
+              src={data.cover_image_url}
+              alt="Foto do imóvel"
+              className="w-full h-64 object-cover"
+            />
+          </div>
+        )}
+
         {/* Property Info */}
         <div className="bg-gray-50 rounded-lg p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
@@ -341,6 +356,34 @@ export default function OwnerConfirmationPage() {
             </div>
           )}
         </div>
+
+        {/* Broker Info */}
+        {data.broker_name && (
+          <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+            <p className="text-xs text-gray-600 mb-3 text-center">Corretor responsável pelo seu imóvel</p>
+            <div className="flex items-center gap-3 justify-center">
+              {data.broker_photo ? (
+                <img
+                  src={data.broker_photo}
+                  alt={data.broker_name}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-blue-200"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-blue-200 flex items-center justify-center border-2 border-blue-300">
+                  <span className="text-lg font-bold text-blue-700">
+                    {data.broker_name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <div className="text-left">
+                <p className="font-semibold text-gray-900">{data.broker_name}</p>
+                {data.broker_phone && (
+                  <p className="text-sm text-gray-600">{data.broker_phone}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-gray-200">
