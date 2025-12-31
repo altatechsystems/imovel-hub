@@ -138,7 +138,8 @@ type Repositories struct {
 	PropertyBrokerRoleRepo        *repositories.PropertyBrokerRoleRepository
 	LeadRepo                      *repositories.LeadRepository
 	ActivityLogRepo               *repositories.ActivityLogRepository
-	OwnerConfirmationTokenRepo    *repositories.OwnerConfirmationTokenRepository // PROMPT 08
+	OwnerConfirmationTokenRepo    *repositories.OwnerConfirmationTokenRepository    // PROMPT 08
+	ScheduledConfirmationRepo     *repositories.ScheduledConfirmationRepository     // Monthly confirmations
 }
 
 // initializeRepositories initializes all repositories
@@ -153,23 +154,25 @@ func initializeRepositories(client *firestore.Client) *Repositories {
 		LeadRepo:                   repositories.NewLeadRepository(client),
 		ActivityLogRepo:            repositories.NewActivityLogRepository(client),
 		OwnerConfirmationTokenRepo: repositories.NewOwnerConfirmationTokenRepository(client), // PROMPT 08
+		ScheduledConfirmationRepo:  repositories.NewScheduledConfirmationRepository(client),  // Monthly confirmations
 	}
 }
 
 // Services holds all service instances
 type Services struct {
-	TenantService             *services.TenantService
-	BrokerService             *services.BrokerService
-	OwnerService              *services.OwnerService
-	PropertyService           *services.PropertyService
-	ListingService            *services.ListingService
-	PropertyBrokerRoleService *services.PropertyBrokerRoleService
-	LeadService               *services.LeadService
-	ActivityLogService        *services.ActivityLogService
-	StorageService            *storage.StorageService
-	PhotoProcessor            *services.PhotoProcessor
-	ImportService             *services.ImportService
-	OwnerConfirmationService  *services.OwnerConfirmationService // PROMPT 08
+	TenantService                 *services.TenantService
+	BrokerService                 *services.BrokerService
+	OwnerService                  *services.OwnerService
+	PropertyService               *services.PropertyService
+	ListingService                *services.ListingService
+	PropertyBrokerRoleService     *services.PropertyBrokerRoleService
+	LeadService                   *services.LeadService
+	ActivityLogService            *services.ActivityLogService
+	StorageService                *storage.StorageService
+	PhotoProcessor                *services.PhotoProcessor
+	ImportService                 *services.ImportService
+	OwnerConfirmationService      *services.OwnerConfirmationService      // PROMPT 08
+	MonthlyConfirmationScheduler  *services.MonthlyConfirmationScheduler  // Monthly confirmations
 }
 
 // initializeServices initializes all services
@@ -208,7 +211,16 @@ func initializeServices(ctx context.Context, cfg *config.Config, repos *Reposito
 		repos.PropertyRepo,
 		repos.OwnerRepo,
 		repos.BrokerRepo,
+		repos.ListingRepo,
 		repos.ActivityLogRepo,
+	)
+
+	// Initialize MonthlyConfirmationScheduler
+	monthlyConfirmationScheduler := services.NewMonthlyConfirmationScheduler(
+		repos.ScheduledConfirmationRepo,
+		repos.PropertyRepo,
+		repos.OwnerRepo,
+		ownerConfirmationService,
 	)
 
 	// Initialize PropertyService
@@ -267,27 +279,29 @@ func initializeServices(ctx context.Context, cfg *config.Config, repos *Reposito
 			repos.ActivityLogRepo,
 			repos.TenantRepo,
 		),
-		StorageService:           storageService,
-		PhotoProcessor:           photoProcessor,
-		ImportService:            importService,
-		OwnerConfirmationService: ownerConfirmationService, // PROMPT 08
+		StorageService:              storageService,
+		PhotoProcessor:              photoProcessor,
+		ImportService:               importService,
+		OwnerConfirmationService:    ownerConfirmationService,    // PROMPT 08
+		MonthlyConfirmationScheduler: monthlyConfirmationScheduler, // Monthly confirmations
 	}
 }
 
 // Handlers holds all handler instances
 type Handlers struct {
-	AuthHandler               *handlers.AuthHandler
-	TenantHandler             *handlers.TenantHandler
-	BrokerHandler             *handlers.BrokerHandler
-	OwnerHandler              *handlers.OwnerHandler
-	PropertyHandler           *handlers.PropertyHandler
-	ListingHandler            *handlers.ListingHandler
-	PropertyBrokerRoleHandler *handlers.PropertyBrokerRoleHandler
-	LeadHandler               *handlers.LeadHandler
-	ActivityLogHandler        *handlers.ActivityLogHandler
-	StorageHandler            *handlers.StorageHandler
-	ImportHandler             *handlers.ImportHandler
-	OwnerConfirmationHandler  *handlers.OwnerConfirmationHandler // PROMPT 08
+	AuthHandler                  *handlers.AuthHandler
+	TenantHandler                *handlers.TenantHandler
+	BrokerHandler                *handlers.BrokerHandler
+	OwnerHandler                 *handlers.OwnerHandler
+	PropertyHandler              *handlers.PropertyHandler
+	ListingHandler               *handlers.ListingHandler
+	PropertyBrokerRoleHandler    *handlers.PropertyBrokerRoleHandler
+	LeadHandler                  *handlers.LeadHandler
+	ActivityLogHandler           *handlers.ActivityLogHandler
+	StorageHandler               *handlers.StorageHandler
+	ImportHandler                *handlers.ImportHandler
+	OwnerConfirmationHandler     *handlers.OwnerConfirmationHandler     // PROMPT 08
+	ScheduledConfirmationHandler *handlers.ScheduledConfirmationHandler // Monthly confirmations
 }
 
 // initializeHandlers initializes all handlers
@@ -298,18 +312,19 @@ func initializeHandlers(authClient *auth.Client, firestoreClient *firestore.Clie
 	}
 
 	return &Handlers{
-		AuthHandler:               handlers.NewAuthHandler(authClient, firestoreClient),
-		TenantHandler:             handlers.NewTenantHandler(services.TenantService),
-		BrokerHandler:             handlers.NewBrokerHandler(services.BrokerService, services.StorageService),
-		OwnerHandler:              handlers.NewOwnerHandler(services.OwnerService),
-		PropertyHandler:           handlers.NewPropertyHandler(services.PropertyService),
-		ListingHandler:            handlers.NewListingHandler(services.ListingService),
-		PropertyBrokerRoleHandler: handlers.NewPropertyBrokerRoleHandler(services.PropertyBrokerRoleService),
-		LeadHandler:               handlers.NewLeadHandler(services.LeadService),
-		ActivityLogHandler:        handlers.NewActivityLogHandler(services.ActivityLogService),
-		StorageHandler:            storageHandler,
-		ImportHandler:             handlers.NewImportHandler(services.ImportService),
-		OwnerConfirmationHandler:  handlers.NewOwnerConfirmationHandler(services.OwnerConfirmationService), // PROMPT 08
+		AuthHandler:                  handlers.NewAuthHandler(authClient, firestoreClient),
+		TenantHandler:                handlers.NewTenantHandler(services.TenantService),
+		BrokerHandler:                handlers.NewBrokerHandler(services.BrokerService, services.StorageService),
+		OwnerHandler:                 handlers.NewOwnerHandler(services.OwnerService),
+		PropertyHandler:              handlers.NewPropertyHandler(services.PropertyService),
+		ListingHandler:               handlers.NewListingHandler(services.ListingService),
+		PropertyBrokerRoleHandler:    handlers.NewPropertyBrokerRoleHandler(services.PropertyBrokerRoleService),
+		LeadHandler:                  handlers.NewLeadHandler(services.LeadService),
+		ActivityLogHandler:           handlers.NewActivityLogHandler(services.ActivityLogService),
+		StorageHandler:               storageHandler,
+		ImportHandler:                handlers.NewImportHandler(services.ImportService),
+		OwnerConfirmationHandler:     handlers.NewOwnerConfirmationHandler(services.OwnerConfirmationService),     // PROMPT 08
+		ScheduledConfirmationHandler: handlers.NewScheduledConfirmationHandler(services.MonthlyConfirmationScheduler), // Monthly confirmations
 	}
 }
 
@@ -417,6 +432,12 @@ func setupRouter(cfg *config.Config, handlers *Handlers, authMiddleware *middlew
 				tenantScoped.GET("/import/batches/:batchId", handlers.ImportHandler.GetImportStatus)
 				tenantScoped.GET("/import/batches/:batchId/errors", handlers.ImportHandler.GetBatchErrors)
 			}
+
+			// Monthly confirmation scheduler routes
+			tenantScoped.POST("/scheduled-confirmations/schedule", handlers.ScheduledConfirmationHandler.ScheduleMonthlyConfirmations)
+			tenantScoped.POST("/scheduled-confirmations/process", handlers.ScheduledConfirmationHandler.ProcessPendingConfirmations)
+			tenantScoped.GET("/scheduled-confirmations", handlers.ScheduledConfirmationHandler.GetScheduledConfirmations)
+			tenantScoped.GET("/scheduled-confirmations/broker/:broker_id", handlers.ScheduledConfirmationHandler.GetBrokerScheduledConfirmations)
 		}
 	}
 

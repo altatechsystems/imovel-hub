@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   X,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +44,11 @@ const menuItems = [
     title: 'Corretores',
     href: '/dashboard/corretores',
     icon: UserCog,
+  },
+  {
+    title: 'Confirmações',
+    href: '/dashboard/confirmacoes',
+    icon: Calendar,
   },
   {
     title: 'Importação',

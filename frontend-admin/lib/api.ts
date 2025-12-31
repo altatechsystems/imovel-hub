@@ -338,6 +338,26 @@ class AdminApiClient {
     );
     return response.data.data;
   }
+
+  // Scheduled Confirmations
+  async scheduleMonthlyConfirmations(data: { scheduled_for?: string; dry_run?: boolean }): Promise<any> {
+    const response = await this.client.post<{ success: boolean; data: any }>(
+      '/scheduled-confirmations/schedule',
+      data
+    );
+    return response.data.data;
+  }
+
+  async processPendingConfirmations(): Promise<void> {
+    await this.client.post('/scheduled-confirmations/process');
+  }
+
+  async getScheduledConfirmations(status?: string): Promise<any[]> {
+    const response = await this.client.get<{ success: boolean; data: any[] }>(
+      `/scheduled-confirmations${status ? `?status=${status}` : ''}`
+    );
+    return response.data.data || [];
+  }
 }
 
 export const adminApi = new AdminApiClient();
