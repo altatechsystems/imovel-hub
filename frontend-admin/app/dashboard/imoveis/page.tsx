@@ -9,6 +9,8 @@ interface Property {
   id: string;
   reference?: string;
   slug?: string;
+  title?: string;         // Computed from canonical listing
+  description?: string;   // Computed from canonical listing
   street?: string;
   city?: string;
   state?: string;
@@ -64,6 +66,8 @@ export default function ImoveisPage() {
         id: property.id,
         reference: property.reference,
         slug: property.slug,
+        title: property.title,           // Computed from canonical listing
+        description: property.description, // Computed from canonical listing
         street: property.street,
         city: property.city,
         state: property.state,
@@ -95,6 +99,20 @@ export default function ImoveisPage() {
       style: 'currency',
       currency: 'BRL',
     }).format(price);
+  };
+
+  const getPropertyTypeLabel = (type: string) => {
+    const types: Record<string, string> = {
+      'apartment': 'Apartamento',
+      'house': 'Casa',
+      'condo': 'Condomínio',
+      'commercial': 'Comercial',
+      'land': 'Terreno',
+      'chacara': 'Chácara',
+      'fazenda': 'Fazenda',
+      'sitio': 'Sítio',
+    };
+    return types[type] || type;
   };
 
   // Memoize expensive calculations - optimize by doing single pass
@@ -461,13 +479,16 @@ export default function ImoveisPage() {
               {/* Property Info */}
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900 flex-1">
-                    {property.reference || property.slug || 'Sem referência'}
+                  <h3 className="text-lg font-semibold text-gray-900 flex-1 line-clamp-2">
+                    {property.title || property.description || `${getPropertyTypeLabel(property.property_type || '')} em ${property.neighborhood}`}
                   </h3>
-                  <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
+                  <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full ml-2 flex-shrink-0">
                     {property.status || 'Disponível'}
                   </span>
                 </div>
+                {property.reference && (
+                  <p className="text-xs text-gray-600 mb-2">Código: {property.reference}</p>
+                )}
 
                 <div className="flex items-center text-gray-600 text-sm mb-3">
                   <MapPin className="w-4 h-4 mr-1" />

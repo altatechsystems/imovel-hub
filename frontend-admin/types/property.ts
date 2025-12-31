@@ -27,9 +27,10 @@ export enum PropertyStatus {
 }
 
 export enum PropertyVisibility {
-  PUBLIC = 'public',
-  PRIVATE = 'private',
-  EXCLUSIVE = 'exclusive',
+  PRIVATE = 'private',       // Apenas captador
+  NETWORK = 'network',       // Rede (imobiliária)
+  MARKETPLACE = 'marketplace', // Todos os corretores
+  PUBLIC = 'public',         // Internet (SEO)
 }
 
 export enum PropertyDataCompleteness {
@@ -44,14 +45,24 @@ export interface Property {
   owner_id: string;
   captador_name?: string; // Nome do corretor captador
   captador_id?: string;   // ID do broker quando cadastrado
-  transaction_type: TransactionType;
+  transaction_type?: TransactionType; // Optional - may not be in backend response
   property_type: PropertyType;
   status: PropertyStatus;
   visibility?: PropertyVisibility;
 
+  // Backend specific fields
+  external_source?: string;
+  external_id?: string;
+  reference?: string;
+  zip_code?: string; // Backend uses zip_code instead of postal_code
+  total_area?: number; // Backend uses this instead of total_area_sqm
+  canonical_listing_id?: string;
+
   // Price
   sale_price?: number;
   rental_price?: number;
+  price_amount?: number; // Backend uses this field
+  price_currency?: string;
 
   // Location
   street: string;

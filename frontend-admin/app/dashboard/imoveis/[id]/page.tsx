@@ -318,8 +318,11 @@ export default function PropertyDetailPage() {
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1">
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">
-              {property.reference || property.slug || 'Imóvel'}
+              {listing?.title || property.description || `${getPropertyTypeLabel(property.property_type || '')} em ${property.neighborhood}`}
             </h1>
+            {property.reference && (
+              <p className="text-sm text-gray-600 mb-2">Código: {property.reference}</p>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium ${getStatusColor(property.status || 'available')}`}>
                 {getStatusLabel(property.status || 'available')}
@@ -510,9 +513,6 @@ export default function PropertyDetailPage() {
           {(listing?.description || property.description) && (
             <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
               <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Descrição</h2>
-              {listing?.title && (
-                <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-3">{listing.title}</h3>
-              )}
               <p className="text-sm md:text-base text-gray-600 whitespace-pre-line leading-relaxed">
                 {listing?.description || property.description}
               </p>
@@ -578,7 +578,11 @@ export default function PropertyDetailPage() {
               <div className="flex items-center justify-between">
                 <span className="text-gray-600">Visibilidade</span>
                 <span className="font-medium text-gray-900">
-                  {property.visibility === 'public' ? 'Público' : 'Privado'}
+                  {property.visibility === 'public' ? 'Público (Internet)' :
+                   property.visibility === 'marketplace' ? 'Marketplace (Todos Corretores)' :
+                   property.visibility === 'network' ? 'Rede (Imobiliária)' :
+                   property.visibility === 'private' ? 'Privado (Apenas Captador)' :
+                   'Não definido'}
                 </span>
               </div>
               {property.created_at && (
