@@ -419,7 +419,7 @@ export default function PropertyDetailPage() {
             {property.reference && (
               <p className="text-sm text-gray-600 mb-2">Código: {property.reference}</p>
             )}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium ${getStatusColor(property.status || 'available')}`}>
                 {getStatusLabel(property.status || 'available')}
               </span>
@@ -433,6 +433,32 @@ export default function PropertyDetailPage() {
                 <span className="px-3 py-1 bg-yellow-100 text-yellow-600 rounded-full text-xs md:text-sm font-medium">
                   Destaque
                 </span>
+              )}
+            </div>
+
+            {/* Additional Info */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
+              <div className="flex items-center gap-1">
+                <span className="font-medium">Visibilidade:</span>
+                <span>
+                  {property.visibility === 'public' ? 'Público' :
+                   property.visibility === 'marketplace' ? 'Marketplace' :
+                   property.visibility === 'network' ? 'Rede' :
+                   property.visibility === 'private' ? 'Privado' :
+                   'Não definido'}
+                </span>
+              </div>
+              {property.created_at && (
+                <div className="flex items-center gap-1">
+                  <span className="font-medium">Cadastrado:</span>
+                  <span>{formatDate(property.created_at)}</span>
+                </div>
+              )}
+              {property.updated_at && (
+                <div className="flex items-center gap-1">
+                  <span className="font-medium">Atualizado:</span>
+                  <span>{formatDate(property.updated_at)}</span>
+                </div>
               )}
             </div>
           </div>
@@ -649,55 +675,6 @@ export default function PropertyDetailPage() {
             <p className="text-2xl md:text-3xl font-bold text-gray-900">
               {property.price_amount ? formatPrice(property.price_amount) : 'Sob consulta'}
             </p>
-          </div>
-
-          {/* Info Card */}
-          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
-            <h3 className="text-base md:text-lg font-bold text-gray-900 mb-4">Informações</h3>
-            <div className="space-y-3 text-xs md:text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Código</span>
-                <span className="font-medium text-gray-900">{property.reference || '-'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Tipo</span>
-                <span className="font-medium text-gray-900">
-                  {getPropertyTypeLabel(property.property_type || '')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Status</span>
-                <span className="font-medium text-gray-900">
-                  {getStatusLabel(property.status || '')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Visibilidade</span>
-                <span className="font-medium text-gray-900">
-                  {property.visibility === 'public' ? 'Público (Internet)' :
-                   property.visibility === 'marketplace' ? 'Marketplace (Todos Corretores)' :
-                   property.visibility === 'network' ? 'Rede (Imobiliária)' :
-                   property.visibility === 'private' ? 'Privado (Apenas Captador)' :
-                   'Não definido'}
-                </span>
-              </div>
-              {property.created_at && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Cadastrado em</span>
-                  <span className="font-medium text-gray-900">
-                    {formatDate(property.created_at)}
-                  </span>
-                </div>
-              )}
-              {property.updated_at && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Atualizado em</span>
-                  <span className="font-medium text-gray-900">
-                    {formatDate(property.updated_at)}
-                  </span>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Owner Card */}
