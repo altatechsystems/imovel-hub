@@ -16,8 +16,14 @@ class AdminApiClient {
   constructor() {
     this.tenantId = process.env.NEXT_PUBLIC_TENANT_ID || '';
 
+    // Add tenant_id to base URL for admin routes
+    const baseURL = process.env.NEXT_PUBLIC_ADMIN_API_URL;
+    const adminBaseURL = baseURL?.endsWith('/admin')
+      ? `${baseURL}/${this.tenantId}`
+      : baseURL;
+
     this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_ADMIN_API_URL,
+      baseURL: adminBaseURL,
       headers: {
         'Content-Type': 'application/json',
       },
