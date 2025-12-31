@@ -37,6 +37,35 @@ export default function OwnerConfirmationPage() {
   const [priceInput, setPriceInput] = useState('');
   const [showPriceInput, setShowPriceInput] = useState(false);
 
+  // Format number to BRL currency
+  const formatToBRL = (value: string): string => {
+    // Remove tudo que não é dígito
+    const numbers = value.replace(/\D/g, '');
+
+    if (!numbers) return '';
+
+    // Converte para número e divide por 100 para ter os centavos
+    const amount = parseFloat(numbers) / 100;
+
+    // Formata para BRL
+    return amount.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  // Remove formatting and return raw number
+  const parseBRLToNumber = (value: string): number => {
+    const numbers = value.replace(/\D/g, '');
+    return parseFloat(numbers) / 100;
+  };
+
+  // Handle price input change with BRL formatting
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatToBRL(e.target.value);
+    setPriceInput(formatted);
+  };
+
   useEffect(() => {
     if (token && tenantId) {
       validateToken();
@@ -61,7 +90,12 @@ export default function OwnerConfirmationPage() {
       if (result.success && result.data) {
         setData(result.data);
         if (result.data.current_price) {
-          setPriceInput(result.data.current_price.toString());
+          // Format initial price to BRL
+          const formatted = result.data.current_price.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+          setPriceInput(formatted);
         }
       } else {
         setError(result.data?.error || 'Token inválido');
@@ -81,7 +115,8 @@ export default function OwnerConfirmationPage() {
         return;
       }
 
-      if (!priceInput || parseFloat(priceInput) <= 0) {
+      const numericValue = parseBRLToNumber(priceInput);
+      if (!priceInput || numericValue <= 0) {
         setError('Por favor, informe um preço válido');
         return;
       }
@@ -93,7 +128,7 @@ export default function OwnerConfirmationPage() {
 
       const body: any = { action };
       if (action === 'confirm_price') {
-        body.price_amount = parseFloat(priceInput);
+        body.price_amount = parseBRLToNumber(priceInput);
       }
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8080';
@@ -280,21 +315,8 @@ export default function OwnerConfirmationPage() {
           </div>
         </div>
 
-        {/* Expiration Warning */}
-        {data.expires_at && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
-            <div className="flex items-center gap-2 text-sm text-amber-800">
-              <Clock className="w-4 h-4" />
-              <span>
-                Este link expira em {new Date(data.expires_at).toLocaleDateString('pt-BR')} às{' '}
-                {new Date(data.expires_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* Actions */}
-        <div className="space-y-4">
+        <div className="space-y-4 mb-6">
           <h2 className="font-semibold text-gray-900 text-lg">Selecione uma ação:</h2>
 
           {/* Confirm Available */}
@@ -304,7 +326,7 @@ export default function OwnerConfirmationPage() {
             className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
           >
             <CheckCircle className="w-5 h-5" />
-            {submitting ? 'Processando...' : 'Confirmar que o imóvel está DISPONÍVEL'}
+            {submitting ? 'Processando...' : 'Sim, está disponível'}
           </button>
 
           {/* Confirm Unavailable */}
@@ -314,7 +336,7 @@ export default function OwnerConfirmationPage() {
             className="w-full flex items-center justify-center gap-3 px-4 py-4 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
           >
             <XCircle className="w-5 h-5" />
-            {submitting ? 'Processando...' : 'Informar que o imóvel NÃO está mais disponível'}
+            {submitting ? 'Processando...' : 'Não está disponível'}
           </button>
 
           {/* Update Price */}
@@ -333,16 +355,20 @@ export default function OwnerConfirmationPage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Novo preço:
                 </label>
-                <input
-                  type="number"
-                  value={priceInput}
-                  onChange={(e) => setPriceInput(e.target.value)}
-                  placeholder="Ex: 500000"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={submitting}
-                  step="0.01"
-                  min="0"
-                />
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-medium">
+                    R$
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={priceInput}
+                    onChange={handlePriceChange}
+                    placeholder="0,00"
+                    className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={submitting}
+                  />
+                </div>
                 <p className="text-xs text-gray-500">
                   Valor atual: R$ {data.current_price?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
                 </p>
@@ -359,7 +385,7 @@ export default function OwnerConfirmationPage() {
 
         {/* Broker Info */}
         {data.broker_name && (
-          <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
             <p className="text-xs text-gray-600 mb-3 text-center">Corretor responsável pelo seu imóvel</p>
             <div className="flex items-center gap-3 justify-center">
               {data.broker_photo ? (
@@ -381,6 +407,19 @@ export default function OwnerConfirmationPage() {
                   <p className="text-sm text-gray-600">{data.broker_phone}</p>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Expiration Warning */}
+        {data.expires_at && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
+              <Clock className="w-4 h-4" />
+              <span>
+                Este link expira em {new Date(data.expires_at).toLocaleDateString('pt-BR')} às{' '}
+                {new Date(data.expires_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
           </div>
         )}

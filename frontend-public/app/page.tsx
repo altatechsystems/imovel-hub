@@ -10,6 +10,7 @@ import { Property, PropertyFilters, TransactionType, PropertyStatus, PropertyVis
 import { api } from '@/lib/api';
 import { Search, MapPin, Home, TrendingUp, PhoneCall } from 'lucide-react';
 import { OrganizationStructuredData } from '@/components/seo/organization-structured-data';
+import { WebsiteStructuredData } from '@/components/seo/website-structured-data';
 import { MobileMenu } from '@/components/navigation/mobile-menu';
 
 export default function HomePage() {
@@ -47,6 +48,7 @@ export default function HomePage() {
     <>
       {/* SEO Structured Data */}
       <OrganizationStructuredData />
+      <WebsiteStructuredData />
 
       <div className="min-h-screen bg-gray-50">
         {/* Header */}

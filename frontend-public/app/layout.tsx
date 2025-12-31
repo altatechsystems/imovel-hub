@@ -81,6 +81,20 @@ export const metadata: Metadata = {
   alternates: {
     canonical: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001',
   },
+  category: 'real estate',
+  classification: 'Real Estate, Property Listings',
+  referrer: 'origin-when-cross-origin',
+  applicationName: 'Imobiliária',
+  appleWebApp: {
+    capable: true,
+    title: 'Imobiliária',
+    statusBarStyle: 'default',
+  },
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+    'mobile-web-app-capable': 'yes',
+    'theme-color': '#2563eb',
+  },
 };
 
 export default function RootLayout({

@@ -238,7 +238,7 @@ export default function PropertyDetailsPage() {
                     sizes="(max-width: 768px) 100vw, 66vw"
                     className="object-cover"
                     priority
-                    quality={85}
+                    quality={75}
                   />
                 ) : (
                   <Image
@@ -275,7 +275,7 @@ export default function PropertyDetailsPage() {
                       sizes="16vw"
                       className="object-cover"
                       priority
-                      quality={80}
+                      quality={75}
                     />
                   </div>
                 )}
@@ -296,7 +296,7 @@ export default function PropertyDetailsPage() {
                       sizes="16vw"
                       className="object-cover"
                       priority
-                      quality={80}
+                      quality={75}
                     />
                   </div>
                 )}
@@ -317,7 +317,7 @@ export default function PropertyDetailsPage() {
                       sizes="16vw"
                       className="object-cover"
                       priority
-                      quality={80}
+                      quality={75}
                     />
                   </div>
                 )}
@@ -338,7 +338,7 @@ export default function PropertyDetailsPage() {
                       sizes="16vw"
                       className="object-cover"
                       priority
-                      quality={80}
+                      quality={75}
                     />
                     {property.images.length > 5 && (
                       <div className="absolute inset-0 bg-black/70 flex items-center justify-center group-hover:bg-black/80 transition-colors">
@@ -532,7 +532,7 @@ export default function PropertyDetailsPage() {
                 height={1200}
                 className="max-w-full max-h-full object-contain"
                 priority
-                quality={85}
+                quality={75}
               />
               {/* Preload next and previous images */}
               {property.images[(currentImageIndex + 1) % property.images.length] && (

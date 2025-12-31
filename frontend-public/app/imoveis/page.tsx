@@ -10,6 +10,7 @@ import { Property, PropertyFilters, PropertyStatus, PropertyVisibility } from '@
 import { api } from '@/lib/api';
 import { Home, Grid, List, Search } from 'lucide-react';
 import { MobileMenu } from '@/components/navigation/mobile-menu';
+import { BreadcrumbStructuredData } from '@/components/seo/breadcrumb-structured-data';
 
 export default function PropertiesPage() {
   const [properties, setProperties] = React.useState<Property[]>([]);
@@ -54,9 +55,18 @@ export default function PropertiesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
+    <>
+      {/* SEO Structured Data */}
+      <BreadcrumbStructuredData
+        items={[
+          { name: 'Home', url: '/' },
+          { name: 'Imóveis', url: '/imoveis' },
+        ]}
+      />
+
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2">
@@ -182,6 +192,7 @@ export default function PropertiesPage() {
           </main>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
