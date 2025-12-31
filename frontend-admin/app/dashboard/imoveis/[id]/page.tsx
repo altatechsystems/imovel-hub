@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { adminApi } from '@/lib/api';
 import {
   Building2,
   MapPin,
@@ -18,7 +19,13 @@ import {
   DollarSign,
   Home,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  Link as LinkIcon,
+  Copy,
+  Send
 } from 'lucide-react';
 
 interface Owner {
@@ -59,6 +66,10 @@ interface Property {
   owner_id?: string;
   captador_name?: string; // Nome do corretor captador
   captador_id?: string;   // ID do broker quando cadastrado
+  // PROMPT 08
+  status_confirmed_at?: string;
+  price_confirmed_at?: string;
+  pending_reason?: string;
 }
 
 interface Listing {
@@ -91,6 +102,13 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadingOwner, setLoadingOwner] = useState(false);
   const [error, setError] = useState('');
+
+  // PROMPT 08: Confirmation states
+  const [confirmingStatus, setConfirmingStatus] = useState(false);
+  const [confirmingPrice, setConfirmingPrice] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [confirmationLink, setConfirmationLink] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (propertyId) {
@@ -173,6 +191,84 @@ export default function PropertyDetailPage() {
       console.error('Erro ao buscar proprietário:', err);
     } finally {
       setLoadingOwner(false);
+    }
+  };
+
+  // PROMPT 08: Confirmation handlers
+  const handleConfirmStatus = async (status: 'available' | 'unavailable') => {
+    if (!property) return;
+
+    try {
+      setConfirmingStatus(true);
+      await adminApi.confirmPropertyStatusPrice(property.id, {
+        confirm_status: status as any,
+        reason: 'operator_reported',
+      });
+
+      // Refresh property data
+      await fetchPropertyDetails();
+      alert('Status confirmado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao confirmar status:', err);
+      alert('Erro ao confirmar status. Tente novamente.');
+    } finally {
+      setConfirmingStatus(false);
+    }
+  };
+
+  const handleConfirmPrice = async () => {
+    if (!property || !property.price_amount) return;
+
+    const newPrice = prompt(
+      'Confirmar preço atual ou informar novo valor:',
+      property.price_amount.toString()
+    );
+
+    if (!newPrice) return;
+
+    try {
+      setConfirmingPrice(true);
+      await adminApi.confirmPropertyStatusPrice(property.id, {
+        confirm_price_amount: parseFloat(newPrice),
+        reason: 'operator_reported',
+      });
+
+      // Refresh property data
+      await fetchPropertyDetails();
+      alert('Preço confirmado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao confirmar preço:', err);
+      alert('Erro ao confirmar preço. Tente novamente.');
+    } finally {
+      setConfirmingPrice(false);
+    }
+  };
+
+  const handleGenerateOwnerLink = async () => {
+    if (!property) return;
+
+    try {
+      setGeneratingLink(true);
+      const response = await adminApi.generateOwnerConfirmationLink(property.id, {
+        delivery_hint: 'whatsapp',
+        owner_id: property.owner_id,
+      });
+
+      setConfirmationLink(response.confirmation_url);
+      alert('Link gerado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao gerar link:', err);
+      alert('Erro ao gerar link. Tente novamente.');
+    } finally {
+      setGeneratingLink(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (confirmationLink) {
+      navigator.clipboard.writeText(confirmationLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
     }
   };
 
@@ -676,6 +772,192 @@ export default function PropertyDetailPage() {
                 <p>Nenhum proprietário vinculado</p>
               </div>
             )}
+          </div>
+
+          {/* Status & Price Confirmation Card (PROMPT 08) */}
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 border-l-4 border-blue-500">
+            <h3 className="text-base md:text-lg font-bold text-gray-900 mb-4">
+              Status & Preço
+            </h3>
+
+            {/* Current Status */}
+            <div className="space-y-4 text-xs md:text-sm">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-600">Status atual</span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    property?.status === 'available' ? 'bg-green-100 text-green-800' :
+                    property?.status === 'unavailable' ? 'bg-red-100 text-red-800' :
+                    property?.status === 'pending_confirmation' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {property?.status === 'available' ? 'Disponível' :
+                     property?.status === 'unavailable' ? 'Indisponível' :
+                     property?.status === 'pending_confirmation' ? 'Pendente Confirmação' :
+                     property?.status}
+                  </span>
+                </div>
+
+                {property?.status_confirmed_at && (
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Clock className="w-3 h-3" />
+                    <span>
+                      Confirmado há {Math.floor((Date.now() - new Date(property.status_confirmed_at).getTime()) / (1000 * 60 * 60 * 24))} dias
+                    </span>
+                  </div>
+                )}
+
+                {!property?.status_confirmed_at && (
+                  <div className="flex items-center gap-2 text-xs text-amber-600">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>Status nunca confirmado</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Current Price */}
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-600">Preço atual</span>
+                  <span className="font-bold text-gray-900">
+                    {property?.price_amount ? `R$ ${property.price_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}
+                  </span>
+                </div>
+
+                {property?.price_confirmed_at && (
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Clock className="w-3 h-3" />
+                    <span>
+                      Confirmado há {Math.floor((Date.now() - new Date(property.price_confirmed_at).getTime()) / (1000 * 60 * 60 * 24))} dias
+                    </span>
+                  </div>
+                )}
+
+                {!property?.price_confirmed_at && (
+                  <div className="flex items-center gap-2 text-xs text-amber-600">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>Preço nunca confirmado</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Warning for stale data */}
+              {property?.status_confirmed_at &&
+               Math.floor((Date.now() - new Date(property.status_confirmed_at).getTime()) / (1000 * 60 * 60 * 24)) > 15 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-amber-800">
+                      <p className="font-medium mb-1">Atenção: Status desatualizado</p>
+                      <p>Última confirmação há mais de 15 dias. Confirme o status e preço para manter o imóvel visível.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Actions */}
+              <div className="border-t pt-4 space-y-3">
+                <p className="font-medium text-gray-900">Confirmar Disponibilidade</p>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleConfirmStatus('available')}
+                    disabled={confirmingStatus}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    {confirmingStatus ? 'Confirmando...' : 'Disponível'}
+                  </button>
+
+                  <button
+                    onClick={() => handleConfirmStatus('unavailable')}
+                    disabled={confirmingStatus}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium"
+                  >
+                    <AlertCircle className="w-4 h-4" />
+                    {confirmingStatus ? 'Confirmando...' : 'Indisponível'}
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleConfirmPrice}
+                  disabled={confirmingPrice}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  {confirmingPrice ? 'Confirmando...' : 'Confirmar / Atualizar Preço'}
+                </button>
+              </div>
+
+              {/* Owner Confirmation Section */}
+              <div className="border-t pt-4 space-y-3">
+                <p className="font-medium text-gray-900">Confirmação pelo Proprietário</p>
+
+                {owner && (
+                  <div className="text-xs text-gray-600 bg-blue-50 rounded-lg p-3">
+                    <p className="mb-1">
+                      <strong>Proprietário:</strong> {owner.name || 'Não informado'}
+                    </p>
+                    <p className="mb-1">
+                      <strong>Status:</strong>{' '}
+                      <span className={`font-medium ${
+                        owner.owner_status === 'verified' ? 'text-green-700' :
+                        owner.owner_status === 'partial' ? 'text-yellow-700' :
+                        'text-gray-700'
+                      }`}>
+                        {owner.owner_status === 'verified' ? 'Verificado' :
+                         owner.owner_status === 'partial' ? 'Parcial' :
+                         'Incompleto'}
+                      </span>
+                    </p>
+                    {owner.owner_status !== 'verified' && (
+                      <p className="text-amber-700 mt-2">
+                        ⚠️ Link funcionará mesmo com dados incompletos
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleGenerateOwnerLink}
+                  disabled={generatingLink}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  {generatingLink ? 'Gerando...' : 'Gerar Link p/ Proprietário'}
+                </button>
+
+                {confirmationLink && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-green-800 mb-1">Link gerado com sucesso!</p>
+                        <p className="text-xs text-green-700 break-all mb-2">{confirmationLink}</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleCopyLink}
+                            className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                          >
+                            <Copy className="w-3 h-3" />
+                            {linkCopied ? 'Copiado!' : 'Copiar Link'}
+                          </button>
+                          <a
+                            href={`https://wa.me/${owner?.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Por favor, confirme a disponibilidade do seu imóvel: ${confirmationLink}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
+                          >
+                            <Send className="w-3 h-3" />
+                            Enviar via WhatsApp
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Captador Card */}

@@ -599,8 +599,10 @@ export default function EditPropertyPage() {
                     onChange={(e) => handleChange('visibility', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="public">Público</option>
-                    <option value="private">Privado</option>
+                    <option value="private">Privado (Apenas Captador)</option>
+                    <option value="network">Rede (Imobiliária)</option>
+                    <option value="marketplace">Marketplace (Todos Corretores)</option>
+                    <option value="public">Público (Internet)</option>
                   </select>
                 </div>
 

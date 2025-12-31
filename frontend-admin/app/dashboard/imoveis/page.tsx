@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Building2, Plus, Search, Filter, MapPin, Bed, Bath, Maximize } from 'lucide-react';
+import { Building2, Plus, Search, Filter, MapPin, Bed, Bath, Maximize, AlertCircle } from 'lucide-react';
 
 interface Property {
   id: string;
@@ -21,10 +21,12 @@ interface Property {
   total_area?: number;
   property_type?: string;
   status?: string;
+  status_confirmed_at?: string;  // PROMPT 08
+  pending_reason?: string;       // PROMPT 08
   image_url?: string;
 }
 
-type PropertyTypeFilter = 'all' | 'available' | 'apartment' | 'house' | 'chacara' | 'terreno' | 'fazenda' | 'sitio';
+type PropertyTypeFilter = 'all' | 'available' | 'pending_confirmation' | 'apartment' | 'house' | 'chacara' | 'terreno' | 'fazenda' | 'sitio';
 
 export default function ImoveisPage() {
   const router = useRouter();
@@ -78,6 +80,8 @@ export default function ImoveisPage() {
         total_area: property.total_area,
         property_type: property.property_type,
         status: property.status,
+        status_confirmed_at: property.status_confirmed_at, // PROMPT 08
+        pending_reason: property.pending_reason,           // PROMPT 08
         image_url: property.cover_image_url,
       }));
 
@@ -120,6 +124,7 @@ export default function ImoveisPage() {
     const result = {
       total: properties.length,
       available: 0,
+      pending_confirmation: 0, // PROMPT 08
       apartments: 0,
       houses: 0,
       chacaras: 0,
@@ -131,6 +136,7 @@ export default function ImoveisPage() {
     // Single pass through properties
     properties.forEach(p => {
       if (p.status?.toLowerCase() === 'available') result.available++;
+      if (p.status?.toLowerCase() === 'pending_confirmation') result.pending_confirmation++; // PROMPT 08
       if (p.property_type?.toLowerCase() === 'apartment') result.apartments++;
       if (p.property_type?.toLowerCase() === 'house') result.houses++;
 
@@ -153,6 +159,8 @@ export default function ImoveisPage() {
         switch (typeFilter) {
           case 'available':
             return property.status?.toLowerCase() === 'available';
+          case 'pending_confirmation': // PROMPT 08
+            return property.status?.toLowerCase() === 'pending_confirmation';
           case 'apartment':
             return property.property_type?.toLowerCase() === 'apartment';
           case 'house':
@@ -254,6 +262,24 @@ export default function ImoveisPage() {
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs text-gray-600 truncate">Disponíveis</p>
               <p className="text-base sm:text-lg font-bold text-green-600">{stats.available}</p>
+            </div>
+          </div>
+        </button>
+
+        {/* PROMPT 08: Pending Confirmation Filter */}
+        <button
+          onClick={() => setTypeFilter('pending_confirmation')}
+          className={`bg-white rounded-lg shadow-sm p-2 sm:p-3 text-left transition-all hover:shadow-md ${
+            typeFilter === 'pending_confirmation' ? 'ring-2 ring-amber-500' : ''
+          }`}
+        >
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-amber-100 rounded flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-600 truncate">Pend. Confirm.</p>
+              <p className="text-base sm:text-lg font-bold text-amber-600">{stats.pending_confirmation}</p>
             </div>
           </div>
         </button>
@@ -482,8 +508,20 @@ export default function ImoveisPage() {
                   <h3 className="text-lg font-semibold text-gray-900 flex-1 line-clamp-2">
                     {property.title || property.description || `${getPropertyTypeLabel(property.property_type || '')} em ${property.neighborhood}`}
                   </h3>
-                  <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full ml-2 flex-shrink-0">
-                    {property.status || 'Disponível'}
+                  <span className={`px-2 py-1 text-xs rounded-full ml-2 flex-shrink-0 ${
+                    property.status?.toLowerCase() === 'available' ? 'bg-green-100 text-green-700' :
+                    property.status?.toLowerCase() === 'pending_confirmation' ? 'bg-amber-100 text-amber-700' :
+                    property.status?.toLowerCase() === 'unavailable' ? 'bg-red-100 text-red-700' :
+                    property.status?.toLowerCase() === 'sold' ? 'bg-purple-100 text-purple-700' :
+                    property.status?.toLowerCase() === 'rented' ? 'bg-indigo-100 text-indigo-700' :
+                    'bg-blue-100 text-blue-600'
+                  }`}>
+                    {property.status?.toLowerCase() === 'available' ? 'Disponível' :
+                     property.status?.toLowerCase() === 'pending_confirmation' ? 'Pend. Confirm.' :
+                     property.status?.toLowerCase() === 'unavailable' ? 'Indisponível' :
+                     property.status?.toLowerCase() === 'sold' ? 'Vendido' :
+                     property.status?.toLowerCase() === 'rented' ? 'Alugado' :
+                     property.status || 'Disponível'}
                   </span>
                 </div>
                 {property.reference && (
