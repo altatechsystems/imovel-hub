@@ -177,15 +177,28 @@ func (s *PropertyService) GetPropertyBySlug(ctx context.Context, tenantID, slug 
 	return property, nil
 }
 
-// populatePropertyPhotos populates cover_image_url and images from canonical listing
+// populatePropertyPhotos populates cover_image_url, images, title, and description from canonical listing
 func (s *PropertyService) populatePropertyPhotos(ctx context.Context, tenantID string, property *models.Property) {
 	if property == nil || property.CanonicalListingID == "" {
 		return
 	}
 
-	// Get canonical listing to fetch photos
+	// Get canonical listing to fetch photos, title, and description
 	listing, err := s.listingRepo.Get(ctx, tenantID, property.CanonicalListingID)
-	if err != nil || listing == nil || len(listing.Photos) == 0 {
+	if err != nil || listing == nil {
+		return
+	}
+
+	// Populate title and description from canonical listing
+	if listing.Title != "" {
+		property.Title = listing.Title
+	}
+	if listing.Description != "" {
+		property.Description = listing.Description
+	}
+
+	// Only populate photos if available
+	if len(listing.Photos) == 0 {
 		return
 	}
 

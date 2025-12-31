@@ -51,8 +51,8 @@ func (s *LeadService) CreateLead(ctx context.Context, lead *models.Lead) error {
 		return fmt.Errorf("consent must be given to create a lead (LGPD compliance)")
 	}
 
-	// Validate at least one contact method
-	if lead.Email == "" && lead.Phone == "" {
+	// Validate at least one contact method (except for WhatsApp channel - will get contact later)
+	if lead.Email == "" && lead.Phone == "" && lead.Channel != models.LeadChannelWhatsApp {
 		return fmt.Errorf("at least one contact method (email or phone) is required")
 	}
 
@@ -74,8 +74,8 @@ func (s *LeadService) CreateLead(ctx context.Context, lead *models.Lead) error {
 		lead.Email = utils.NormalizeEmail(lead.Email)
 	}
 
-	// Validate phone if provided
-	if lead.Phone != "" {
+	// Validate phone if provided (skip validation for WhatsApp placeholder)
+	if lead.Phone != "" && lead.Phone != "WhatsApp" {
 		if err := utils.ValidatePhoneBR(lead.Phone); err != nil {
 			return fmt.Errorf("invalid phone: %w", err)
 		}
@@ -545,14 +545,23 @@ func (s *LeadService) GenerateWhatsAppURL(ctx context.Context, tenantID, propert
 	// Fallback: Use tenant phone or default
 	// TODO: Get broker phone from broker model when available
 	// For MVP, we can use the tenant's contact phone or a default
-	brokerPhone = "5511999999999" // Placeholder - should come from broker or tenant
+	brokerPhone = "5535998671079" // Test number - should come from broker or tenant
 
-	// Build pre-formatted message
+	// Build property URL - using tenant slug and property slug
+	// Format: https://{tenant-slug}.site.com/imoveis/{property-slug}
+	// For now, using localhost or production domain if available
+	propertyURL := fmt.Sprintf("http://localhost:3001/imoveis/%s", property.Slug)
+	if property.Slug == "" {
+		propertyURL = fmt.Sprintf("http://localhost:3001/imoveis/%s", propertyID)
+	}
+
+	// Build pre-formatted message with property link
 	message := fmt.Sprintf(
 		"Olá! Tenho interesse no imóvel:\n\n"+
 			"📍 %s - %s, %s\n"+
 			"💰 R$ %.2f\n"+
 			"🏠 %s\n\n"+
+			"🔗 Link: %s\n\n"+
 			"Protocolo: #%s\n"+
 			"Via: %s",
 		property.Street,
@@ -560,6 +569,7 @@ func (s *LeadService) GenerateWhatsAppURL(ctx context.Context, tenantID, propert
 		property.City,
 		property.PriceAmount,
 		property.PropertyType,
+		propertyURL,
 		leadID,
 		tenant.Name,
 	)

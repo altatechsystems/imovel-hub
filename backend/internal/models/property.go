@@ -56,6 +56,8 @@ type Property struct {
 
 	// Canonical Listing
 	CanonicalListingID string  `firestore:"canonical_listing_id,omitempty" json:"canonical_listing_id,omitempty"` // ref Listing
+	Title              string  `firestore:"-" json:"title,omitempty"`                                             // Computed field from listing
+	Description        string  `firestore:"-" json:"description,omitempty"`                                       // Computed field from listing
 	CoverImageURL      string  `firestore:"-" json:"cover_image_url,omitempty"`                                   // Computed field from listing photos
 	Images             []Photo `firestore:"-" json:"images,omitempty"`                                            // Computed field from listing photos
 

@@ -8,14 +8,14 @@ interface PropertyStructuredDataProps {
 }
 
 export function PropertyStructuredData({ property }: PropertyStructuredDataProps) {
-  const price = property.sale_price || property.rental_price || 0;
+  const price = property.sale_price || property.rental_price || property.price_amount || 0;
   const priceType = property.transaction_type === 'rent' ? 'rental' : 'sale';
 
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'RealEstateListing',
     name: property.title || `${getPropertyTypeLabel(property.property_type)} em ${property.neighborhood}`,
-    description: property.description || `${getPropertyTypeLabel(property.property_type)} para ${getTransactionTypeLabel(property.transaction_type)} em ${property.city}`,
+    description: property.description || `${getPropertyTypeLabel(property.property_type)} para ${getTransactionTypeLabel(property.transaction_type || 'sale')} em ${property.city}`,
     url: typeof window !== 'undefined' ? window.location.href : '',
     image: property.cover_image_url ? [property.cover_image_url] : [],
     address: {

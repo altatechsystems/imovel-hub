@@ -44,14 +44,23 @@ export interface Property {
   id: string;
   tenant_id: string;
   owner_id: string;
-  transaction_type: TransactionType;
+  transaction_type?: TransactionType; // Optional - may not be in backend response
   property_type: PropertyType;
   status: PropertyStatus;
   visibility?: PropertyVisibility;
 
+  // Backend specific fields
+  external_source?: string;
+  external_id?: string;
+  reference?: string;
+  zip_code?: string; // Backend uses zip_code instead of postal_code
+  total_area?: number; // Backend uses this instead of total_area_sqm
+
   // Price
   sale_price?: number;
   rental_price?: number;
+  price_amount?: number; // Backend uses this field
+  price_currency?: string;
 
   // Location
   street: string;

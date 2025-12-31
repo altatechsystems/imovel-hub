@@ -458,6 +458,8 @@ func (h *LeadHandler) AnonymizeLead(c *gin.Context) {
 
 // CreateWhatsAppLeadRequest represents the request body for creating a WhatsApp lead
 type CreateWhatsAppLeadRequest struct {
+	Name        string `json:"name,omitempty"`
+	Phone       string `json:"phone,omitempty"`
 	UTMSource   string `json:"utm_source,omitempty"`
 	UTMCampaign string `json:"utm_campaign,omitempty"`
 	UTMMedium   string `json:"utm_medium,omitempty"`
@@ -507,11 +509,24 @@ func (h *LeadHandler) CreateWhatsAppLead(c *gin.Context) {
 	// Get client IP for LGPD consent tracking
 	clientIP := c.ClientIP()
 
+	// Use provided name/phone or placeholders
+	leadName := req.Name
+	if leadName == "" {
+		leadName = "Lead via WhatsApp"
+	}
+
+	leadPhone := req.Phone
+	if leadPhone == "" {
+		leadPhone = "WhatsApp" // Placeholder - will be updated when customer responds
+	}
+
 	// Create lead with WhatsApp channel
 	lead := &models.Lead{
 		TenantID:     tenantID,
 		PropertyID:   propertyID,
 		Channel:      models.LeadChannelWhatsApp,
+		Name:         leadName,
+		Phone:        leadPhone,
 		ConsentGiven: true, // Implícito ao clicar no botão WhatsApp
 		ConsentText:  "Concordo com a Política de Privacidade e autorizo o uso dos meus dados para contato sobre este imóvel.",
 		ConsentIP:    clientIP,

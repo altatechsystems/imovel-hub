@@ -114,6 +114,8 @@ class ApiClient {
 
   // PROMPT 07: WhatsApp Flow
   async createWhatsAppLead(propertyId: string, data?: {
+    name?: string;
+    phone?: string;
     utm_source?: string;
     utm_campaign?: string;
     utm_medium?: string;

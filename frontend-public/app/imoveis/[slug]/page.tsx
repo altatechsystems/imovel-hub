@@ -7,11 +7,11 @@ import Head from 'next/head';
 import { useParams } from 'next/navigation';
 import { Property } from '@/types/property';
 import { PropertyCard } from '@/components/property/property-card';
-import { ContactForm } from '@/components/forms/contact-form';
 import { BrokerCard } from '@/components/broker/broker-card';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { WhatsAppLeadModal } from '@/components/modals/whatsapp-lead-modal';
 import { api } from '@/lib/api';
 import {
   formatCurrency,
@@ -49,6 +49,7 @@ export default function PropertyDetailsPage() {
   const [isCreatingLead, setIsCreatingLead] = React.useState(false);
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = React.useState(false);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (slug) {
@@ -74,7 +75,14 @@ export default function PropertyDetailsPage() {
     }
   };
 
-  const handleWhatsAppClick = async () => {
+  const handleWhatsAppClick = () => {
+    console.log('=== WhatsApp button clicked on details page ===');
+    console.log('Setting modal open to true');
+    setIsModalOpen(true);
+    console.log('Modal state should be:', true);
+  };
+
+  const handleModalSubmit = async (name: string, phone: string) => {
     if (!property || isCreatingLead) return;
 
     try {
@@ -82,20 +90,24 @@ export default function PropertyDetailsPage() {
 
       // PROMPT 07: Criar Lead WhatsApp e obter URL gerada pelo backend
       const response = await api.createWhatsAppLead(property.id!, {
+        name,
+        phone,
         utm_source: new URLSearchParams(window.location.search).get('utm_source') || undefined,
         utm_campaign: new URLSearchParams(window.location.search).get('utm_campaign') || undefined,
         utm_medium: new URLSearchParams(window.location.search).get('utm_medium') || undefined,
         referrer: document.referrer || window.location.href,
       });
 
-      // Redirecionar para WhatsApp com URL e mensagem gerados pelo backend
+      // Fechar modal e redirecionar para WhatsApp com URL e mensagem gerados pelo backend
+      setIsModalOpen(false);
       window.open(response.whatsapp_url, '_blank');
     } catch (error) {
       console.error('Erro ao criar lead WhatsApp:', error);
       // Fallback: abrir WhatsApp mesmo sem Lead (não ideal)
       const message = `Olá! Tenho interesse no imóvel: ${property.title || getPropertyTypeLabel(property.property_type)} - ${property.city}`;
-      const whatsappUrl = buildWhatsAppUrl(process.env.NEXT_PUBLIC_WHATSAPP || '', message);
+      const whatsappUrl = buildWhatsAppUrl('5535998671079', message);
       window.open(whatsappUrl, '_blank');
+      setIsModalOpen(false);
     } finally {
       setIsCreatingLead(false);
     }
@@ -164,7 +176,7 @@ export default function PropertyDetailsPage() {
     );
   }
 
-  const price = property.sale_price || property.rental_price;
+  const price = property.sale_price || property.rental_price || property.price_amount;
   const features = getPropertyFeatures(property);
   const amenities = getPropertyAmenities(property);
 
@@ -345,7 +357,7 @@ export default function PropertyDetailsPage() {
               <div className="flex flex-col sm:flex-row items-start justify-between mb-4 gap-3">
                 <div className="flex-1">
                   <Badge variant="info" size="md" className="mb-3">
-                    {getTransactionTypeLabel(property.transaction_type)}
+                    {getTransactionTypeLabel(property.transaction_type || 'sale')}
                   </Badge>
                   <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                     {property.title || `${getPropertyTypeLabel(property.property_type)} em ${property.neighborhood}`}
@@ -369,7 +381,7 @@ export default function PropertyDetailsPage() {
 
               <div className="border-t pt-4">
                 <p className="text-xs sm:text-sm text-gray-600 mb-1">
-                  {property.transaction_type === 'rent' ? 'Aluguel' : 'Venda'}
+                  {property.transaction_type === 'rent' ? 'Aluguel' : property.transaction_type === 'sale' ? 'Venda' : 'Valor'}
                 </p>
                 <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-600">
                   {formatCurrency(price)}
@@ -464,7 +476,7 @@ export default function PropertyDetailsPage() {
                 <Button
                   variant="primary"
                   size="lg"
-                  className="w-full"
+                  className="w-full bg-[#25D366] hover:bg-[#22C55E] text-white"
                   leftIcon={<MessageCircle className="w-5 h-5" />}
                   onClick={handleWhatsAppClick}
                   disabled={isCreatingLead}
@@ -473,12 +485,6 @@ export default function PropertyDetailsPage() {
                 </Button>
               </div>
             </Card>
-
-            {/* Contact Form */}
-            <ContactForm
-              propertyId={property.id}
-              propertyTitle={property.title || `${getPropertyTypeLabel(property.property_type)} em ${property.city}`}
-            />
           </div>
         </div>
 
@@ -586,6 +592,17 @@ export default function PropertyDetailsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* WhatsApp Lead Modal */}
+      {property && (
+        <WhatsAppLeadModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleModalSubmit}
+          property={property}
+          isLoading={isCreatingLead}
+        />
       )}
       </div>
     </>
