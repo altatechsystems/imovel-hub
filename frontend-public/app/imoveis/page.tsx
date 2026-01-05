@@ -53,7 +53,11 @@ export default function PropertiesPage() {
 
       // Use properties directly from API
       if (append) {
-        setProperties(prev => [...prev, ...(result.data || [])]);
+        setProperties(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const newProperties = (result.data || []).filter(p => !existingIds.has(p.id));
+          return [...prev, ...newProperties];
+        });
       } else {
         setProperties(result.data || []);
       }
