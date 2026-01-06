@@ -1,0 +1,39 @@
+Ranking,Palavra,Dominio,Idioma,Significado,Conexao_Projeto,Nota_Memorabilidade,Nota_Branding,Nota_Conceito,Nota_Total,Status_Provavel
+1,Captador,captador.com.br,PT,Corretor que capta imóveis,Papel central co-corretagem,10,9,10,29,Indisponivel (generico)
+2,Unico,unico.com.br,PT,Único/singular,Conceito CENTRAL (imovel unico),10,10,10,30,Indisponivel (muito procurado)
+3,Lar,lar.com.br,PT,Casa/home,Emotivo e forte,10,10,8,28,Indisponivel (premium)
+4,Casa,casa.com.br,PT,House/home,Direto ao ponto,10,10,8,28,Indisponivel (premium)
+5,Certo,certo.com.br,PT,Correto/exato,Corretor + certeza,10,9,9,28,Indisponivel (palavra comum)
+6,Confianca,confianca.com.br,PT,Trust/confidence,Autenticidade/governanca,9,10,10,29,Indisponivel (muito procurado)
+7,Canonical,canonical.com.br,EN,Único/oficial,Listing canônico (conceito core),8,8,10,26,Media chance
+8,Union,union.com.br,EN,União/junção,Adapter já usado no projeto,9,8,8,25,Baixa chance
+9,Verdadeiro,verdadeiro.com.br,PT,True/authentic,Autenticidade dados,8,8,10,26,Media chance
+10,Exato,exato.com.br,PT,Exact/precise,Precisão de dados,9,9,9,27,Media chance
+11,Claro,claro.com.br,PT,Clear/transparent,Transparência,10,9,8,27,Indisponivel (operadora)
+12,Direto,direto.com.br,PT,Direct/straight,Simplicidade,9,8,8,25,Baixa chance
+13,Origem,origem.com.br,PT,Origin/source,Originating broker,9,9,9,27,Media chance
+14,Raiz,raiz.com.br,PT,Root/foundation,Autenticidade/origem,9,9,9,27,Media chance
+15,Habitat,habitat.com.br,PT/EN,Local de moradia,Moradia natural,9,9,8,26,Baixa chance
+16,Moradia,moradia.com.br,PT,Habitação/dwelling,Core do negócio,8,8,9,25,Baixa chance
+17,Verificado,verificado.com.br,PT,Verified,Confiança/autenticidade,7,7,9,23,Alta chance
+18,Autentico,autentico.com.br,PT,Authentic,Governança,8,9,10,27,Media chance
+19,Completo,completo.com.br,PT,Complete/full,Dados completos,8,8,8,24,Media chance
+20,Seguro,seguro.com.br,PT,Safe/secure,Confiança,9,9,9,27,Indisponivel (seguros)
+21,Nexus,nexus.com.br,EN,Conexão central,Hub/ecossistema,8,9,8,25,Baixa chance
+22,Core,core.com.br,EN,Núcleo/essencial,Essência do negócio,8,8,8,24,Baixa chance
+23,Base,base.com.br,PT/EN,Foundation/base,Fundação sólida,9,8,8,25,Indisponivel (comum)
+24,Facil,facil.com.br,PT,Easy/simple,Acessibilidade,9,9,7,25,Baixa chance
+25,Rapido,rapido.com.br,PT,Fast/quick,Velocidade,9,8,7,24,Indisponivel (iFood Rapido)
+26,Agil,agil.com.br,PT,Agile,Modernidade,8,8,7,23,Media chance
+27,Simples,simples.com.br,PT,Simple,Filosofia produto,9,9,8,26,Baixa chance
+28,Preciso,preciso.com.br,PT,Precise/accurate,Qualidade dados,8,8,9,25,Media chance
+29,Prime,prime.com.br,EN,Premium/first,Posicionamento premium,9,9,8,26,Indisponivel (Amazon)
+30,Exclusivo,exclusivo.com.br,PT,Exclusive,Premium/diferenciado,8,9,8,25,Media chance
+31,Fingerprint,fingerprint.com.br,EN,Impressão digital única,Deduplicação (hash único),7,8,9,24,Alta chance
+32,Marketplace,marketplace.com.br,EN,Mercado/praça,Modelo de negócio,8,7,8,23,Indisponivel (generico)
+33,Originating,originating.com.br,EN,Que originou,Broker que captou,6,6,9,21,Alta chance
+34,Sync,sync.com.br,EN,Sincronizar,Sincronização dados,8,8,7,23,Baixa chance
+35,Flow,flow.com.br,EN,Fluxo,Processo/jornada,9,9,7,25,Indisponivel (comum)
+36,Solid,solid.com.br,EN,Sólido,Confiabilidade,9,8,8,25,Baixa chance
+37,Smart,smart.com.br,EN,Inteligente,Tech-forward,9,8,7,24,Indisponivel (muito usado)
+38,Link,link.com.br,EN,Ligação/conexão,Conectividade,9,7,6,22,Indisponivel (muito comum)

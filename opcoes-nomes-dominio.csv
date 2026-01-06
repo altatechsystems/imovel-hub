@@ -1,0 +1,91 @@
+Categoria,Nome,Dominio,Significado/Conceito,Pontuacao_Memorabilidade,Pontuacao_Sonoridade,Pontuacao_Internacional,Nota_Total,Observacoes
+Duplicacao_Letras,Immoo,immoo.com.br,Imovel com duplicacao,7,8,8,23,Moderno e tech
+Duplicacao_Letras,Imoov,imoov.com.br,Imovel + movimento,8,9,8,25,Dinamico e energetico
+Duplicacao_Letras,Trovva,trovva.com.br,Encontrar (duplicado),9,9,9,27,TOP - Estilo VivaReal
+Duplicacao_Letras,Trovvo,trovvo.com.br,Encontrar (variacao),9,9,9,27,TOP - Altamente memoravel
+Duplicacao_Letras,Captaa,captaa.com.br,Captar (duplicado),7,7,6,20,Conceito do projeto
+Duplicacao_Letras,Kaptoo,kaptoo.com.br,Captar com K,8,8,7,23,Moderno com K
+Duplicacao_Letras,Veroo,veroo.com.br,Verdadeiro (duplicado),7,7,8,22,Sofisticado
+Duplicacao_Letras,Verro,verro.com.br,Verdadeiro (variacao),6,7,7,20,Pode soar como erro
+Duplicacao_Letras,Nxxo,nxxo.com.br,Nexo sem vogais,6,7,7,20,Arriscado sem vogais
+Duplicacao_Letras,Nexxo,nexxo.com.br,Conexao duplicada,8,8,9,25,Forte e moderno
+Substituicao_KZX,Kaza,kaza.com.br,Casa com K,8,8,8,24,Simples e direto
+Substituicao_KZX,Kazaa,kazaa.com.br,Casa duplicada,7,8,7,22,Lembra software antigo
+Substituicao_KZX,Zello,zello.com.br,Zelo com duplicacao,8,9,8,25,Energetico
+Substituicao_KZX,Zelo,zelo.com.br,Cuidado/atencao,9,9,8,26,Palavra real PT
+Substituicao_KZX,Larx,larx.com.br,Lar com X,7,7,7,21,Curto mas confuso
+Substituicao_KZX,Larxx,larxx.com.br,Lar duplicado X,6,7,6,19,Dificil pronunciar
+Substituicao_KZX,Fixxa,fixxa.com.br,Fixo duplicado,7,7,7,21,Estavel
+Substituicao_KZX,Fixxo,fixxo.com.br,Fixo variacao,8,8,8,24,Seguranca
+Substituicao_KZX,Kaniq,kaniq.com.br,Canonico com K/Q,7,8,8,23,Tech e unico
+Substituicao_KZX,Kaniqo,kaniqo.com.br,Canonico completo,7,7,7,21,Mais formal
+Silabas_Inventadas,Mozza,mozza.com.br,Moradia + zza,8,9,8,25,Lembra mozzarella - positivo
+Silabas_Inventadas,Mozzio,mozzio.com.br,Moradia + zzio,9,9,8,26,TOP - Italiano e elegante
+Silabas_Inventadas,Lazzo,lazzo.com.br,Inventado com Z,7,8,8,23,Energetico
+Silabas_Inventadas,Lazzi,lazzi.com.br,Variacao italiana,8,8,9,25,Sofisticado
+Silabas_Inventadas,Vizza,vizza.com.br,Viver + zza,8,9,8,25,Dinamico e jovem
+Silabas_Inventadas,Vizzo,vizzo.com.br,Viver + zzo,8,8,8,24,Vida e movimento
+Silabas_Inventadas,Habzo,habzo.com.br,Habitar + zo,7,7,6,20,Pouco usual
+Silabas_Inventadas,Habza,habza.com.br,Habitar + za,6,7,6,19,Confuso
+Silabas_Inventadas,Razzo,razzo.com.br,Raiz + zzo,8,9,8,25,Forte e memoravel
+Silabas_Inventadas,Razzi,razzi.com.br,Raiz + zzi,8,8,9,25,Italiano e chique
+Vogais_Trocadas,Trovr,trovr.com.br,Trovar sem vogal,7,7,8,22,Estilo Flickr
+Vogais_Trocadas,Trovir,trovir.com.br,Trovar + ir,8,8,8,24,Mais pronunciavel
+Vogais_Trocadas,Captir,captir.com.br,Captar + ir,7,7,7,21,Acao
+Vogais_Trocadas,Kaptr,kaptr.com.br,Captar sem vogais,6,6,7,19,Muito tech
+Vogais_Trocadas,Mobix,mobix.com.br,Movel + ix,8,8,9,25,Tech e moderno
+Vogais_Trocadas,Mobyx,mobyx.com.br,Movel + yx,8,9,8,25,Unico com Y
+Vogais_Trocadas,Listo,listo.com.br,Listing + o,7,7,8,22,Significa pronto ES
+Vogais_Trocadas,Lixto,lixto.com.br,Listing + xto,6,6,6,18,Pode soar negativo
+Vogais_Trocadas,Verix,verix.com.br,Verified + ix,8,8,9,25,TOP - Tech e confianca
+Vogais_Trocadas,Verixx,verixx.com.br,Verified duplicado,8,8,9,25,Ainda mais forte
+Sufixo_Tech,Immofy,immofy.com.br,Imovel + fy,8,8,9,25,Estilo Spotify
+Sufixo_Tech,Imofy,imofy.com.br,Imovel + fy variacao,8,8,9,25,Simples e tech
+Sufixo_Tech,Trovly,trovly.com.br,Trovar + ly,9,9,9,27,TOP - Adverbio ingles
+Sufixo_Tech,Trovify,trovify.com.br,Trovar + ify,9,9,9,27,TOP - Verbo tech
+Sufixo_Tech,Captify,captify.com.br,Captar + ify,8,8,8,24,Transformacao
+Sufixo_Tech,Kaptly,kaptly.com.br,Captar + ly,8,8,8,24,Moderno
+Sufixo_Tech,Habify,habify.com.br,Habitar + ify,8,8,8,24,Tornar habitavel
+Sufixo_Tech,Habzio,habzio.com.br,Habitar + zio,8,9,8,25,Unico e memoravel
+Sufixo_Tech,Lario,lario.com.br,Lar + io,8,8,8,24,Italiano
+Sufixo_Tech,Larify,larify.com.br,Lar + ify,8,8,8,24,Criar lar
+Prefixo_iE,iMazzo,imazzo.com.br,i + Mazzo,7,8,8,23,Estilo Apple
+Prefixo_iE,eMazzo,emazzo.com.br,e + Mazzo,7,8,8,23,Estilo eBay
+Prefixo_iE,iVero,ivero.com.br,i + Vero,8,8,9,25,Verdade digital
+Prefixo_iE,eVero,evero.com.br,e + Vero,8,8,9,25,Verdade eletronica
+Prefixo_iE,iTrova,itrova.com.br,i + Trova,9,9,9,27,TOP - Encontrar digital
+Prefixo_iE,eTrova,etrova.com.br,e + Trova,9,9,9,27,TOP - Encontrar online
+Prefixo_iE,iKapta,ikapta.com.br,i + Kapta,8,8,8,24,Captar digital
+Prefixo_iE,eKapta,ekapta.com.br,e + Kapta,8,8,8,24,Captar eletronico
+Prefixo_iE,iNexo,inexo.com.br,i + Nexo,8,8,9,25,Conexao digital
+Prefixo_iE,eNexio,enexio.com.br,e + Nexio,8,8,8,24,Conexao eletronica
+Inventados,Zuvvi,zuvvi.com.br,Totalmente inventado,7,8,7,22,Z forte
+Inventados,Zuvvo,zuvvo.com.br,Inventado variacao,7,8,7,22,Duplicacao
+Inventados,Qibbo,qibbo.com.br,Inventado com Q,8,9,8,25,Unico e diferente
+Inventados,Qibba,qibba.com.br,Variacao Qibbo,7,8,8,23,Feminino
+Inventados,Wazzo,wazzo.com.br,Inventado com W,8,9,8,25,Energia e movimento
+Inventados,Wazzi,wazzi.com.br,Variacao italiana,8,9,9,26,TOP - Elegante
+Inventados,Yubbo,yubbo.com.br,Inventado com Y,7,8,7,22,Jovem
+Inventados,Yubba,yubba.com.br,Variacao Yubbo,7,8,7,22,Divertido
+Inventados,Xello,xello.com.br,Inventado com X,8,8,8,24,Diferente
+Inventados,Xelli,xelli.com.br,Variacao Xello,7,8,8,23,Mais suave
+Inventados,Qazzi,qazzi.com.br,Q + azzi,8,9,8,25,Forte e unico
+Inventados,Qazzo,qazzo.com.br,Q + azzo,8,9,8,25,Masculino e forte
+Inventados,Jubbo,jubbo.com.br,J + ubbo,7,8,7,22,Alegre
+Inventados,Jubba,jubba.com.br,Variacao Jubbo,7,8,7,22,Festivo
+Inventados,Pivvo,pivvo.com.br,P + ivvo,7,8,7,22,Movimento (pivot)
+Inventados,Pivvi,pivvi.com.br,Variacao Pivvo,7,8,7,22,Mais suave
+Inventados,Guvvo,guvvo.com.br,G + uvvo,6,7,6,19,Pouco marcante
+Inventados,Guvvi,guvvi.com.br,Variacao Guvvo,6,7,6,19,Idem
+Inventados,Tuvvi,tuvvi.com.br,T + uvvi,7,7,7,21,Neutro
+Inventados,Tuvvo,tuvvo.com.br,Variacao Tuvvi,7,7,7,21,Idem
+Hibridos,Casiq,casiq.com.br,Casa + iq,8,8,8,24,Tech + PT
+Hibridos,Kaziq,kaziq.com.br,Kasa + iq,8,9,8,25,Moderno e unico
+Hibridos,Lariq,lariq.com.br,Lar + iq,8,8,8,24,Inteligente
+Hibridos,Larix,larix.com.br,Lar + ix,8,8,9,25,Tech e elegante
+Hibridos,Morix,morix.com.br,Moradia + ix,8,8,8,24,Tech
+Hibridos,Moriq,moriq.com.br,Moradia + iq,8,8,8,24,Inteligente
+Hibridos,Habiq,habiq.com.br,Habitar + iq,8,8,8,24,Smart living
+Hibridos,Habrix,habrix.com.br,Habitar + ix,8,9,9,26,TOP - Muito tech
+Hibridos,Vezzi,vezzi.com.br,Inventado italiano,8,9,9,26,TOP - Elegante e chique
+Hibridos,Vezza,vezza.com.br,Variacao Vezzi,8,9,9,26,TOP - Feminino elegante

@@ -18,6 +18,7 @@ type OwnerConfirmationService struct {
 	propertyRepo    *repositories.PropertyRepository
 	ownerRepo       *repositories.OwnerRepository
 	brokerRepo      *repositories.BrokerRepository
+	listingRepo     *repositories.ListingRepository
 	activityLogRepo *repositories.ActivityLogRepository
 }
 
@@ -27,6 +28,7 @@ func NewOwnerConfirmationService(
 	propertyRepo *repositories.PropertyRepository,
 	ownerRepo *repositories.OwnerRepository,
 	brokerRepo *repositories.BrokerRepository,
+	listingRepo *repositories.ListingRepository,
 	activityLogRepo *repositories.ActivityLogRepository,
 ) *OwnerConfirmationService {
 	return &OwnerConfirmationService{
@@ -34,6 +36,7 @@ func NewOwnerConfirmationService(
 		propertyRepo:    propertyRepo,
 		ownerRepo:       ownerRepo,
 		brokerRepo:      brokerRepo,
+		listingRepo:     listingRepo,
 		activityLogRepo: activityLogRepo,
 	}
 }
@@ -203,6 +206,25 @@ func (s *OwnerConfirmationService) ValidateTokenAndGetPropertyInfo(
 		}
 	}
 
+	// Get cover image from canonical listing
+	var coverImageURL string
+	if property.CanonicalListingID != "" {
+		listing, err := s.listingRepo.Get(ctx, tenantID, property.CanonicalListingID)
+		if err == nil && listing != nil && len(listing.Photos) > 0 {
+			// Find cover photo or use first photo
+			for _, photo := range listing.Photos {
+				if photo.IsCover {
+					coverImageURL = photo.ThumbURL
+					break
+				}
+			}
+			// If no cover photo found, use first photo
+			if coverImageURL == "" {
+				coverImageURL = listing.Photos[0].ThumbURL
+			}
+		}
+	}
+
 	// Return minimal property info (don't expose sensitive data)
 	return &GetConfirmationPageResponse{
 		Valid:         true,
@@ -213,10 +235,10 @@ func (s *OwnerConfirmationService) ValidateTokenAndGetPropertyInfo(
 		Reference:     property.Reference,
 		CurrentStatus: string(property.Status),
 		CurrentPrice:  property.PriceAmount,
-		CoverImageURL: property.CoverImageURL, // Foto de capa para confirmação visual
-		BrokerName:    brokerName,             // Nome do corretor
-		BrokerPhoto:   brokerPhoto,            // Foto do corretor
-		BrokerPhone:   brokerPhone,            // Telefone do corretor
+		CoverImageURL: coverImageURL, // Foto de capa para confirmação visual
+		BrokerName:    brokerName,    // Nome do corretor
+		BrokerPhoto:   brokerPhoto,   // Foto do corretor
+		BrokerPhone:   brokerPhone,   // Telefone do corretor
 		ExpiresAt:     confirmationToken.ExpiresAt.Format("2006-01-02T15:04:05Z07:00"),
 	}, nil
 }

@@ -1,0 +1,48 @@
+Ranking,Nome,Dominio,Base_Original,Nota_Memorabilidade,Nota_Sonoridade,Nota_Branding,Nota_Total,Categoria,Por_Que_E_Melhor
+1,Confirme,confirme.com.br,Confirmo,10,10,10,30,Imperativo PT,Acao direta - confirme seu imovel
+2,Confie,confie.com.br,Confio,10,10,10,30,Imperativo PT,Confianca + acao - confie na plataforma
+3,Proprium,proprium.com.br,Proprio,9,9,10,28,Latino Premium,Elegante proprio em latim
+4,Imofiel,imofiel.com.br,Imofio,10,9,10,29,Fidelidade BR,Imovel fiel - dados confiaveis
+5,Corretto,corretto.com.br,Correto,10,10,9,29,Italiano Cafe,Corretto = cafe italiano correto
+6,Imovius,imovius.com.br,Imovio,9,9,10,28,Latino Premium,Imovel + sufixo latino premium
+7,Imovely,imovely.com.br,Imovly,9,9,9,27,Adverbio Suave,Lovely + imovel = adoravel
+8,Imovyx,imovyx.com.br,Imovix,9,10,9,28,Tech YX,Y+X = maximo tech appeal
+9,Imovva,imovva.com.br,Imovvo,9,9,9,27,Feminino Forte,Movimento feminino VV
+10,Marqo,marqo.com.br,Marko,9,9,9,27,Q Diferente,Market com Q = unico
+11,Unyo,unyo.com.br,Unio,9,9,9,27,Y Moderno,Union jovem com Y
+12,Onimo,onimo.com.br,Oneimo,10,9,9,28,Ultra Curto,One + imo = 5 letras perfeito
+13,Propzio,propzio.com.br,Propzy,9,9,9,27,Tech IO,Property Z + IO tech
+14,Listoo,listoo.com.br,Listo,9,9,9,27,Duplicacao OO,Pronto duplicado forte
+15,Imoprox,imoprox.com.br,Imopro,9,9,9,27,X Premium,Imovel pro com X tech
+16,Verimov,verimov.com.br,Verimo,9,9,9,27,Movimento Verificado,Veri + mov = confianca em movimento
+17,Proplead,proplead.com.br,Proplea,9,9,9,27,Objetivo Claro,Property + Lead direto
+18,Imoleadz,imoleadz.com.br,Imolead,9,9,9,27,Z Energetico,Imovel + Lead com Z forte
+19,Propfix,propfix.com.br,Propfio,9,9,9,27,Fixo Confiavel,Property fix = imovel certo/fixo
+20,Uniimov,uniimov.com.br,Uniimo,9,9,9,27,Movimento Unico,Unico imovel em movimento
+21,Proppius,proppius.com.br,Proppio,9,9,9,27,Latino Ius,Property + sufixo latino
+22,Proppyx,proppyx.com.br,Proppix,9,9,9,27,YX Tech,Pix brasileiro com YX
+23,Propzzio,propzzio.com.br,Propzzy,9,9,8,26,ZZ + IO,Duplo Z energia + IO tech
+24,Leadzio,leadzio.com.br,Leadzy,9,9,9,27,Lead Tech,Lead Z + IO = geracao tech
+25,Leadyx,leadyx.com.br,Leadix,9,10,9,28,YX Premium,Lead com YX maximo tech
+26,Brokkyo,brokkyo.com.br,Brokky,9,9,8,26,KK + YO,Duplicacao K + YO jovem
+27,Brokzio,brokzio.com.br,Brokzy,9,9,9,27,Broker Tech,Broker Z + IO tech
+28,Listzio,listzio.com.br,Listzy,9,9,9,27,Listing Tech,List Z + IO tech
+29,Listique,listique.com.br,Listiq,9,10,10,29,Frances Chique,Boutique + List = elegante
+30,Sluggio,sluggio.com.br,Sluggo,9,9,8,26,Slug Italiano,Slug + GG + IO italiano
+31,Tokkio,tokkio.com.br,Tokko,9,9,9,27,Token Tech,Token KK + IO tech
+32,Imovzio,imovzio.com.br,Imovzy,9,9,9,27,Z + IO BR,Imovel Z + IO maximo tech BR
+33,Propriium,propriium.com.br,Propriio,9,9,10,28,Duplo I Latino,Proprio + ium latino premium
+34,Imovium,imovium.com.br,Imovio,9,9,10,28,Ium Latino,Imovel + ium = elemento premium
+35,Dazzio,dazzio.com.br,Dazza,9,9,9,27,Dazzle Tech,Dazzle (brilho) + IO
+36,Marketzio,marketzio.com.br,Marketzy,8,9,9,26,Market Z Tech,Marketplace Z + IO
+37,Unikkoo,unikkoo.com.br,Unikko,8,9,9,26,Finlandes KK,Unico finlandes duplicado
+38,Tokzio,tokzio.com.br,Tokzy,9,9,9,27,Token Z Tech,Token Z + IO seguranca
+39,Ownzio,ownzio.com.br,Ownzy,9,9,9,27,Owner Tech,Owner Z + IO propriedade
+40,Proprizo,proprizo.com.br,Proprio,9,9,9,27,Proprio Z,Proprio com Z moderno
+
+DESTAQUES_MAXIMOS:
+Top 5 Imperativo PT (acao): Confirme Confie
+Top 5 Latino Premium: Proprium Imovius Corretto Propriium Imovium
+Top 5 Tech BR: Imovyx Leadyx Imovzio Imoprox Verimov
+Top 5 Curtos 5-6 letras: Onimo Unyo Marqo Listoo Confie
+Top 5 Conceito Central: Onimo (one+imo) Verimov (verified+mov) Uniimov (unique+imov) Imofiel (fiel) Propfix (fix)

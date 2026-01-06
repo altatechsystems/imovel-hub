@@ -1,0 +1,151 @@
+Ranking,Nome,Dominio,Tecnica_Criacao,Significado,Nota_Memorabilidade,Nota_Sonoridade,Nota_Branding,Nota_Total,Categoria
+1,Konfio,konfio.com.br,K substituicao + confio,Confianca com K moderno,9,9,9,27,Confianca_Tech
+2,Konfie,konfie.com.br,K substituicao + confie,Confie com K imperativo,9,9,9,27,Confianca_Tech
+3,Konfirm,konfirm.com.br,K substituicao + confirm,Confirmar com K,9,9,9,27,Confianca_Tech
+4,Imovera,imovera.com.br,Imovel + vera (verdadeiro),Imovel verdadeiro,9,9,9,27,Autenticidade_BR
+5,Imovis,imovis.com.br,Imovel + vis (visao),Visao do imovel,9,9,9,27,Visao_BR
+6,Imovita,imovita.com.br,Imovel + vita (vida),Imovel com vida,9,9,9,27,Vida_BR
+7,Imovera,imovera.com.br,Imovel + era (epoca),Nova era imoveis,9,9,9,27,Moderno_BR
+8,Propera,propera.com.br,Property + era,Nova era propriedades,9,9,9,27,Moderno_EN
+9,Proplux,proplux.com.br,Property + lux (luz),Propriedade premium luz,9,9,10,28,Premium_EN
+10,Imolux,imolux.com.br,Imovel + lux,Imovel premium luz,9,9,10,28,Premium_BR
+11,Imovex,imovex.com.br,Imovel + vex (vetor),Imovel em movimento,9,9,9,27,Movimento_BR
+12,Propvex,propvex.com.br,Property + vex,Propriedade vetor,8,9,9,26,Movimento_EN
+13,Imonex,imonex.com.br,Imo + nex (conexao),Imovel conexao,9,9,9,27,Conexao_BR
+14,Pronex,pronex.com.br,Pro + nex (conexao),Pro conexao,9,9,9,27,Conexao_Pro
+15,Imozil,imozil.com.br,Imo + zil (estilo Zillow),Brasil Zillow,9,10,9,28,Zillow_BR
+16,Imozap,imozap.com.br,Imo + zap,Brasil Zap,9,10,9,28,Zap_BR
+17,Imozzy,imozzy.com.br,Imo + zzy,Imovel energia dupla,9,10,9,28,Energia_BR
+18,Propzap,propzap.com.br,Prop + zap,Property zap rapido,9,10,9,28,Rapido_EN
+19,Imorra,imorra.com.br,Imo + rra (forte),Imovel RR forte,8,9,8,25,Forte_BR
+20,Proppra,proppra.com.br,Prop + pra (para),Property pra voce,9,9,8,26,Brasileiro_EN
+21,Imopra,imopra.com.br,Imo + pra,Imovel pra voce,9,9,9,27,Brasileiro_BR
+22,Imonow,imonow.com.br,Imo + now (agora),Imovel agora,9,9,9,27,Urgencia_BR
+23,Propnow,propnow.com.br,Prop + now,Property agora,9,9,9,27,Urgencia_EN
+24,Imofast,imofast.com.br,Imo + fast,Imovel rapido,8,8,8,24,Velocidade_BR
+25,Propfast,propfast.com.br,Prop + fast,Property rapido,8,8,8,24,Velocidade_EN
+26,Imoquik,imoquik.com.br,Imo + quik (quick),Imovel rapido K,9,9,9,27,Velocidade_BR
+27,Propquik,propquik.com.br,Prop + quik,Property quick K,9,9,9,27,Velocidade_EN
+28,Imoset,imoset.com.br,Imo + set (conjunto),Conjunto imoveis,9,8,8,25,Conjunto_BR
+29,Propset,propset.com.br,Prop + set,Conjunto properties,9,8,8,25,Conjunto_EN
+30,Imokey,imokey.com.br,Imo + key (chave),Chave do imovel,9,9,9,27,Chave_BR
+31,Propkey,propkey.com.br,Prop + key,Chave property,9,9,9,27,Chave_EN
+32,Imolink,imolink.com.br,Imo + link,Link imoveis,8,8,8,24,Conexao_BR
+33,Prolink,prolink.com.br,Pro + link,Link profissional,9,9,9,27,Conexao_Pro
+34,Imospot,imospot.com.br,Imo + spot (ponto),Ponto imovel,9,9,9,27,Local_BR
+35,Propspot,propspot.com.br,Prop + spot,Ponto property,9,9,9,27,Local_EN
+36,Imohub,imohub.com.br,Imo + hub,Hub imoveis,8,8,8,24,Centro_BR
+37,Prophub,prophub.com.br,Prop + hub,Hub properties,8,8,8,24,Centro_EN
+38,Imozone,imozone.com.br,Imo + zone (zona),Zona imoveis,9,9,9,27,Area_BR
+39,Propzone,propzone.com.br,Prop + zone,Zona properties,9,9,9,27,Area_EN
+40,Imoland,imoland.com.br,Imo + land (terra),Terra imoveis,9,9,9,27,Terra_BR
+41,Propland,propland.com.br,Prop + land,Terra properties,9,9,9,27,Terra_EN
+42,Imoplace,imoplace.com.br,Imo + place (lugar),Lugar imoveis,8,8,8,24,Lugar_BR
+43,Propplace,propplace.com.br,Prop + place,Lugar properties,8,8,8,24,Lugar_EN
+44,Imovia,imovia.com.br,Imo + via (caminho),Via imoveis,10,10,10,30,Caminho_BR_Perfeito
+45,Propvia,propvia.com.br,Prop + via,Via properties,9,9,9,27,Caminho_EN
+46,Imorex,imorex.com.br,Imo + rex (rei),Rei imoveis,9,9,10,28,Premium_BR
+47,Proprex,proprex.com.br,Prop + rex,Rei properties,9,9,10,28,Premium_EN
+48,Imomax,imomax.com.br,Imo + max (maximo),Maximo imoveis,9,9,9,27,Maximo_BR
+49,Propmax,propmax.com.br,Prop + max,Maximo properties,9,9,9,27,Maximo_EN
+50,Imopex,imopex.com.br,Imo + pex (apex),Apice imoveis,9,9,9,27,Apice_BR
+51,Proppex,proppex.com.br,Prop + pex,Apice properties,9,9,9,27,Apice_EN
+52,Imotop,imotop.com.br,Imo + top,Top imoveis,9,9,9,27,Top_BR
+53,Proptop,proptop.com.br,Prop + top,Top properties,9,9,9,27,Top_EN
+54,Imowin,imowin.com.br,Imo + win (ganhar),Ganhar imovel,9,9,9,27,Vitoria_BR
+55,Propwin,propwin.com.br,Prop + win,Ganhar property,9,9,9,27,Vitoria_EN
+56,Imogem,imogem.com.br,Imo + gem (joia),Joia imovel,9,9,10,28,Premium_BR
+57,Propgem,propgem.com.br,Prop + gem,Joia property,9,9,10,28,Premium_EN
+58,Imopro,imopro.com.br,Imo + pro,Imovel profissional,10,10,10,30,Pro_BR_JaListado
+59,Proppro,proppro.com.br,Prop + pro,Property profissional,9,9,9,27,Pro_EN
+60,Imoace,imoace.com.br,Imo + ace (as),As dos imoveis,9,9,9,27,Excelencia_BR
+61,Propace,propace.com.br,Prop + ace,As das properties,9,9,9,27,Excelencia_EN
+62,Imobiz,imobiz.com.br,Imo + biz (business),Business imovel,9,9,9,27,Negocio_BR
+63,Propbiz,propbiz.com.br,Prop + biz,Business property,9,9,9,27,Negocio_EN
+64,Imoozy,imoozy.com.br,Imo + ozy,Imovel suave OO+Z,9,9,9,27,Suave_BR
+65,Propozy,propozy.com.br,Prop + ozy,Property suave OO+Z,9,9,9,27,Suave_EN
+66,Imobeez,imobeez.com.br,Imo + beez (abelhas),Abelhas imoveis trabalho,8,9,8,25,Trabalho_BR
+67,Propbeez,propbeez.com.br,Prop + beez,Abelhas properties,8,9,8,25,Trabalho_EN
+68,Imowave,imowave.com.br,Imo + wave (onda),Onda imoveis nova,9,9,9,27,Onda_BR
+69,Propwave,propwave.com.br,Prop + wave,Onda properties nova,9,9,9,27,Onda_EN
+70,Imopulse,imopulse.com.br,Imo + pulse (pulso),Pulso imoveis vida,9,9,9,27,Vida_BR
+71,Proppulse,proppulse.com.br,Prop + pulse,Pulso properties,9,9,9,27,Vida_EN
+72,Imoflow,imoflow.com.br,Imo + flow (fluxo),Fluxo imoveis,9,9,9,27,Fluxo_BR
+73,Propflow,propflow.com.br,Prop + flow,Fluxo properties,9,9,9,27,Fluxo_EN
+74,Imosync,imosync.com.br,Imo + sync,Sync imoveis,9,9,9,27,Sinc_BR
+75,Propsync,propsync.com.br,Prop + sync,Sync properties,9,9,9,27,Sinc_EN
+76,Imocore,imocore.com.br,Imo + core (nucleo),Nucleo imoveis,9,9,9,27,Core_BR
+77,Propcore,propcore.com.br,Prop + core,Nucleo properties,9,9,9,27,Core_EN
+78,Imomint,imomint.com.br,Imo + mint (menta/novo),Novo imovel fresco,9,9,9,27,Novo_BR
+79,Propmint,propmint.com.br,Prop + mint,Novo property fresco,9,9,9,27,Novo_EN
+80,Imovault,imovault.com.br,Imo + vault (cofre),Cofre seguro imoveis,8,8,9,25,Seguranca_BR
+81,Propvault,propvault.com.br,Prop + vault,Cofre properties,8,8,9,25,Seguranca_EN
+82,Imobeam,imobeam.com.br,Imo + beam (raio),Raio imoveis rapido,9,9,9,27,Rapido_BR
+83,Propbeam,propbeam.com.br,Prop + beam,Raio properties,9,9,9,27,Rapido_EN
+84,Imospark,imospark.com.br,Imo + spark (faísca),Faísca imoveis inicio,9,9,9,27,Inicio_BR
+85,Propspark,propspark.com.br,Prop + spark,Faísca properties,9,9,9,27,Inicio_EN
+86,Imoblaze,imoblaze.com.br,Imo + blaze (chama),Chama imoveis energia,9,10,9,28,Energia_BR
+87,Propblaze,propblaze.com.br,Prop + blaze,Chama properties,9,10,9,28,Energia_EN
+88,Imoflare,imoflare.com.br,Imo + flare (clarão),Clarão imoveis destaque,9,9,9,27,Destaque_BR
+89,Propflare,propflare.com.br,Prop + flare,Clarão properties,9,9,9,27,Destaque_EN
+90,Imoglow,imoglow.com.br,Imo + glow (brilho),Brilho imoveis qualidade,9,9,9,27,Qualidade_BR
+91,Propglow,propglow.com.br,Prop + glow,Brilho properties,9,9,9,27,Qualidade_EN
+92,Imoshine,imoshine.com.br,Imo + shine (brilhar),Brilhar imoveis,9,9,9,27,Brilho_BR
+93,Propshine,propshine.com.br,Prop + shine,Brilhar properties,9,9,9,27,Brilho_EN
+94,Imobright,imobright.com.br,Imo + bright (claro),Claro imoveis transparente,8,8,9,25,Transparencia_BR
+95,Propbright,propbright.com.br,Prop + bright,Claro properties,8,8,9,25,Transparencia_EN
+96,Imoclear,imoclear.com.br,Imo + clear (limpo),Limpo imoveis claro,9,9,9,27,Clareza_BR
+97,Propclear,propclear.com.br,Prop + clear,Limpo properties,9,9,9,27,Clareza_EN
+98,Imopure,imopure.com.br,Imo + pure (puro),Puro imoveis autentico,9,9,10,28,Autenticidade_BR
+99,Proppure,proppure.com.br,Prop + pure,Puro properties,9,9,10,28,Autenticidade_EN
+100,Imotrue,imotrue.com.br,Imo + true (verdadeiro),Verdadeiro imoveis,9,9,10,28,Verdade_BR
+101,Proptrue,proptrue.com.br,Prop + true,Verdadeiro properties,9,9,10,28,Verdade_EN
+102,Imoreal,imoreal.com.br,Imo + real (real),Real imoveis autentico,10,10,10,30,Real_BR_Perfeito
+103,Propreal,propreal.com.br,Prop + real,Real properties,9,9,10,28,Real_EN
+104,Imosure,imosure.com.br,Imo + sure (certo),Certo imoveis seguro,9,9,9,27,Certeza_BR
+105,Propsure,propsure.com.br,Prop + sure,Certo properties,9,9,9,27,Certeza_EN
+106,Imosolid,imosolid.com.br,Imo + solid (sólido),Sólido imoveis confiável,8,8,9,25,Solidez_BR
+107,Propsolid,propsolid.com.br,Prop + solid,Sólido properties,8,8,9,25,Solidez_EN
+108,Imofirm,imofirm.com.br,Imo + firm (firme),Firme imoveis estável,9,9,9,27,Firmeza_BR
+109,Propfirm,propfirm.com.br,Prop + firm,Firme properties,9,9,9,27,Firmeza_EN
+110,Imosteady,imosteady.com.br,Imo + steady (estável),Estável imoveis,8,8,8,24,Estabilidade_BR
+111,Propsteady,propsteady.com.br,Prop + steady,Estável properties,8,8,8,24,Estabilidade_EN
+112,Imoswift,imoswift.com.br,Imo + swift (veloz),Veloz imoveis rapido,9,9,9,27,Velocidade_BR
+113,Propswift,propswift.com.br,Prop + swift,Veloz properties,9,9,9,27,Velocidade_EN
+114,Imosnap,imosnap.com.br,Imo + snap (estalo),Estalo imoveis instantâneo,9,10,9,28,Instantaneo_BR
+115,Propsnap,propsnap.com.br,Prop + snap,Estalo properties,9,10,9,28,Instantaneo_EN
+116,Imozoom,imozoom.com.br,Imo + zoom (aproximar),Zoom imoveis foco,9,9,9,27,Foco_BR
+117,Propzoom,propzoom.com.br,Prop + zoom,Zoom properties,9,9,9,27,Foco_EN
+118,Imoboost,imoboost.com.br,Imo + boost (impulsionar),Impulsionar imoveis,9,9,9,27,Impulso_BR
+119,Propboost,propboost.com.br,Prop + boost,Impulsionar properties,9,9,9,27,Impulso_EN
+120,Imorush,imorush.com.br,Imo + rush (correr),Correr imoveis urgente,9,9,8,26,Urgencia_BR
+121,Proprush,proprush.com.br,Prop + rush,Correr properties,9,9,8,26,Urgencia_EN
+122,Imovibe,imovibe.com.br,Imo + vibe (vibração),Vibração imoveis energia,9,10,9,28,Energia_BR
+123,Propvibe,propvibe.com.br,Prop + vibe,Vibração properties,9,10,9,28,Energia_EN
+124,Imovibes,imovibes.com.br,Imo + vibes (vibrações),Vibrações imoveis plural,9,10,9,28,Energia_Plural_BR
+125,Propvibes,propvibes.com.br,Prop + vibes,Vibrações properties,9,10,9,28,Energia_Plural_EN
+126,Imomojo,imomojo.com.br,Imo + mojo (magia),Magia imoveis sorte,9,10,9,28,Magia_BR
+127,Propmojo,propmojo.com.br,Prop + mojo,Magia properties,9,10,9,28,Magia_EN
+128,Imozest,imozest.com.br,Imo + zest (entusiasmo),Entusiasmo imoveis,9,9,9,27,Entusiasmo_BR
+129,Propzest,propzest.com.br,Prop + zest,Entusiasmo properties,9,9,9,27,Entusiasmo_EN
+130,Imoverve,imoverve.com.br,Imo + verve (vigor),Vigor imoveis energia,9,9,9,27,Vigor_BR
+131,Propverve,propverve.com.br,Prop + verve,Vigor properties,9,9,9,27,Vigor_EN
+132,Imobrio,imobrio.com.br,Imo + brio (vivacidade),Vivacidade imoveis,9,9,9,27,Vivacidade_BR
+133,Propbrio,propbrio.com.br,Prop + brio,Vivacidade properties,9,9,9,27,Vivacidade_EN
+134,Imoelan,imoelan.com.br,Imo + elan (ímpeto),Ímpeto imoveis,9,9,9,27,Impeto_BR
+135,Propelan,propelan.com.br,Prop + elan,Ímpeto properties,9,9,9,27,Impeto_EN
+136,Imoflair,imoflair.com.br,Imo + flair (estilo),Estilo imoveis elegante,9,10,10,29,Estilo_BR
+137,Propflair,propflair.com.br,Prop + flair,Estilo properties,9,10,10,29,Estilo_EN
+138,Imopanache,imopanache.com.br,Imo + panache (elegância),Elegância imoveis charme,8,9,10,27,Elegancia_BR
+139,Proppanache,proppanache.com.br,Prop + panache,Elegância properties,8,9,10,27,Elegancia_EN
+140,Imofinesse,imofinesse.com.br,Imo + finesse (refinamento),Refinamento imoveis,8,9,10,27,Refinamento_BR
+141,Propfinesse,propfinesse.com.br,Prop + finesse,Refinamento properties,8,9,10,27,Refinamento_EN
+142,Imoclass,imoclass.com.br,Imo + class (classe),Classe imoveis premium,9,9,10,28,Classe_BR
+143,Propclass,propclass.com.br,Prop + class,Classe properties,9,9,10,28,Classe_EN
+144,Imoelite,imoelite.com.br,Imo + elite,Elite imoveis premium,9,9,10,28,Elite_BR
+145,Propelite,propelite.com.br,Prop + elite,Elite properties,9,9,10,28,Elite_EN
+146,Imoprime,imoprime.com.br,Imo + prime (premium),Prime imoveis primeira,9,9,10,28,Premium_BR
+147,Propprime,propprime.com.br,Prop + prime,Prime properties,9,9,10,28,Premium_EN
+148,Imoluxe,imoluxe.com.br,Imo + luxe (luxo frances),Luxo imoveis frances,9,10,10,29,Luxo_Frances_BR
+149,Propluxe,propluxe.com.br,Prop + luxe,Luxo properties,9,10,10,29,Luxo_Frances_EN
+150,Imonoble,imonoble.com.br,Imo + noble (nobre),Nobre imoveis premium,9,9,10,28,Nobre_BR

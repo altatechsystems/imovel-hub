@@ -1,0 +1,95 @@
+Palavra_Real,Ocorrencias,Contexto_Uso,Idioma,Pode_Ser_Nome,Nota_Nome,Disponibilidade_Estimada,Observacoes
+canonical,366+,Listing canônico (principal),EN,Sim,8,Media,Conceito central do projeto
+captador,142+,Corretor que captou o imóvel,PT,Sim,9,Alta,Único no mercado imobiliário
+union,142+,Adapter de importação UnionSistemas,EN,Sim,9,Media,Já usado no projeto
+marketplace,131+,Modelo de negócio aspiracional,EN,Sim,7,Baixa,Muito genérico
+tenant,509+,Imobiliária/organização multi-tenant,EN,Não,4,N/A,Muito técnico
+activity,559+,Logs de atividades,EN,Não,5,N/A,Muito genérico
+scheduled,154+,Confirmações agendadas,EN,Não,5,N/A,Muito genérico
+confirmation,154+,Sistema de confirmação proprietário,EN/PT,Sim,7,Media,Conceito do projeto
+deduplication,18+,Remoção de duplicatas,EN,Não,4,N/A,Muito técnico
+fingerprint,50+,Hash de identificação única,EN,Sim,7,Media,Metáfora interessante
+slug,100+,URLs amigáveis para SEO,EN,Sim,6,Alta,Tech mas obscuro
+verified,80+,Propriedades/dados verificados,EN,Sim,8,Baixa,Conceito de confiança
+authentic,30+,Autenticidade de dados,EN,Sim,8,Media,Governança
+visibility,131+,Níveis de exposição do imóvel,EN,Não,6,N/A,Muito abstrato
+development,94+,Empreendimentos/lançamentos,EN,Não,6,N/A,Muito genérico
+construction,42+,Status de construção,EN,Não,4,N/A,Literal demais
+processor,50+,Processamento de imagens,EN,Não,3,N/A,Muito técnico
+normalizer,14+,Normalização de dados,EN,Não,3,N/A,Muito técnico
+validator,25+,Validação de dados,EN,Não,3,N/A,Muito técnico
+repository,299+,Camada de dados,EN,Não,2,N/A,Padrão técnico
+handler,116+,Endpoints HTTP,EN,Não,2,N/A,Padrão técnico
+middleware,50+,Camada intermediária,EN,Não,2,N/A,Padrão técnico
+originating,50+,Broker que originou o imóvel,EN,Sim,7,Alta,Conceito de origem
+network,131+,Visibilidade em rede,EN,Não,5,N/A,Muito genérico
+private,131+,Visibilidade privada,EN,Não,4,N/A,Muito genérico
+public,500+,Visibilidade pública/frontend,EN,Não,3,N/A,Muito genérico
+stale,30+,Dados desatualizados,EN,Sim,6,Alta,Inusitado mas negativo
+incomplete,50+,Dados incompletos,EN,Não,4,N/A,Negativo
+partial,40+,Dados parciais,EN,Não,4,N/A,Negativo
+pending,80+,Pendente confirmação,EN,Não,4,N/A,Muito genérico
+indexation,20+,Reajuste de aluguel,EN,Não,3,N/A,Técnico demais
+guarantee,30+,Garantia locatícia,EN,Não,5,N/A,Genérico
+rental,133+,Aluguel/locação,EN,Não,5,N/A,Muito comum
+whatsapp,200+,Canal de comunicação,BRAND,Não,N/A,N/A,Marca registrada
+firebase,1308+,Infraestrutura backend,BRAND,Não,N/A,N/A,Marca registrada
+photo,242+,Fotos de imóveis,EN,Não,3,N/A,Muito genérico
+image,242+,Imagens processadas,EN,Não,3,N/A,Muito genérico
+metadata,417+,Metadados SEO,EN,Não,3,N/A,Muito técnico
+upload,288+,Upload de arquivos,EN,Não,3,N/A,Muito comum
+storage,70+,Armazenamento GCS,EN,Não,3,N/A,Muito genérico
+search,47+,Busca de imóveis,EN,Não,4,N/A,Muito genérico
+filter,47+,Filtros de busca,EN,Não,4,N/A,Muito genérico
+pagination,30+,Paginação de resultados,EN,Não,2,N/A,Muito técnico
+query,100+,Consultas/queries,EN,Não,3,N/A,Muito técnico
+card,60+,Cards de exibição,EN,Não,4,N/A,Muito genérico
+modal,11+,Modais de interface,EN,Não,3,N/A,Muito técnico
+form,10+,Formulários,EN,Não,2,N/A,Muito genérico
+button,50+,Botões de interface,EN,Não,2,N/A,Muito genérico
+badge,20+,Badges/etiquetas,EN,Não,3,N/A,Muito genérico
+header,40+,Cabeçalho,EN,Não,2,N/A,Muito genérico
+footer,20+,Rodapé,EN,Não,2,N/A,Muito genérico
+sidebar,15+,Barra lateral,EN,Não,2,N/A,Muito genérico
+layout,30+,Layout de páginas,EN,Não,2,N/A,Muito genérico
+component,8+,Componentes React,EN,Não,2,N/A,Muito técnico
+corretor,462+,Agente imobiliário,PT,Sim,7,Baixa,Muito literal
+proprietario,483+,Dono do imóvel,PT,Sim,6,Baixa,Muito literal
+imovel,610+,Propriedade/imóvel,PT,Sim,8,Baixa,Core mas literal
+anuncio,200+,Listing/anúncio,PT,Sim,6,Media,Comum demais
+moradia,50+,Habitação,PT,Sim,7,Media,Mais poético
+habitat,20+,Local de moradia,PT/EN,Sim,8,Media,Interessante
+casa,100+,House/home,PT,Sim,9,Baixa,Muito comum
+lar,30+,Home,PT,Sim,9,Alta,Emotivo e forte
+raiz,15+,Root/origem,PT,Sim,8,Media,Autenticidade
+origem,20+,Origin/source,PT,Sim,8,Media,Conceito central
+unico,50+,Unique/single,PT,Sim,9,Media,Conceito CENTRAL
+exclusivo,30+,Exclusive,PT,Sim,8,Media,Premium
+verdadeiro,10+,True/authentic,PT,Sim,8,Alta,Autenticidade
+confianca,20+,Trust/confidence,PT,Sim,9,Media,Core value
+verificado,80+,Verified,PT,Sim,8,Media,Confiança
+autentico,30+,Authentic,PT,Sim,8,Alta,Governança
+completo,40+,Complete,PT,Sim,7,Media,Positivo
+exato,10+,Exact,PT,Sim,8,Alta,Precisão
+certo,15+,Correct/right,PT,Sim,9,Media,Corretor + certo
+preciso,10+,Precise/accurate,PT,Sim,7,Media,Qualidade
+claro,20+,Clear,PT,Sim,8,Media,Transparência
+direto,15+,Direct/straight,PT,Sim,7,Alta,Simplicidade
+simples,10+,Simple,PT,Sim,7,Media,Filosofia
+rapido,10+,Fast/quick,PT,Sim,7,Baixa,Velocidade
+agil,8+,Agile,PT,Sim,7,Media,Modernidade
+smart,5+,Inteligente,EN,Sim,7,Baixa,Muito usado
+facil,12+,Easy,PT,Sim,7,Media,Acessibilidade
+seguro,25+,Safe/secure,PT,Sim,8,Baixa,Confiança
+solid,10+,Sólido,EN/PT,Sim,7,Media,Confiabilidade
+prime,8+,Premium/primeiro,EN,Sim,8,Baixa,Muito usado
+core,30+,Núcleo/essencial,EN,Sim,8,Media,Central
+base,40+,Foundation/base,EN/PT,Sim,8,Media,Fundação
+hub,50+,Centro/hub,EN,Sim,7,Baixa,Muito usado
+nexus,20+,Conexão central,EN,Sim,8,Media,Sofisticado
+link,15+,Ligação,EN,Não,5,N/A,Muito genérico
+connect,20+,Conectar,EN,Não,6,N/A,Muito comum
+sync,30+,Sincronizar,EN,Sim,7,Media,Tech
+flow,15+,Fluxo,EN,Sim,7,Media,Processo
+path,25+,Caminho,EN,Não,5,N/A,Muito abstrato
+route,20+,Rota,EN,Não,4,N/A,Muito técnico

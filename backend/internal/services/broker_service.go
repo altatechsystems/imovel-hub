@@ -493,14 +493,10 @@ func (s *BrokerService) ValidateCRECI(creci string) error {
 
 // validateRole validates broker role
 func (s *BrokerService) validateRole(role string) error {
-	validRoles := map[string]bool{
-		"admin":   true,
-		"broker":  true,
-		"manager": true,
-	}
-
-	if !validRoles[role] {
-		return fmt.Errorf("invalid role: must be 'admin', 'broker', or 'manager'")
+	// Only broker-specific roles are valid for brokers
+	// Administrative roles ("admin", "manager") should use User model instead
+	if !models.IsValidBrokerRole(role) {
+		return fmt.Errorf("invalid role for broker: must be 'broker' or 'broker_admin'. Administrative users should be created in /users collection")
 	}
 
 	return nil

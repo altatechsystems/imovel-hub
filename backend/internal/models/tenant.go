@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// Tenant represents a real estate agency (imobiliária) in the multi-tenant system
+// Tenant represents a real estate business (imobiliária, incorporadora, loteadora, construtora, corretor autônomo) in the multi-tenant system
 // Collection: /tenants/{tenantId}
 type Tenant struct {
 	ID   string `firestore:"-" json:"id"`
@@ -14,9 +14,10 @@ type Tenant struct {
 	Phone string `firestore:"phone,omitempty" json:"phone,omitempty"`
 
 	// Business information
-	Document     string `firestore:"document,omitempty" json:"document,omitempty"`           // CNPJ
-	DocumentType string `firestore:"document_type,omitempty" json:"document_type,omitempty"` // "cnpj"
-	CRECI        string `firestore:"creci,omitempty" json:"creci,omitempty"`                 // CRECI Pessoa Jurídica
+	Document     string `firestore:"document,omitempty" json:"document,omitempty"`           // CPF or CNPJ
+	DocumentType string `firestore:"document_type,omitempty" json:"document_type,omitempty"` // "cpf" or "cnpj"
+	BusinessType string `firestore:"business_type,omitempty" json:"business_type,omitempty"` // imobiliaria, incorporadora, loteadora, construtora, corretor_autonomo
+	CRECI        string `firestore:"creci,omitempty" json:"creci,omitempty"`                 // CRECI (Pessoa Física ou Jurídica)
 
 	// Address
 	Street       string `firestore:"street,omitempty" json:"street,omitempty"`

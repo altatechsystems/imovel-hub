@@ -1,0 +1,1356 @@
+# PROMPT 09A - Multi-Tenancy Base (SEM AUTENTICAÇÃO)
+
+## CONTEXTO
+Implementar estrutura multi-tenant completa permitindo múltiplas imobiliárias (tenants)
+no sistema, com isolamento de dados entre elas. Esta implementação NÃO inclui
+autenticação Firebase - apenas a estrutura de dados e validação básica.
+
+## ESCOPO DESTE PROMPT
+✅ Modelos de Tenant e Broker
+✅ Repositórios para CRUD
+✅ Serviços com business logic
+✅ Endpoints HTTP (sem autenticação)
+✅ Middleware de validação simples (tenant existe?)
+✅ Activity Logs
+✅ Frontend Admin para gestão
+
+❌ Firebase Authentication (PROMPT 09B)
+❌ JWT tokens
+❌ Custom claims
+❌ Login/Signup
+❌ Password management
+❌ Firestore Security Rules
+
+========================
+BACKEND - MODELOS
+========================
+
+### 1. Tenant Model
+Arquivo: backend/internal/models/tenant.go
+
+```go
+package models
+
+import (
+	"time"
+)
+
+type Tenant struct {
+	ID        string                 `firestore:"-" json:"id"`
+	Name      string                 `firestore:"name" json:"name" validate:"required"`
+	Slug      string                 `firestore:"slug" json:"slug" validate:"required"`
+	Status    TenantStatus           `firestore:"status" json:"status"`
+	Settings  map[string]interface{} `firestore:"settings" json:"settings"`
+	CreatedAt time.Time              `firestore:"created_at" json:"created_at"`
+	UpdatedAt time.Time              `firestore:"updated_at" json:"updated_at"`
+}
+
+type TenantStatus string
+
+const (
+	TenantStatusActive    TenantStatus = "active"
+	TenantStatusSuspended TenantStatus = "suspended"
+	TenantStatusTrial     TenantStatus = "trial"
+)
+
+// ValidStatuses returns all valid tenant statuses
+func ValidTenantStatuses() []TenantStatus {
+	return []TenantStatus{
+		TenantStatusActive,
+		TenantStatusSuspended,
+		TenantStatusTrial,
+	}
+}
+```
+
+**Settings esperados (exemplos):**
+```json
+{
+  "whatsapp_default": "+5511999999999",
+  "business_name": "XYZ Imóveis",
+  "logo_url": "https://storage.googleapis.com/...",
+  "primary_color": "#3B82F6",
+  "primary_domain": "xyzimobiliaria.com.br"
+}
+```
+
+---
+
+### 2. Broker Model
+Arquivo: backend/internal/models/broker.go
+
+```go
+package models
+
+import (
+	"time"
+)
+
+type Broker struct {
+	ID        string       `firestore:"-" json:"id"`
+	TenantID  string       `firestore:"tenant_id" json:"tenant_id" validate:"required"`
+	Email     string       `firestore:"email" json:"email" validate:"required,email"`
+	Name      string       `firestore:"name" json:"name" validate:"required"`
+
+	// ⭐ OBRIGATÓRIO - Formato E.164 (ex: +5511999999999)
+	// CRÍTICO para WhatsApp Flow (PROMPT 07)
+	Phone     string       `firestore:"phone" json:"phone" validate:"required,e164"`
+
+	CRECI     string       `firestore:"creci,omitempty" json:"creci,omitempty"`
+	Role      BrokerRole   `firestore:"role" json:"role"`
+	Status    BrokerStatus `firestore:"status" json:"status"`
+	PhotoURL  string       `firestore:"photo_url,omitempty" json:"photo_url,omitempty"`
+	CreatedAt time.Time    `firestore:"created_at" json:"created_at"`
+	UpdatedAt time.Time    `firestore:"updated_at" json:"updated_at"`
+}
+
+type BrokerRole string
+
+const (
+	BrokerRoleAdmin  BrokerRole = "admin"  // pode gerenciar tenant
+	BrokerRoleBroker BrokerRole = "broker" // corretor padrão
+)
+
+type BrokerStatus string
+
+const (
+	BrokerStatusActive   BrokerStatus = "active"
+	BrokerStatusInactive BrokerStatus = "inactive"
+)
+
+// ValidRoles returns all valid broker roles
+func ValidBrokerRoles() []BrokerRole {
+	return []BrokerRole{BrokerRoleAdmin, BrokerRoleBroker}
+}
+
+// ValidStatuses returns all valid broker statuses
+func ValidBrokerStatuses() []BrokerStatus {
+	return []BrokerStatus{BrokerStatusActive, BrokerStatusInactive}
+}
+```
+
+========================
+BACKEND - REPOSITÓRIOS
+========================
+
+### 1. Tenant Repository
+Arquivo: backend/internal/repositories/tenant_repository.go
+
+```go
+package repositories
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"cloud.google.com/go/firestore"
+	"github.com/altatech/ecosistema-imob/backend/internal/models"
+	"google.golang.org/api/iterator"
+)
+
+type TenantRepository struct {
+	*BaseRepository
+}
+
+func NewTenantRepository(client *firestore.Client) *TenantRepository {
+	return &TenantRepository{
+		BaseRepository: NewBaseRepository(client),
+	}
+}
+
+// Create creates a new tenant
+func (r *TenantRepository) Create(ctx context.Context, tenant *models.Tenant) error {
+	if tenant.ID == "" {
+		tenant.ID = r.GenerateID()
+	}
+
+	now := time.Now()
+	tenant.CreatedAt = now
+	tenant.UpdatedAt = now
+
+	if tenant.Status == "" {
+		tenant.Status = models.TenantStatusTrial
+	}
+
+	if tenant.Settings == nil {
+		tenant.Settings = make(map[string]interface{})
+	}
+
+	_, err := r.Client().Collection("tenants").Doc(tenant.ID).Set(ctx, tenant)
+	return err
+}
+
+// Get retrieves a tenant by ID
+func (r *TenantRepository) Get(ctx context.Context, tenantID string) (*models.Tenant, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("%w: tenant_id is required", ErrInvalidInput)
+	}
+
+	doc, err := r.Client().Collection("tenants").Doc(tenantID).Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant: %w", err)
+	}
+
+	var tenant models.Tenant
+	if err := doc.DataTo(&tenant); err != nil {
+		return nil, fmt.Errorf("failed to parse tenant: %w", err)
+	}
+
+	tenant.ID = doc.Ref.ID
+	return &tenant, nil
+}
+
+// GetBySlug retrieves a tenant by slug
+func (r *TenantRepository) GetBySlug(ctx context.Context, slug string) (*models.Tenant, error) {
+	if slug == "" {
+		return nil, fmt.Errorf("%w: slug is required", ErrInvalidInput)
+	}
+
+	query := r.Client().Collection("tenants").Where("slug", "==", slug).Limit(1)
+	docs, err := query.Documents(ctx).GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tenant by slug: %w", err)
+	}
+
+	if len(docs) == 0 {
+		return nil, ErrNotFound
+	}
+
+	var tenant models.Tenant
+	if err := docs[0].DataTo(&tenant); err != nil {
+		return nil, fmt.Errorf("failed to parse tenant: %w", err)
+	}
+
+	tenant.ID = docs[0].Ref.ID
+	return &tenant, nil
+}
+
+// Update updates a tenant
+func (r *TenantRepository) Update(ctx context.Context, tenantID string, updates map[string]interface{}) error {
+	if tenantID == "" {
+		return fmt.Errorf("%w: tenant_id is required", ErrInvalidInput)
+	}
+
+	updates["updated_at"] = time.Now()
+
+	_, err := r.Client().Collection("tenants").Doc(tenantID).Set(ctx, updates, firestore.MergeAll)
+	if err != nil {
+		return fmt.Errorf("failed to update tenant: %w", err)
+	}
+
+	return nil
+}
+
+// List lists all tenants (admin only - no tenant filtering)
+func (r *TenantRepository) List(ctx context.Context, opts PaginationOptions) ([]*models.Tenant, error) {
+	query := r.Client().Collection("tenants").OrderBy("created_at", firestore.Desc)
+	query = r.ApplyPagination(query, opts)
+
+	docs, err := query.Documents(ctx).GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tenants: %w", err)
+	}
+
+	tenants := make([]*models.Tenant, 0, len(docs))
+	for _, doc := range docs {
+		var tenant models.Tenant
+		if err := doc.DataTo(&tenant); err != nil {
+			continue
+		}
+		tenant.ID = doc.Ref.ID
+		tenants = append(tenants, &tenant)
+	}
+
+	return tenants, nil
+}
+
+// Delete soft-deletes a tenant (sets status to suspended)
+func (r *TenantRepository) Delete(ctx context.Context, tenantID string) error {
+	return r.Update(ctx, tenantID, map[string]interface{}{
+		"status": models.TenantStatusSuspended,
+	})
+}
+```
+
+---
+
+### 2. Broker Repository
+Arquivo: backend/internal/repositories/broker_repository.go
+
+```go
+package repositories
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"cloud.google.com/go/firestore"
+	"github.com/altatech/ecosistema-imob/backend/internal/models"
+)
+
+type BrokerRepository struct {
+	*BaseRepository
+}
+
+func NewBrokerRepository(client *firestore.Client) *BrokerRepository {
+	return &BrokerRepository{
+		BaseRepository: NewBaseRepository(client),
+	}
+}
+
+// getBrokersCollection returns the brokers subcollection path
+func (r *BrokerRepository) getBrokersCollection(tenantID string) string {
+	return fmt.Sprintf("tenants/%s/brokers", tenantID)
+}
+
+// Create creates a new broker
+func (r *BrokerRepository) Create(ctx context.Context, broker *models.Broker) error {
+	if broker.TenantID == "" {
+		return fmt.Errorf("%w: tenant_id is required", ErrInvalidInput)
+	}
+
+	if broker.ID == "" {
+		broker.ID = r.GenerateID()
+	}
+
+	now := time.Now()
+	broker.CreatedAt = now
+	broker.UpdatedAt = now
+
+	if broker.Status == "" {
+		broker.Status = models.BrokerStatusActive
+	}
+
+	if broker.Role == "" {
+		broker.Role = models.BrokerRoleBroker
+	}
+
+	collectionPath := r.getBrokersCollection(broker.TenantID)
+	_, err := r.Client().Collection(collectionPath).Doc(broker.ID).Set(ctx, broker)
+	return err
+}
+
+// Get retrieves a broker by ID
+func (r *BrokerRepository) Get(ctx context.Context, tenantID, brokerID string) (*models.Broker, error) {
+	if tenantID == "" || brokerID == "" {
+		return nil, fmt.Errorf("%w: tenant_id and broker_id are required", ErrInvalidInput)
+	}
+
+	collectionPath := r.getBrokersCollection(tenantID)
+	doc, err := r.Client().Collection(collectionPath).Doc(brokerID).Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get broker: %w", err)
+	}
+
+	var broker models.Broker
+	if err := doc.DataTo(&broker); err != nil {
+		return nil, fmt.Errorf("failed to parse broker: %w", err)
+	}
+
+	broker.ID = doc.Ref.ID
+	return &broker, nil
+}
+
+// GetByEmail retrieves a broker by email
+func (r *BrokerRepository) GetByEmail(ctx context.Context, tenantID, email string) (*models.Broker, error) {
+	if tenantID == "" || email == "" {
+		return nil, fmt.Errorf("%w: tenant_id and email are required", ErrInvalidInput)
+	}
+
+	collectionPath := r.getBrokersCollection(tenantID)
+	query := r.Client().Collection(collectionPath).Where("email", "==", email).Limit(1)
+
+	docs, err := query.Documents(ctx).GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to query broker by email: %w", err)
+	}
+
+	if len(docs) == 0 {
+		return nil, ErrNotFound
+	}
+
+	var broker models.Broker
+	if err := docs[0].DataTo(&broker); err != nil {
+		return nil, fmt.Errorf("failed to parse broker: %w", err)
+	}
+
+	broker.ID = docs[0].Ref.ID
+	return &broker, nil
+}
+
+// List lists brokers for a tenant
+func (r *BrokerRepository) List(ctx context.Context, tenantID string, filters *BrokerFilters, opts PaginationOptions) ([]*models.Broker, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("%w: tenant_id is required", ErrInvalidInput)
+	}
+
+	collectionPath := r.getBrokersCollection(tenantID)
+	query := r.Client().Collection(collectionPath).OrderBy("created_at", firestore.Desc)
+
+	// Apply filters
+	if filters != nil {
+		if filters.Status != "" {
+			query = query.Where("status", "==", filters.Status)
+		}
+		if filters.Role != "" {
+			query = query.Where("role", "==", filters.Role)
+		}
+	}
+
+	query = r.ApplyPagination(query, opts)
+
+	docs, err := query.Documents(ctx).GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list brokers: %w", err)
+	}
+
+	brokers := make([]*models.Broker, 0, len(docs))
+	for _, doc := range docs {
+		var broker models.Broker
+		if err := doc.DataTo(&broker); err != nil {
+			continue
+		}
+		broker.ID = doc.Ref.ID
+		brokers = append(brokers, &broker)
+	}
+
+	return brokers, nil
+}
+
+// Update updates a broker
+func (r *BrokerRepository) Update(ctx context.Context, tenantID, brokerID string, updates map[string]interface{}) error {
+	if tenantID == "" || brokerID == "" {
+		return fmt.Errorf("%w: tenant_id and broker_id are required", ErrInvalidInput)
+	}
+
+	updates["updated_at"] = time.Now()
+
+	collectionPath := r.getBrokersCollection(tenantID)
+	_, err := r.Client().Collection(collectionPath).Doc(brokerID).Set(ctx, updates, firestore.MergeAll)
+	if err != nil {
+		return fmt.Errorf("failed to update broker: %w", err)
+	}
+
+	return nil
+}
+
+// Delete soft-deletes a broker (sets status to inactive)
+func (r *BrokerRepository) Delete(ctx context.Context, tenantID, brokerID string) error {
+	return r.Update(ctx, tenantID, brokerID, map[string]interface{}{
+		"status": models.BrokerStatusInactive,
+	})
+}
+
+// BrokerFilters defines filters for broker queries
+type BrokerFilters struct {
+	Status models.BrokerStatus
+	Role   models.BrokerRole
+}
+```
+
+========================
+BACKEND - SERVIÇOS
+========================
+
+### 1. Tenant Service
+Arquivo: backend/internal/services/tenant_service.go
+
+```go
+package services
+
+import (
+	"context"
+	"fmt"
+	"regexp"
+	"strings"
+
+	"github.com/altatech/ecosistema-imob/backend/internal/models"
+	"github.com/altatech/ecosistema-imob/backend/internal/repositories"
+)
+
+type TenantService struct {
+	tenantRepo      *repositories.TenantRepository
+	activityLogRepo *repositories.ActivityLogRepository
+}
+
+func NewTenantService(
+	tenantRepo *repositories.TenantRepository,
+	activityLogRepo *repositories.ActivityLogRepository,
+) *TenantService {
+	return &TenantService{
+		tenantRepo:      tenantRepo,
+		activityLogRepo: activityLogRepo,
+	}
+}
+
+// Create creates a new tenant
+func (s *TenantService) Create(ctx context.Context, tenant *models.Tenant, actorID string) (*models.Tenant, error) {
+	// Generate slug from name if not provided
+	if tenant.Slug == "" {
+		tenant.Slug = generateSlug(tenant.Name)
+	}
+
+	// Validate slug is unique
+	existing, err := s.tenantRepo.GetBySlug(ctx, tenant.Slug)
+	if err == nil && existing != nil {
+		return nil, fmt.Errorf("slug already exists: %s", tenant.Slug)
+	}
+
+	// Create tenant
+	if err := s.tenantRepo.Create(ctx, tenant); err != nil {
+		return nil, fmt.Errorf("failed to create tenant: %w", err)
+	}
+
+	// Activity log
+	s.activityLogRepo.Create(ctx, &models.ActivityLog{
+		TenantID:  tenant.ID,
+		ActorType: models.ActorTypeSystem,
+		ActorID:   actorID,
+		EventType: "tenant_created",
+		Metadata: map[string]interface{}{
+			"tenant_id":   tenant.ID,
+			"tenant_name": tenant.Name,
+			"slug":        tenant.Slug,
+		},
+	})
+
+	return tenant, nil
+}
+
+// Get retrieves a tenant
+func (s *TenantService) Get(ctx context.Context, tenantID string) (*models.Tenant, error) {
+	return s.tenantRepo.Get(ctx, tenantID)
+}
+
+// Update updates a tenant
+func (s *TenantService) Update(ctx context.Context, tenantID string, updates map[string]interface{}, actorID string) (*models.Tenant, error) {
+	// Validate tenant exists
+	tenant, err := s.tenantRepo.Get(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update
+	if err := s.tenantRepo.Update(ctx, tenantID, updates); err != nil {
+		return nil, fmt.Errorf("failed to update tenant: %w", err)
+	}
+
+	// Activity log
+	s.activityLogRepo.Create(ctx, &models.ActivityLog{
+		TenantID:  tenantID,
+		ActorType: models.ActorTypeBroker,
+		ActorID:   actorID,
+		EventType: "tenant_updated",
+		Metadata: map[string]interface{}{
+			"tenant_id": tenantID,
+			"updates":   updates,
+		},
+	})
+
+	// Return updated tenant
+	return s.tenantRepo.Get(ctx, tenantID)
+}
+
+// generateSlug creates a URL-safe slug from a string
+func generateSlug(s string) string {
+	// Convert to lowercase
+	slug := strings.ToLower(s)
+
+	// Remove accents (simplified - production should use proper unicode normalization)
+	slug = strings.ReplaceAll(slug, "ã", "a")
+	slug = strings.ReplaceAll(slug, "á", "a")
+	slug = strings.ReplaceAll(slug, "â", "a")
+	slug = strings.ReplaceAll(slug, "é", "e")
+	slug = strings.ReplaceAll(slug, "ê", "e")
+	slug = strings.ReplaceAll(slug, "í", "i")
+	slug = strings.ReplaceAll(slug, "ó", "o")
+	slug = strings.ReplaceAll(slug, "ô", "o")
+	slug = strings.ReplaceAll(slug, "õ", "o")
+	slug = strings.ReplaceAll(slug, "ú", "u")
+	slug = strings.ReplaceAll(slug, "ç", "c")
+
+	// Replace spaces and special chars with hyphens
+	reg := regexp.MustCompile(`[^a-z0-9]+`)
+	slug = reg.ReplaceAllString(slug, "-")
+
+	// Remove leading/trailing hyphens
+	slug = strings.Trim(slug, "-")
+
+	return slug
+}
+```
+
+---
+
+### 2. Broker Service
+Arquivo: backend/internal/services/broker_service.go
+
+```go
+package services
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/altatech/ecosistema-imob/backend/internal/models"
+	"github.com/altatech/ecosistema-imob/backend/internal/repositories"
+)
+
+type BrokerService struct {
+	brokerRepo      *repositories.BrokerRepository
+	tenantRepo      *repositories.TenantRepository
+	activityLogRepo *repositories.ActivityLogRepository
+}
+
+func NewBrokerService(
+	brokerRepo *repositories.BrokerRepository,
+	tenantRepo *repositories.TenantRepository,
+	activityLogRepo *repositories.ActivityLogRepository,
+) *BrokerService {
+	return &BrokerService{
+		brokerRepo:      brokerRepo,
+		tenantRepo:      tenantRepo,
+		activityLogRepo: activityLogRepo,
+	}
+}
+
+// Create creates a new broker
+func (s *BrokerService) Create(ctx context.Context, broker *models.Broker, actorID string) (*models.Broker, error) {
+	// Validate tenant exists
+	_, err := s.tenantRepo.Get(ctx, broker.TenantID)
+	if err != nil {
+		return nil, fmt.Errorf("tenant not found: %w", err)
+	}
+
+	// Check if email already exists for this tenant
+	existing, _ := s.brokerRepo.GetByEmail(ctx, broker.TenantID, broker.Email)
+	if existing != nil {
+		return nil, fmt.Errorf("email already exists: %s", broker.Email)
+	}
+
+	// Create broker
+	if err := s.brokerRepo.Create(ctx, broker); err != nil {
+		return nil, fmt.Errorf("failed to create broker: %w", err)
+	}
+
+	// Activity log
+	s.activityLogRepo.Create(ctx, &models.ActivityLog{
+		TenantID:  broker.TenantID,
+		ActorType: models.ActorTypeBroker,
+		ActorID:   actorID,
+		EventType: "broker_created",
+		Metadata: map[string]interface{}{
+			"broker_id":    broker.ID,
+			"broker_email": broker.Email,
+			"broker_name":  broker.Name,
+			"role":         broker.Role,
+		},
+	})
+
+	return broker, nil
+}
+
+// Get retrieves a broker
+func (s *BrokerService) Get(ctx context.Context, tenantID, brokerID string) (*models.Broker, error) {
+	return s.brokerRepo.Get(ctx, tenantID, brokerID)
+}
+
+// List lists brokers
+func (s *BrokerService) List(
+	ctx context.Context,
+	tenantID string,
+	filters *repositories.BrokerFilters,
+	opts repositories.PaginationOptions,
+) ([]*models.Broker, error) {
+	return s.brokerRepo.List(ctx, tenantID, filters, opts)
+}
+
+// Update updates a broker
+func (s *BrokerService) Update(ctx context.Context, tenantID, brokerID string, updates map[string]interface{}, actorID string) (*models.Broker, error) {
+	// Validate broker exists
+	broker, err := s.brokerRepo.Get(ctx, tenantID, brokerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update
+	if err := s.brokerRepo.Update(ctx, tenantID, brokerID, updates); err != nil {
+		return nil, fmt.Errorf("failed to update broker: %w", err)
+	}
+
+	// Activity log
+	s.activityLogRepo.Create(ctx, &models.ActivityLog{
+		TenantID:  tenantID,
+		ActorType: models.ActorTypeBroker,
+		ActorID:   actorID,
+		EventType: "broker_updated",
+		Metadata: map[string]interface{}{
+			"broker_id": brokerID,
+			"updates":   updates,
+		},
+	})
+
+	// Return updated broker
+	return s.brokerRepo.Get(ctx, tenantID, brokerID)
+}
+
+// Delete soft-deletes a broker
+func (s *BrokerService) Delete(ctx context.Context, tenantID, brokerID, actorID string) error {
+	// Validate broker exists
+	_, err := s.brokerRepo.Get(ctx, tenantID, brokerID)
+	if err != nil {
+		return err
+	}
+
+	// Delete
+	if err := s.brokerRepo.Delete(ctx, tenantID, brokerID); err != nil {
+		return fmt.Errorf("failed to delete broker: %w", err)
+	}
+
+	// Activity log
+	s.activityLogRepo.Create(ctx, &models.ActivityLog{
+		TenantID:  tenantID,
+		ActorType: models.ActorTypeBroker,
+		ActorID:   actorID,
+		EventType: "broker_deleted",
+		Metadata: map[string]interface{}{
+			"broker_id": brokerID,
+		},
+	})
+
+	return nil
+}
+```
+
+========================
+BACKEND - HANDLERS
+========================
+
+### 1. Tenant Handler
+Arquivo: backend/internal/handlers/tenant_handler.go
+
+```go
+package handlers
+
+import (
+	"net/http"
+
+	"github.com/altatech/ecosistema-imob/backend/internal/models"
+	"github.com/altatech/ecosistema-imob/backend/internal/services"
+	"github.com/gin-gonic/gin"
+)
+
+type TenantHandler struct {
+	tenantService *services.TenantService
+}
+
+func NewTenantHandler(tenantService *services.TenantService) *TenantHandler {
+	return &TenantHandler{
+		tenantService: tenantService,
+	}
+}
+
+// Get retrieves a tenant
+// GET /api/v1/tenants/:tenantId
+func (h *TenantHandler) Get(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+
+	tenant, err := h.tenantService.Get(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "tenant not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    tenant,
+	})
+}
+
+// Update updates a tenant
+// PATCH /api/v1/tenants/:tenantId
+func (h *TenantHandler) Update(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+
+	var req UpdateTenantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	updates := make(map[string]interface{})
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Settings != nil {
+		updates["settings"] = req.Settings
+	}
+
+	// TODO: Get actorID from JWT (PROMPT 09B)
+	actorID := "system"
+
+	tenant, err := h.tenantService.Update(c.Request.Context(), tenantID, updates, actorID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update tenant"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    tenant,
+	})
+}
+
+// RegisterRoutes registers tenant routes
+func (h *TenantHandler) RegisterRoutes(router *gin.RouterGroup) {
+	router.GET("/tenants/:tenantId", h.Get)
+	router.PATCH("/tenants/:tenantId", h.Update)
+}
+
+// UpdateTenantRequest is the request body for updating a tenant
+type UpdateTenantRequest struct {
+	Name     *string                `json:"name,omitempty"`
+	Settings map[string]interface{} `json:"settings,omitempty"`
+}
+```
+
+---
+
+### 2. Broker Handler
+Arquivo: backend/internal/handlers/broker_handler.go
+
+```go
+package handlers
+
+import (
+	"net/http"
+
+	"github.com/altatech/ecosistema-imob/backend/internal/models"
+	"github.com/altatech/ecosistema-imob/backend/internal/repositories"
+	"github.com/altatech/ecosistema-imob/backend/internal/services"
+	"github.com/gin-gonic/gin"
+)
+
+type BrokerHandler struct {
+	brokerService *services.BrokerService
+}
+
+func NewBrokerHandler(brokerService *services.BrokerService) *BrokerHandler {
+	return &BrokerHandler{
+		brokerService: brokerService,
+	}
+}
+
+// List lists brokers
+// GET /api/v1/tenants/:tenantId/brokers
+func (h *BrokerHandler) List(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+
+	// Parse filters
+	filters := &repositories.BrokerFilters{}
+	if status := c.Query("status"); status != "" {
+		filters.Status = models.BrokerStatus(status)
+	}
+	if role := c.Query("role"); role != "" {
+		filters.Role = models.BrokerRole(role)
+	}
+
+	// Parse pagination
+	opts := parsePaginationOptions(c)
+
+	brokers, err := h.brokerService.List(c.Request.Context(), tenantID, filters, opts)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list brokers"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    brokers,
+		"count":   len(brokers),
+	})
+}
+
+// Get retrieves a broker
+// GET /api/v1/tenants/:tenantId/brokers/:brokerId
+func (h *BrokerHandler) Get(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+	brokerID := c.Param("brokerId")
+
+	broker, err := h.brokerService.Get(c.Request.Context(), tenantID, brokerID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "broker not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    broker,
+	})
+}
+
+// Create creates a broker
+// POST /api/v1/tenants/:tenantId/brokers
+func (h *BrokerHandler) Create(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+
+	var req CreateBrokerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	broker := &models.Broker{
+		TenantID: tenantID,
+		Email:    req.Email,
+		Name:     req.Name,
+		Phone:    req.Phone,
+		CRECI:    req.CRECI,
+		Role:     req.Role,
+		PhotoURL: req.PhotoURL,
+	}
+
+	// TODO: Get actorID from JWT (PROMPT 09B)
+	actorID := "system"
+
+	createdBroker, err := h.brokerService.Create(c.Request.Context(), broker, actorID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    createdBroker,
+	})
+}
+
+// Update updates a broker
+// PATCH /api/v1/tenants/:tenantId/brokers/:brokerId
+func (h *BrokerHandler) Update(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+	brokerID := c.Param("brokerId")
+
+	var req UpdateBrokerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	updates := make(map[string]interface{})
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Phone != nil {
+		updates["phone"] = *req.Phone
+	}
+	if req.CRECI != nil {
+		updates["creci"] = *req.CRECI
+	}
+	if req.Role != nil {
+		updates["role"] = *req.Role
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if req.PhotoURL != nil {
+		updates["photo_url"] = *req.PhotoURL
+	}
+
+	// TODO: Get actorID from JWT (PROMPT 09B)
+	actorID := "system"
+
+	broker, err := h.brokerService.Update(c.Request.Context(), tenantID, brokerID, updates, actorID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update broker"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    broker,
+	})
+}
+
+// Delete soft-deletes a broker
+// DELETE /api/v1/tenants/:tenantId/brokers/:brokerId
+func (h *BrokerHandler) Delete(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+	brokerID := c.Param("brokerId")
+
+	// TODO: Get actorID from JWT (PROMPT 09B)
+	actorID := "system"
+
+	err := h.brokerService.Delete(c.Request.Context(), tenantID, brokerID, actorID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete broker"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "broker deleted successfully",
+	})
+}
+
+// RegisterRoutes registers broker routes
+func (h *BrokerHandler) RegisterRoutes(router *gin.RouterGroup) {
+	router.GET("/tenants/:tenantId/brokers", h.List)
+	router.GET("/tenants/:tenantId/brokers/:brokerId", h.Get)
+	router.POST("/tenants/:tenantId/brokers", h.Create)
+	router.PATCH("/tenants/:tenantId/brokers/:brokerId", h.Update)
+	router.DELETE("/tenants/:tenantId/brokers/:brokerId", h.Delete)
+}
+
+// Request/Response types
+type CreateBrokerRequest struct {
+	Email    string              `json:"email" binding:"required,email"`
+	Name     string              `json:"name" binding:"required"`
+	Phone    string              `json:"phone" binding:"required"`
+	CRECI    string              `json:"creci,omitempty"`
+	Role     models.BrokerRole   `json:"role" binding:"required"`
+	PhotoURL string              `json:"photo_url,omitempty"`
+}
+
+type UpdateBrokerRequest struct {
+	Name     *string              `json:"name,omitempty"`
+	Phone    *string              `json:"phone,omitempty"`
+	CRECI    *string              `json:"creci,omitempty"`
+	Role     *models.BrokerRole   `json:"role,omitempty"`
+	Status   *models.BrokerStatus `json:"status,omitempty"`
+	PhotoURL *string              `json:"photo_url,omitempty"`
+}
+```
+
+========================
+BACKEND - MIDDLEWARE
+========================
+
+### Tenant Validation Middleware (SEM JWT)
+Arquivo: backend/internal/middleware/tenant_validation.go
+
+```go
+package middleware
+
+import (
+	"net/http"
+
+	"github.com/altatech/ecosistema-imob/backend/internal/services"
+	"github.com/gin-gonic/gin"
+)
+
+// TenantValidationMiddleware validates that tenant exists
+// This is a SIMPLE validation for PROMPT 09A (no JWT yet)
+func TenantValidationMiddleware(tenantService *services.TenantService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID := c.Param("tenantId")
+
+		// Skip if no tenantId in path
+		if tenantID == "" {
+			c.Next()
+			return
+		}
+
+		// Check if tenant exists
+		_, err := tenantService.Get(c.Request.Context(), tenantID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "tenant not found",
+			})
+			c.Abort()
+			return
+		}
+
+		// Store tenant_id in context for handlers to use
+		c.Set("tenant_id", tenantID)
+		c.Next()
+	}
+}
+```
+
+**NOTA:** Este middleware **NÃO** valida JWT. Apenas verifica se o tenant existe no Firestore.
+A validação de autenticação será implementada no PROMPT 09B.
+
+========================
+BACKEND - WIRING (main.go)
+========================
+
+Adicionar ao main.go:
+
+```go
+// Repositories
+repos := &Repositories{
+	// ... existing repos
+	TenantRepo: repositories.NewTenantRepository(firestoreClient),
+	BrokerRepo: repositories.NewBrokerRepository(firestoreClient),
+}
+
+// Services
+services := &Services{
+	// ... existing services
+	TenantService: services.NewTenantService(
+		repos.TenantRepo,
+		repos.ActivityLogRepo,
+	),
+	BrokerService: services.NewBrokerService(
+		repos.BrokerRepo,
+		repos.TenantRepo,
+		repos.ActivityLogRepo,
+	),
+}
+
+// Handlers
+handlers := &Handlers{
+	// ... existing handlers
+	TenantHandler: handlers.NewTenantHandler(services.TenantService),
+	BrokerHandler: handlers.NewBrokerHandler(services.BrokerService),
+}
+
+// Register routes
+apiV1 := router.Group("/api/v1")
+apiV1.Use(middleware.TenantValidationMiddleware(services.TenantService))
+{
+	handlers.TenantHandler.RegisterRoutes(apiV1)
+	handlers.BrokerHandler.RegisterRoutes(apiV1)
+	// ... existing routes
+}
+```
+
+========================
+FRONTEND - TYPES
+========================
+
+Arquivo: frontend-admin/types/tenant.ts
+
+```typescript
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  status: TenantStatus;
+  settings: TenantSettings;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export enum TenantStatus {
+  ACTIVE = 'active',
+  SUSPENDED = 'suspended',
+  TRIAL = 'trial',
+}
+
+export interface TenantSettings {
+  whatsapp_default?: string;
+  business_name?: string;
+  logo_url?: string;
+  primary_color?: string;
+  primary_domain?: string;
+  [key: string]: any;
+}
+
+export interface UpdateTenantRequest {
+  name?: string;
+  settings?: Partial<TenantSettings>;
+}
+```
+
+---
+
+Arquivo: frontend-admin/types/broker.ts
+
+```typescript
+export interface Broker {
+  id: string;
+  tenant_id: string;
+  email: string;
+  name: string;
+  phone: string;
+  creci?: string;
+  role: BrokerRole;
+  status: BrokerStatus;
+  photo_url?: string;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export enum BrokerRole {
+  ADMIN = 'admin',
+  BROKER = 'broker',
+}
+
+export enum BrokerStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+}
+
+export interface CreateBrokerRequest {
+  email: string;
+  name: string;
+  phone: string;
+  creci?: string;
+  role: BrokerRole;
+  photo_url?: string;
+}
+
+export interface UpdateBrokerRequest {
+  name?: string;
+  phone?: string;
+  creci?: string;
+  role?: BrokerRole;
+  status?: BrokerStatus;
+  photo_url?: string;
+}
+```
+
+========================
+FRONTEND - API CLIENT
+========================
+
+Arquivo: frontend-admin/lib/api.ts (adicionar métodos)
+
+```typescript
+// Tenant methods
+async getTenant(tenantId: string): Promise<Tenant> {
+  const response = await this.client.get<{ success: boolean; data: Tenant }>(
+    `/tenants/${tenantId}`
+  );
+  return response.data.data;
+}
+
+async updateTenant(
+  tenantId: string,
+  data: UpdateTenantRequest
+): Promise<Tenant> {
+  const response = await this.client.patch<{ success: boolean; data: Tenant }>(
+    `/tenants/${tenantId}`,
+    data
+  );
+  return response.data.data;
+}
+
+// Broker methods
+async listBrokers(
+  tenantId: string,
+  filters?: { status?: BrokerStatus; role?: BrokerRole }
+): Promise<Broker[]> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.append('status', filters.status);
+  if (filters?.role) params.append('role', filters.role);
+
+  const response = await this.client.get<{ success: boolean; data: Broker[] }>(
+    `/tenants/${tenantId}/brokers?${params.toString()}`
+  );
+  return response.data.data;
+}
+
+async getBroker(tenantId: string, brokerId: string): Promise<Broker> {
+  const response = await this.client.get<{ success: boolean; data: Broker }>(
+    `/tenants/${tenantId}/brokers/${brokerId}`
+  );
+  return response.data.data;
+}
+
+async createBroker(
+  tenantId: string,
+  data: CreateBrokerRequest
+): Promise<Broker> {
+  const response = await this.client.post<{ success: boolean; data: Broker }>(
+    `/tenants/${tenantId}/brokers`,
+    data
+  );
+  return response.data.data;
+}
+
+async updateBroker(
+  tenantId: string,
+  brokerId: string,
+  data: UpdateBrokerRequest
+): Promise<Broker> {
+  const response = await this.client.patch<{ success: boolean; data: Broker }>(
+    `/tenants/${tenantId}/brokers/${brokerId}`,
+    data
+  );
+  return response.data.data;
+}
+
+async deleteBroker(tenantId: string, brokerId: string): Promise<void> {
+  await this.client.delete(`/tenants/${tenantId}/brokers/${brokerId}`);
+}
+```
+
+========================
+FRONTEND - PÁGINAS
+========================
+
+### 1. Configurações do Tenant
+Arquivo: frontend-admin/app/dashboard/configuracoes/page.tsx
+
+(Página completa com form para editar nome e settings do tenant)
+
+### 2. Lista de Corretores
+Arquivo: frontend-admin/app/dashboard/corretores/page.tsx
+
+(Tabela com lista de corretores, botão para criar, ações de editar/deletar)
+
+### 3. Criar/Editar Corretor
+Arquivo: frontend-admin/app/dashboard/corretores/[id]/page.tsx
+
+(Form para criar/editar corretor)
+
+========================
+ACTIVITY LOGS
+========================
+
+Eventos registrados:
+- tenant_created
+- tenant_updated
+- broker_created
+- broker_updated
+- broker_deleted
+
+Todos seguem o padrão definido em AI_DEV_DIRECTIVE.md seção 17.
+
+========================
+CHECKLIST DE IMPLEMENTAÇÃO
+========================
+
+**Backend:**
+- [ ] Criar models (tenant.go, broker.go)
+- [ ] Criar repositories (tenant_repository.go, broker_repository.go)
+- [ ] Criar services (tenant_service.go, broker_service.go)
+- [ ] Criar handlers (tenant_handler.go, broker_handler.go)
+- [ ] Criar middleware (tenant_validation.go)
+- [ ] Adicionar wiring no main.go
+- [ ] Compilar e testar backend
+
+**Frontend:**
+- [ ] Criar types (tenant.ts, broker.ts)
+- [ ] Adicionar métodos ao API client
+- [ ] Criar página de configurações
+- [ ] Criar página de lista de corretores
+- [ ] Criar página de criar/editar corretor
+- [ ] Testar UI completo
+
+**Testes:**
+- [ ] Criar tenant via Postman
+- [ ] Buscar tenant
+- [ ] Atualizar tenant
+- [ ] Criar broker
+- [ ] Listar brokers
+- [ ] Atualizar broker
+- [ ] Deletar broker
+- [ ] Validar Activity Logs
+
+========================
+CRITÉRIO DE SUCESSO
+========================
+
+✅ Tenant pode ser criado e atualizado
+✅ Brokers podem ser criados, listados, atualizados e deletados
+✅ Middleware valida se tenant existe
+✅ Activity Logs registram todas as ações
+✅ Frontend permite gestão completa de tenant e brokers
+✅ Código compila sem erros
+✅ Postman/Insomnia consegue chamar todas as APIs

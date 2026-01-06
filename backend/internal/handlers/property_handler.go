@@ -308,11 +308,19 @@ func (h *PropertyHandler) ListProperties(c *gin.Context) {
 		total = len(properties)
 	}
 
+	// Get property statistics (types and status counts)
+	stats, err := h.propertyService.GetPropertyStats(c.Request.Context(), tenantID)
+	if err != nil {
+		// Log error but don't fail the request - stats are optional
+		stats = nil
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    properties,
 		"count":   len(properties),
 		"total":   total,
+		"stats":   stats,
 	})
 }
 

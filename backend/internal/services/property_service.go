@@ -8,6 +8,10 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
+
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/altatech/ecosistema-imob/backend/internal/models"
 	"github.com/altatech/ecosistema-imob/backend/internal/repositories"
@@ -635,25 +639,18 @@ func (s *PropertyService) NormalizeSlug(slug string) string {
 	return slug
 }
 
-// removeAccents removes accents from a string
+// removeAccents removes accents from a string using Unicode normalization
 func (s *PropertyService) removeAccents(str string) string {
-	replacements := map[rune]string{
-		'á': "a", 'à': "a", 'ã': "a", 'â': "a",
-		'é': "e", 'è': "e", 'ê': "e",
-		'í': "i", 'ì': "i", 'î': "i",
-		'ó': "o", 'ò': "o", 'õ': "o", 'ô': "o",
-		'ú': "u", 'ù': "u", 'û': "u",
-		'ç': "c",
-		'ñ': "n",
-	}
+	// Use NFD (Normalization Form Decomposed) to separate base characters from diacritics
+	t := transform.Chain(norm.NFD, transform.RemoveFunc(func(r rune) bool {
+		// Remove combining diacritical marks (accents)
+		return unicode.Is(unicode.Mn, r)
+	}), norm.NFC)
 
-	result := ""
-	for _, char := range str {
-		if replacement, ok := replacements[char]; ok {
-			result += replacement
-		} else {
-			result += string(char)
-		}
+	result, _, err := transform.String(t, str)
+	if err != nil {
+		// Fallback to original string if transformation fails
+		return str
 	}
 
 	return result
@@ -980,4 +977,73 @@ func (s *PropertyService) RecalculateStalenessAndVisibility(ctx context.Context,
 	}
 
 	return nil
+}
+
+// PropertyStats represents property statistics by type and status
+type PropertyStats struct {
+	Total               int `json:"total"`
+	Available           int `json:"available"`
+	PendingConfirmation int `json:"pending_confirmation"`
+	Apartments          int `json:"apartments"`
+	Houses              int `json:"houses"`
+	Chacaras            int `json:"chacaras"`
+	Terrenos            int `json:"terrenos"`
+	Fazendas            int `json:"fazendas"`
+	Sitios              int `json:"sitios"`
+}
+
+// GetPropertyStats returns statistics about properties by type and status
+func (s *PropertyService) GetPropertyStats(ctx context.Context, tenantID string) (*PropertyStats, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+
+	// Get all properties (without pagination)
+	properties, err := s.propertyRepo.List(ctx, tenantID, nil, repositories.PaginationOptions{
+		Limit:  10000, // High limit to get all properties
+		Offset: 0,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get properties: %w", err)
+	}
+
+	stats := &PropertyStats{
+		Total: len(properties),
+	}
+
+	// Calculate stats in a single pass
+	for _, p := range properties {
+		// Status counts
+		if p.Status == models.PropertyStatusAvailable {
+			stats.Available++
+		}
+		if p.Status == models.PropertyStatusPendingConfirmation {
+			stats.PendingConfirmation++
+		}
+
+		// Property type counts
+		if p.PropertyType == models.PropertyTypeApartment {
+			stats.Apartments++
+		}
+		if p.PropertyType == models.PropertyTypeHouse {
+			stats.Houses++
+		}
+
+		// Reference-based counts
+		if len(p.Reference) >= 2 {
+			prefix := p.Reference[:2]
+			switch prefix {
+			case "CH":
+				stats.Chacaras++
+			case "TE":
+				stats.Terrenos++
+			case "FA":
+				stats.Fazendas++
+			case "ST":
+				stats.Sitios++
+			}
+		}
+	}
+
+	return stats, nil
 }

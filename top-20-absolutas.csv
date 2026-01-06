@@ -1,0 +1,88 @@
+Ranking,Nome,Dominio,Nota_Total,Por_Que_E_Especial,Probabilidade_Disponivel
+1,Imovia,imovia.com.br,30,Palavra perfeita PT - Via do imovel - Memoravel,Media
+2,Imoreal,imoreal.com.br,30,Imovel real autentico - Palavra duplo sentido,Baixa (muito boa)
+3,Confirme,confirme.com.br,30,Verbo imperativo - Acao direta confirme,Baixa
+4,Confie,confie.com.br,30,Verbo imperativo - Confianca direta,Baixa
+5,Imoflair,imoflair.com.br,29,Imovel com estilo flair - Elegante,Alta
+6,Imoluxe,imoluxe.com.br,29,Luxo frances - Premium positioning,Media
+7,Imofiel,imofiel.com.br,29,Fiel confiavel - Autenticidade,Alta
+8,Corretto,corretto.com.br,29,Cafe italiano - Correto elegante,Media
+9,Listique,listique.com.br,29,Boutique + List - Muito elegante,Alta
+10,Imozil,imozil.com.br,28,Estilo Zillow brasileiro,Media
+11,Imozap,imozap.com.br,28,Estilo Zap brasileiro,Baixa (Zap existe)
+12,Imozzy,imozzy.com.br,28,Energia dupla ZZ - Forte,Alta
+13,Proplux,proplux.com.br,28,Property + lux premium,Media
+14,Imolux,imolux.com.br,28,Imovel + lux premium,Media
+15,Imorex,imorex.com.br,28,Rex = rei - Premium,Alta
+16,Imogem,imogem.com.br,28,Gem = joia - Imovel precioso,Alta
+17,Imoblaze,imoblaze.com.br,28,Blaze = chama energia,Alta
+18,Imosnap,imosnap.com.br,28,Snap = instantaneo rapido,Media
+19,Imovibe,imovibe.com.br,28,Vibe = energia vibracao,Media
+20,Imovibes,imovibes.com.br,28,Vibes plural - Energia,Media
+21,Imomojo,imomojo.com.br,28,Mojo = magia sorte,Alta
+22,Imoclass,imoclass.com.br,28,Class = classe premium,Media
+23,Imoelite,imoelite.com.br,28,Elite = premium topo,Baixa
+24,Imoprime,imoprime.com.br,28,Prime = primeira premium,Baixa (Amazon)
+25,Imonoble,imonoble.com.br,28,Noble = nobre premium,Alta
+26,Imotrue,imotrue.com.br,28,True = verdadeiro autentico,Media
+27,Imopure,imopure.com.br,28,Pure = puro autentico,Alta
+28,Proprium,proprium.com.br,28,Latino proprio elegante,Alta
+29,Imovius,imovius.com.br,28,Latino sufixo premium,Alta
+30,Imovyx,imovyx.com.br,28,YX tech maximo appeal,Alta
+
+CATEGORIAS_ESPECIAIS:
+
+NOTA_30_PERFEITO:
+- Imovia (via do imovel)
+- Imoreal (imovel real)
+- Confirme (imperativo acao)
+- Confie (imperativo confianca)
+
+ELEGANCIA_PREMIUM_29-30:
+- Imoluxe (luxo frances)
+- Imoflair (estilo)
+- Listique (boutique)
+- Corretto (italiano)
+
+ENERGIA_MODERNA_28:
+- Imozil (Zillow BR)
+- Imozzy (duplo Z)
+- Imoblaze (chama)
+- Imovibe/s (vibracao)
+- Imomojo (magia)
+
+AUTENTICIDADE_28-29:
+- Imofiel (fiel)
+- Imotrue (verdadeiro)
+- Imopure (puro)
+- Imoreal (real)
+
+PREMIUM_CLASSE_28:
+- Imorex (rei)
+- Imogem (joia)
+- Imoclass (classe)
+- Imoelite (elite)
+- Imoprime (prime)
+- Imonoble (nobre)
+- Imolux/Proplux (luz)
+
+TECH_MODERNO_27-28:
+- Imovyx (YX)
+- Imosnap (instantaneo)
+- Imovius (latino tech)
+- Proprium (latino)
+
+ALTA_PROBABILIDADE_DISPONIBILIDADE:
+- Imoflair
+- Imofiel
+- Listique
+- Imozzy
+- Imorex
+- Imogem
+- Imoblaze
+- Imomojo
+- Imonoble
+- Imopure
+- Proprium
+- Imovius
+- Imovyx

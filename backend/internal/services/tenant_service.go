@@ -6,6 +6,10 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
+
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/altatech/ecosistema-imob/backend/internal/models"
 	"github.com/altatech/ecosistema-imob/backend/internal/repositories"
@@ -49,13 +53,50 @@ func (s *TenantService) CreateTenant(ctx context.Context, tenant *models.Tenant)
 		return err
 	}
 
-	// Validate CNPJ if provided
+	// Validate Document (CPF or CNPJ) if provided
 	if tenant.Document != "" {
-		if err := utils.ValidateCNPJ(tenant.Document); err != nil {
-			return fmt.Errorf("invalid CNPJ: %w", err)
+		// Try to detect document type if not specified
+		cleanDoc := regexp.MustCompile(`[^\d]`).ReplaceAllString(tenant.Document, "")
+
+		if tenant.DocumentType == "" {
+			// Auto-detect based on length
+			if len(cleanDoc) == 11 {
+				tenant.DocumentType = "cpf"
+			} else if len(cleanDoc) == 14 {
+				tenant.DocumentType = "cnpj"
+			} else {
+				return fmt.Errorf("document must be CPF (11 digits) or CNPJ (14 digits)")
+			}
 		}
-		tenant.Document = utils.NormalizeCNPJ(tenant.Document)
-		tenant.DocumentType = "cnpj"
+
+		// Validate based on type
+		if tenant.DocumentType == "cpf" {
+			if err := utils.ValidateCPF(tenant.Document); err != nil {
+				return fmt.Errorf("invalid CPF: %w", err)
+			}
+			tenant.Document = utils.NormalizeCPF(tenant.Document)
+		} else if tenant.DocumentType == "cnpj" {
+			if err := utils.ValidateCNPJ(tenant.Document); err != nil {
+				return fmt.Errorf("invalid CNPJ: %w", err)
+			}
+			tenant.Document = utils.NormalizeCNPJ(tenant.Document)
+		} else {
+			return fmt.Errorf("document_type must be 'cpf' or 'cnpj'")
+		}
+	}
+
+	// Validate business_type if provided
+	if tenant.BusinessType != "" {
+		validBusinessTypes := map[string]bool{
+			"imobiliaria":       true,
+			"incorporadora":     true,
+			"loteadora":         true,
+			"construtora":       true,
+			"corretor_autonomo": true,
+		}
+		if !validBusinessTypes[tenant.BusinessType] {
+			return fmt.Errorf("business_type must be one of: imobiliaria, incorporadora, loteadora, construtora, corretor_autonomo")
+		}
 	}
 
 	// Validate CRECI if provided
@@ -76,10 +117,14 @@ func (s *TenantService) CreateTenant(ctx context.Context, tenant *models.Tenant)
 
 	// Validate phone if provided
 	if tenant.Phone != "" {
-		if err := utils.ValidatePhoneBR(tenant.Phone); err != nil {
+		// Remove country code if present (+55)
+		cleanPhone := strings.TrimPrefix(tenant.Phone, "+55")
+		cleanPhone = strings.TrimPrefix(cleanPhone, "55")
+
+		if err := utils.ValidatePhoneBR(cleanPhone); err != nil {
 			return fmt.Errorf("invalid phone: %w", err)
 		}
-		tenant.Phone = utils.NormalizePhoneBR(tenant.Phone)
+		tenant.Phone = utils.NormalizePhoneBR(cleanPhone)
 	}
 
 	// Set defaults
@@ -156,13 +201,58 @@ func (s *TenantService) UpdateTenant(ctx context.Context, id string, updates map
 		updates["slug"] = normalized
 	}
 
-	// Validate CNPJ if being updated
+	// Validate Document (CPF or CNPJ) if being updated
 	if document, ok := updates["document"].(string); ok && document != "" {
-		if err := utils.ValidateCNPJ(document); err != nil {
-			return fmt.Errorf("invalid CNPJ: %w", err)
+		// Get document type from updates or existing tenant
+		documentType, hasType := updates["document_type"].(string)
+		if !hasType || documentType == "" {
+			documentType = existing.DocumentType
 		}
-		updates["document"] = utils.NormalizeCNPJ(document)
-		updates["document_type"] = "cnpj"
+
+		// Try to detect document type if not specified
+		cleanDoc := regexp.MustCompile(`[^\d]`).ReplaceAllString(document, "")
+
+		if documentType == "" {
+			// Auto-detect based on length
+			if len(cleanDoc) == 11 {
+				documentType = "cpf"
+			} else if len(cleanDoc) == 14 {
+				documentType = "cnpj"
+			} else {
+				return fmt.Errorf("document must be CPF (11 digits) or CNPJ (14 digits)")
+			}
+		}
+
+		// Validate based on type
+		if documentType == "cpf" {
+			if err := utils.ValidateCPF(document); err != nil {
+				return fmt.Errorf("invalid CPF: %w", err)
+			}
+			updates["document"] = utils.NormalizeCPF(document)
+			updates["document_type"] = "cpf"
+		} else if documentType == "cnpj" {
+			if err := utils.ValidateCNPJ(document); err != nil {
+				return fmt.Errorf("invalid CNPJ: %w", err)
+			}
+			updates["document"] = utils.NormalizeCNPJ(document)
+			updates["document_type"] = "cnpj"
+		} else {
+			return fmt.Errorf("document_type must be 'cpf' or 'cnpj'")
+		}
+	}
+
+	// Validate business_type if being updated
+	if businessType, ok := updates["business_type"].(string); ok && businessType != "" {
+		validBusinessTypes := map[string]bool{
+			"imobiliaria":       true,
+			"incorporadora":     true,
+			"loteadora":         true,
+			"construtora":       true,
+			"corretor_autonomo": true,
+		}
+		if !validBusinessTypes[businessType] {
+			return fmt.Errorf("business_type must be one of: imobiliaria, incorporadora, loteadora, construtora, corretor_autonomo")
+		}
 	}
 
 	// Validate CRECI if being updated
@@ -183,10 +273,14 @@ func (s *TenantService) UpdateTenant(ctx context.Context, id string, updates map
 
 	// Validate phone if being updated
 	if phone, ok := updates["phone"].(string); ok && phone != "" {
-		if err := utils.ValidatePhoneBR(phone); err != nil {
+		// Remove country code if present (+55)
+		cleanPhone := strings.TrimPrefix(phone, "+55")
+		cleanPhone = strings.TrimPrefix(cleanPhone, "55")
+
+		if err := utils.ValidatePhoneBR(cleanPhone); err != nil {
 			return fmt.Errorf("invalid phone: %w", err)
 		}
-		updates["phone"] = utils.NormalizePhoneBR(phone)
+		updates["phone"] = utils.NormalizePhoneBR(cleanPhone)
 	}
 
 	// Update tenant in repository
@@ -363,26 +457,18 @@ func (s *TenantService) NormalizeSlug(slug string) string {
 	return slug
 }
 
-// removeAccents removes accents from a string
+// removeAccents removes accents from a string using Unicode normalization
 func (s *TenantService) removeAccents(str string) string {
-	// Portuguese accents mapping
-	replacements := map[rune]string{
-		'á': "a", 'à': "a", 'ã': "a", 'â': "a",
-		'é': "e", 'è': "e", 'ê': "e",
-		'í': "i", 'ì': "i", 'î': "i",
-		'ó': "o", 'ò': "o", 'õ': "o", 'ô': "o",
-		'ú': "u", 'ù': "u", 'û': "u",
-		'ç': "c",
-		'ñ': "n",
-	}
+	// Use NFD (Normalization Form Decomposed) to separate base characters from diacritics
+	t := transform.Chain(norm.NFD, transform.RemoveFunc(func(r rune) bool {
+		// Remove combining diacritical marks (accents)
+		return unicode.Is(unicode.Mn, r)
+	}), norm.NFC)
 
-	result := ""
-	for _, char := range str {
-		if replacement, ok := replacements[char]; ok {
-			result += replacement
-		} else {
-			result += string(char)
-		}
+	result, _, err := transform.String(t, str)
+	if err != nil {
+		// Fallback to original string if transformation fails
+		return str
 	}
 
 	return result

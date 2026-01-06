@@ -1,0 +1,137 @@
+Categoria,Nome,Dominio,Conceito_Base,Significado,Nota_Memorabilidade,Nota_Sonoridade,Nota_Branding,Nota_Total,Observacoes
+Prefixo_Central,Centralimo,centralimo.com.br,Central + Imo,Imovel central,8,8,8,24,Longo mas claro
+Prefixo_Central,Centrimo,centrimo.com.br,Centr + Imo,Centro imovel curto,9,9,9,27,Curto e direto
+Prefixo_Central,Centrimov,centrimov.com.br,Centri + Mov,Centro movimento,9,9,9,27,Dinamico
+Prefixo_Central,Centrimob,centrimob.com.br,Centri + Mob,Centro imobiliario,8,9,8,25,JA REGISTRADO
+Prefixo_Core,Coreimo,coreimo.com.br,Core + Imo,Nucleo imovel,9,9,9,27,Core = essencial
+Prefixo_Core,Corimo,corimo.com.br,Cor + Imo,Coracao imovel,9,9,9,27,Curto forte
+Prefixo_Core,Corimov,corimov.com.br,Cori + Mov,Coracao movimento,8,9,8,26,Movimento core
+Prefixo_Core,Corimob,corimob.com.br,Cori + Mob,Coracao imobiliario,8,8,8,24,Similar centrimob
+Prefixo_Hub,Hubimo,hubimo.com.br,Hub + Imo,Hub imovel,8,8,8,24,Hub obvio
+Prefixo_Hub,Hubimov,hubimov.com.br,Hub + Imov,Hub imovel movimento,8,8,8,24,Movimento hub
+Prefixo_Hub,Hubimob,hubimob.com.br,Hub + Imob,Hub imobiliario,7,7,7,21,Muito literal
+Prefixo_Nexus,Neximo,neximo.com.br,Nex + Imo,Nexo imovel,9,9,9,27,Conexao central
+Prefixo_Nexus,Neximov,neximov.com.br,Nex + Imov,Nexo movimento,9,9,9,27,Movimento nexo
+Prefixo_Nexus,Neximob,neximob.com.br,Nex + Imob,Nexo imobiliario,8,8,8,24,Similar centrimob
+Prefixo_Nexus,Nexium,nexium.com.br,Nex + Ium,Nexo latino premium,9,10,10,29,Latino elegante
+Prefixo_Prime,Primeimo,primeimo.com.br,Prime + Imo,Primeiro imovel,8,8,9,25,Prime premium
+Prefixo_Prime,Primimo,primimo.com.br,Prim + Imo,Primeiro curto,9,9,9,27,Curto forte
+Prefixo_Prime,Primimov,primimov.com.br,Prim + Imov,Primeiro movimento,8,8,8,24,Movimento prime
+Prefixo_Prime,Primimob,primimob.com.br,Prim + Imob,Primeiro imobiliario,7,7,8,22,Muito literal
+Prefixo_Key,Keyimo,keyimo.com.br,Key + Imo,Chave imovel,9,9,9,27,Chave solucao
+Prefixo_Key,Keyimov,keyimov.com.br,Key + Imov,Chave movimento,8,9,8,26,Movimento chave
+Prefixo_Key,Keyimob,keyimob.com.br,Key + Imob,Chave imobiliario,8,8,8,24,Similar centrimob
+Prefixo_Main,Mainimo,mainimo.com.br,Main + Imo,Principal imovel,8,8,8,24,Main = principal
+Prefixo_Main,Mainimov,mainimov.com.br,Main + Imov,Principal movimento,7,8,7,22,Movimento main
+Prefixo_Main,Mainimob,mainimob.com.br,Main + Imob,Principal imobiliario,7,7,7,21,Muito literal
+Prefixo_Master,Masterimo,masterimo.com.br,Master + Imo,Mestre imovel,8,8,9,25,Master = mestre
+Prefixo_Master,Mastimo,mastimo.com.br,Mast + Imo,Mestre curto,9,9,9,27,Curto forte
+Prefixo_Master,Mastimov,mastimov.com.br,Mast + Imov,Mestre movimento,8,8,8,24,Movimento master
+Sufixo_Central,Imocentral,imocentral.com.br,Imo + Central,Imovel central,8,8,8,24,Longo mas claro
+Sufixo_Central,Imocentro,imocentro.com.br,Imo + Centro,Imovel centro,9,9,9,27,Direto PT
+Sufixo_Central,Imocentri,imocentri.com.br,Imo + Centri,Imovel centri,9,9,9,27,Moderno
+Sufixo_Central,Imocentric,imocentric.com.br,Imo + Centric,Imovel centrico,8,9,9,26,Ingles tech
+Sufixo_Core,Imocore,imocore.com.br,Imo + Core,Imovel nucleo,9,9,9,27,Core essencial
+Sufixo_Core,Imocor,imocor.com.br,Imo + Cor,Imovel coracao,9,9,9,27,Coracao PT
+Sufixo_Hub,Imohub,imohub.com.br,Imo + Hub,Imovel hub,8,8,8,24,Hub centro
+Sufixo_Nexus,Imonexus,imonexus.com.br,Imo + Nexus,Imovel nexo,8,8,9,25,Nexus conexao
+Sufixo_Nexus,Imonex,imonex.com.br,Imo + Nex,Imovel nexo curto,9,9,9,27,Curto conexao
+Sufixo_Prime,Imoprime,imoprime.com.br,Imo + Prime,Imovel primeiro,9,9,10,28,Prime premium
+Sufixo_Key,Imokey,imokey.com.br,Imo + Key,Imovel chave,9,9,9,27,Chave solucao
+Sufixo_Main,Imomain,imomain.com.br,Imo + Main,Imovel principal,8,8,8,24,Main principal
+Sufixo_Master,Imomaster,imomaster.com.br,Imo + Master,Imovel mestre,8,8,9,25,Master premium
+Infixo_Central,Imcentral,imcentral.com.br,Im + Central,Im central,8,8,8,24,Medio
+Infixo_Central,Imcentro,imcentro.com.br,Im + Centro,Im centro,9,9,9,27,Curto PT
+Infixo_Central,Imcentri,imcentri.com.br,Im + Centri,Im centri,9,9,9,27,Moderno curto
+Fusao_1,Imocenter,imocenter.com.br,Imo + Center,Imovel centro,8,9,9,26,Center ingles
+Fusao_2,Imocentre,imocentre.com.br,Imo + Centre,Imovel centre,8,9,9,26,Centre frances/UK
+Fusao_3,Centrovia,centrovia.com.br,Centro + Via,Via central,10,10,10,30,VIA perfeito
+Fusao_4,Viacentro,viacentro.com.br,Via + Centro,Via do centro,9,9,8,26,Shopping conhecido
+Fusao_5,Imoaxis,imoaxis.com.br,Imo + Axis,Imovel eixo central,9,9,9,27,Axis = eixo
+Fusao_6,Axisimo,axisimo.com.br,Axis + Imo,Eixo imovel,9,9,9,27,Eixo central
+Fusao_7,Imopivot,imopivot.com.br,Imo + Pivot,Imovel pivo central,8,8,8,24,Pivot = pivo
+Fusao_8,Pivotimo,pivotimo.com.br,Pivot + Imo,Pivo imovel,8,8,8,24,Central rotacao
+Latino_Central,Imocentralis,imocentralis.com.br,Imo + Centralis,Imovel central latino,8,9,10,27,Latino elegante
+Latino_Central,Centralisimo,centralisimo.com.br,Centralis + Imo,Central imovel latino,8,8,9,25,Longo latino
+Latino_Core,Imocoris,imocoris.com.br,Imo + Coris,Imovel coracao latino,8,9,9,26,Cor latino
+Latino_Core,Corisimo,corisimo.com.br,Coris + Imo,Coracao imovel latino,8,8,9,25,Latino coracao
+Latino_Nexus,Imonexis,imonexis.com.br,Imo + Nexis,Imovel nexo latino,8,9,9,26,Nexo latino
+Latino_Nexus,Nexisimo,nexisimo.com.br,Nexis + Imo,Nexo imovel latino,8,8,9,25,Latino conexao
+Latino_Axis,Imoaxis,imoaxis.com.br,Imo + Axis,Imovel eixo,9,9,9,27,Eixo central
+Latino_Axis,Axisimo,axisimo.com.br,Axis + Imo,Eixo imovel,9,9,9,27,Central eixo
+Conceito_Unico,Unicimo,unicimo.com.br,Unic + Imo,Unico imovel,9,9,10,28,Conceito CENTRAL projeto
+Conceito_Unico,Imouni,imouni.com.br,Imo + Uni,Imovel unico curto,9,9,10,28,Unico curto
+Conceito_Unico,Imouniq,imouniq.com.br,Imo + Uniq,Imovel unico Q,9,9,10,28,Unico tech Q
+Conceito_Unico,Uniqimo,uniqimo.com.br,Uniq + Imo,Unico imovel,9,9,10,28,Unico invertido
+Conceito_Singular,Singimo,singimo.com.br,Sing + Imo,Singular imovel,9,9,9,27,Singular unico
+Conceito_Singular,Imosingular,imosingular.com.br,Imo + Singular,Imovel singular,8,8,9,25,Longo claro
+Conceito_Singular,Imosinq,imosinq.com.br,Imo + Sinq,Imovel singular Q,9,9,9,27,Singular tech
+Conceito_Origem,Origimo,origimo.com.br,Orig + Imo,Origem imovel,9,9,10,28,Origem central
+Conceito_Origem,Imoorigin,imoorigin.com.br,Imo + Origin,Imovel origem,8,8,9,25,Origem fonte
+Conceito_Origem,Imorig,imorig.com.br,Imo + Orig,Imovel origem curto,9,9,9,27,Curto origem
+Conceito_Fonte,Fontimo,fontimo.com.br,Font + Imo,Fonte imovel,9,9,9,27,Fonte unica
+Conceito_Fonte,Imofonte,imofonte.com.br,Imo + Fonte,Imovel fonte,9,9,9,27,Fonte dados
+Conceito_Fonte,Imofont,imofont.com.br,Imo + Font,Imovel fonte curto,8,8,8,24,Curto fonte
+Conceito_Raiz,Raizimo,raizimo.com.br,Raiz + Imo,Raiz imovel,9,9,9,27,Raiz origem
+Conceito_Raiz,Imoraiz,imoraiz.com.br,Imo + Raiz,Imovel raiz,9,9,9,27,Raiz autentico
+Conceito_Base,Baseimo,baseimo.com.br,Base + Imo,Base imovel,8,8,8,24,Base fundacao
+Conceito_Base,Imobase,imobase.com.br,Imo + Base,Imovel base,8,8,8,24,Base central
+Conceito_Canonical,Canimo,canimo.com.br,Can + Imo,Canonico imovel,9,9,10,28,Canonical = conceito core
+Conceito_Canonical,Imocanon,imocanon.com.br,Imo + Canon,Imovel canonico,8,9,10,27,Canon oficial
+Conceito_Canonical,Canonimo,canonimo.com.br,Canon + Imo,Canonico imovel,8,9,10,27,Oficial central
+Conceito_Apex,Apeximo,apeximo.com.br,Apex + Imo,Apice imovel,9,9,9,27,Topo central
+Conceito_Apex,Imoapex,imoapex.com.br,Imo + Apex,Imovel apice,9,9,9,27,Apice topo
+Conceito_Peak,Peakimo,peakimo.com.br,Peak + Imo,Pico imovel,9,9,9,27,Topo pico
+Conceito_Peak,Imopeak,imopeak.com.br,Imo + Peak,Imovel pico,9,9,9,27,Pico central
+Conceito_Zenith,Zenithimo,zenithimo.com.br,Zenith + Imo,Zenite imovel,8,9,9,26,Zenite topo
+Conceito_Zenith,Imozenith,imozenith.com.br,Imo + Zenith,Imovel zenite,8,9,9,26,Zenite apice
+Conceito_Zenith,Zenimo,zenimo.com.br,Zen + Imo,Zen imovel curto,9,10,9,28,Zen + imo equilibrio
+Conceito_Focus,Focimo,focimo.com.br,Foc + Imo,Foco imovel,9,9,9,27,Foco central
+Conceito_Focus,Imofocus,imofocus.com.br,Imo + Focus,Imovel foco,8,8,8,24,Foco concentrado
+Conceito_Focal,Focalimo,focalimo.com.br,Focal + Imo,Focal imovel,8,8,8,24,Ponto focal
+Conceito_Focal,Imofocal,imofocal.com.br,Imo + Focal,Imovel focal,8,8,8,24,Focal centro
+Conceito_Pivot,Pivimo,pivimo.com.br,Piv + Imo,Pivo imovel,8,8,8,24,Pivo central
+Conceito_Pivot,Imopivot,imopivot.com.br,Imo + Pivot,Imovel pivo,8,8,8,24,Pivo rotacao
+Conceito_Anchor,Anchorimo,anchorimo.com.br,Anchor + Imo,Ancora imovel,8,8,9,25,Ancora fixacao
+Conceito_Anchor,Imoanchor,imoanchor.com.br,Imo + Anchor,Imovel ancora,8,8,9,25,Ancora central
+Conceito_Anchor,Ancimo,ancimo.com.br,Anc + Imo,Ancora curto,9,9,9,27,Curto ancora
+Conceito_Nucleus,Nucleimo,nucleimo.com.br,Nucle + Imo,Nucleo imovel,8,8,9,25,Nucleo central
+Conceito_Nucleus,Imonucleus,imonucleus.com.br,Imo + Nucleus,Imovel nucleo,7,7,8,22,Longo nucleo
+Conceito_Nucleus,Nuclemo,nuclemo.com.br,Nucle + Mo,Nucleo movimento,8,8,8,24,Nucleo dinamico
+Inventado_Central_1,Zentimo,zentimo.com.br,Zent + Imo,Centro Z imovel,9,9,9,27,Z forte centro
+Inventado_Central_2,Zentrio,zentrio.com.br,Zentr + IO,Centro Z tech,9,9,9,27,Z tech centro
+Inventado_Central_3,Zentrix,zentrix.com.br,Zentr + IX,Centro Z X,9,10,9,28,Z X forte
+Inventado_Central_4,Zentryx,zentryx.com.br,Zentr + YX,Centro Z YX,9,10,9,28,Z YX maximo
+Inventado_Central_5,Zentrimo,zentrimo.com.br,Zentri + Mo,Centro Z movimento,9,9,9,27,Z movimento
+Mistura_Conceitos_1,Uniaxis,uniaxis.com.br,Uni + Axis,Unico eixo,9,10,10,29,Unico + eixo central
+Mistura_Conceitos_2,Corenex,corenex.com.br,Core + Nex,Nucleo nexo,9,9,9,27,Core + conexao
+Mistura_Conceitos_3,Nexcore,nexcore.com.br,Nex + Core,Nexo nucleo,9,9,9,27,Conexao nucleo
+Mistura_Conceitos_4,Primaxis,primaxis.com.br,Prim + Axis,Primeiro eixo,9,9,9,27,Prime + eixo
+Mistura_Conceitos_5,Axiprime,axiprime.com.br,Axi + Prime,Eixo primeiro,9,9,9,27,Eixo + prime
+Mistura_Conceitos_6,Uniprime,uniprime.com.br,Uni + Prime,Unico primeiro,9,9,10,28,Unico + prime
+Mistura_Conceitos_7,Primeuni,primeuni.com.br,Prime + Uni,Primeiro unico,9,9,10,28,Prime + unico
+Mistura_Conceitos_8,Unicore,unicore.com.br,Uni + Core,Unico nucleo,9,10,10,29,Unico + nucleo forte
+Mistura_Conceitos_9,Coreuni,coreuni.com.br,Core + Uni,Nucleo unico,9,9,10,28,Nucleo + unico
+Mistura_Conceitos_10,Axisuni,axisuni.com.br,Axis + Uni,Eixo unico,9,9,10,28,Eixo + unico
+
+TOP_15_IMOVEL_CENTRAL:
+1. Centrovia (30) - Via central perfeita
+2. Uniaxis (29) - Unico eixo
+3. Unicore (29) - Unico nucleo
+4. Nexium (29) - Nexo latino premium
+5. Zentryx (28) - Centro Z YX maximo
+6. Zentrix (28) - Centro Z X forte
+7. Zenimo (28) - Zen equilibrio
+8. Unicimo (28) - Unico imovel conceito core
+9. Imouni (28) - Imovel unico curto
+10. Imouniq (28) - Imovel unico tech
+11. Uniqimo (28) - Unico imovel invertido
+12. Origimo (28) - Origem imovel central
+13. Canimo (28) - Canonico imovel oficial
+14. Imoprime (28) - Imovel prime premium
+15. Uniprime (28) - Unico primeiro
+
+MELHOR_CONCEITO_CENTRAL_ABSOLUTO:
+- Centrovia (30) - Via central = caminho central perfeito PT
+- Uniaxis (29) - Unico eixo = eixo central unico
+- Unicore (29) - Unico nucleo = nucleo central unico

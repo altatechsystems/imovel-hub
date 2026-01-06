@@ -5,8 +5,12 @@ import (
 	"time"
 )
 
-// Broker represents a real estate broker (corretor de imóveis)
+// Broker represents a real estate broker (corretor de imóveis) with CRECI registration
+// This is ONLY for real brokers - administrative users should use the User model instead
 // Collection: /tenants/{tenantId}/brokers/{brokerId}
+//
+// IMPORTANT: All brokers MUST have a valid CRECI (Conselho Regional de Corretores de Imóveis)
+// Administrative users WITHOUT CRECI should be created in /tenants/{tenantId}/users/ collection
 type Broker struct {
 	ID       string `firestore:"-" json:"id"`
 	TenantID string `firestore:"tenant_id" json:"tenant_id"`
@@ -20,8 +24,10 @@ type Broker struct {
 	Phone string `firestore:"phone,omitempty" json:"phone,omitempty"`
 
 	// CRECI (Conselho Regional de Corretores de Imóveis) - OBRIGATÓRIO
-	// Formato: XXXXX-F/UF ou XXXXX/UF
-	// Exemplo: "12345-J/SP" ou "00123/RJ"
+	// This field is MANDATORY for all brokers
+	// Formato: XXXXX-F/UF (Pessoa Física) ou XXXXX-J/UF (Pessoa Jurídica)
+	// Exemplo: "12345-F/SP" ou "67890-J/RJ"
+	// NOTE: If CRECI is not available, user should be created in /users collection instead
 	CRECI string `firestore:"creci" json:"creci"`
 
 	// Document information
@@ -29,7 +35,9 @@ type Broker struct {
 	DocumentType string `firestore:"document_type,omitempty" json:"document_type,omitempty"` // "cpf" ou "cnpj"
 
 	// Role and status
-	Role     string `firestore:"role,omitempty" json:"role,omitempty"` // "admin", "broker", "manager"
+	// Valid roles for brokers: "broker", "broker_admin"
+	// NOTE: Pure administrative roles ("admin", "manager") should use User model instead
+	Role     string `firestore:"role,omitempty" json:"role,omitempty"` // "broker", "broker_admin"
 	IsActive bool   `firestore:"is_active" json:"is_active"`
 
 	// Profile (Public Profile - similar to Zillow)
@@ -127,4 +135,19 @@ type BrokerPublic struct {
 	AveragePrice  float64 `json:"average_price,omitempty"`
 	Rating        float64 `json:"rating,omitempty"`
 	ReviewCount   int     `json:"review_count,omitempty"`
+}
+
+// ValidBrokerRoles returns the list of valid roles for brokers
+func ValidBrokerRoles() []string {
+	return []string{"broker", "broker_admin"}
+}
+
+// IsValidBrokerRole checks if a role is valid for brokers
+func IsValidBrokerRole(role string) bool {
+	for _, validRole := range ValidBrokerRoles() {
+		if role == validRole {
+			return true
+		}
+	}
+	return false
 }

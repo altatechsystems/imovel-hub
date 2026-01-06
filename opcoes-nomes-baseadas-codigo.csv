@@ -1,0 +1,83 @@
+Categoria,Nome,Dominio,Origem_Codigo,Frequencia_Codigo,Significado,Pontuacao_Memorabilidade,Pontuacao_Sonoridade,Pontuacao_Branding,Nota_Total,Observacoes
+Baseado_Property,Propzy,propzy.com.br,property,1413,Property com Z moderno,9,9,9,27,TOP - Estilo Zillow
+Baseado_Property,Proppix,proppix.com.br,property,1413,Property + pix (brasileiro),8,8,9,25,Conexao com pagamento digital
+Baseado_Property,Proppio,proppio.com.br,property,1413,Property + io tech,8,8,8,24,Tech e italiano
+Baseado_Property,Proppfy,proppfy.com.br,property,1413,Property + fy,8,8,8,24,Estilo Spotify
+Baseado_Property,Propzzy,propzzy.com.br,property,1413,Property duplicado Z,8,9,8,25,Mais energetico
+Baseado_Lead,Leadzy,leadzy.com.br,lead,1044,Lead com Z,8,9,8,25,Foco em conversao
+Baseado_Lead,Leeddo,leeddo.com.br,lead,1044,Lead duplicado,8,8,8,24,Memoravel
+Baseado_Lead,Leadix,leadix.com.br,lead,1044,Lead + ix tech,8,8,9,25,Geracao de leads
+Baseado_Lead,Leedr,leedr.com.br,lead,1044,Lead sem vogal,7,7,8,22,Estilo Flickr
+Baseado_Lead,Leaddo,leaddo.com.br,lead,1044,Lead com duplo D,8,8,8,24,Forte
+Baseado_Broker,Brokky,brokky.com.br,broker,614,Broker com KY,8,9,8,25,Moderno e jovem
+Baseado_Broker,Brokkr,brokkr.com.br,broker,614,Broker nórdico,7,8,9,24,Mitologia (deus ferreiro)
+Baseado_Broker,Brokko,brokko.com.br,broker,614,Broker + o italiano,8,8,8,24,Elegante
+Baseado_Broker,Brokzy,brokzy.com.br,broker,614,Broker + Z,8,9,8,25,Energetico
+Baseado_Broker,Brokkie,brokkie.com.br,broker,614,Broker fofo,7,8,7,22,Amigavel
+Baseado_Listing,Listio,listio.com.br,listing,366,Listing + io,8,8,8,24,Tech
+Baseado_Listing,Listta,listta.com.br,listing,366,Listing duplicado T,8,8,8,24,Forte
+Baseado_Listing,Listzy,listzy.com.br,listing,366,Listing + Z,8,9,8,25,Moderno
+Baseado_Listing,Listiq,listiq.com.br,listing,366,Listing inteligente,8,8,9,25,Smart listing
+Baseado_Listing,Listo,listo.com.br,listing,366,Pronto em espanhol,9,9,9,27,TOP - Duplo sentido perfeito
+Baseado_Dashboard,Dashly,dashly.com.br,dashboard,358,Dashboard + ly,8,8,8,24,Adverbio tech
+Baseado_Dashboard,Dashy,dashy.com.br,dashboard,358,Dashboard fofo,8,9,8,25,Jovem e amigavel
+Baseado_Dashboard,Dashio,dashio.com.br,dashboard,358,Dashboard + io,8,8,8,24,Tech
+Baseado_Dashboard,Dazza,dazza.com.br,dashboard,358,Dash + zza,8,9,8,25,Energetico
+Baseado_Dashboard,Daxxo,daxxo.com.br,dashboard,358,Dash com XX,7,8,8,23,Forte
+Baseado_Marketplace,Markly,markly.com.br,marketplace,131,Market + ly,8,8,8,24,Mercado moderno
+Baseado_Marketplace,Marketzy,marketzy.com.br,marketplace,131,Market + Z,8,9,8,25,Energetico
+Baseado_Marketplace,Marko,marko.com.br,marketplace,131,Market curto,9,9,9,27,TOP - Nome proprio tambem
+Baseado_Marketplace,Markio,markio.com.br,marketplace,131,Market + io,8,8,8,24,Tech
+Baseado_Marketplace,Markka,markka.com.br,marketplace,131,Market duplicado K,8,8,8,24,Nordico
+Baseado_Union,Unio,unio.com.br,union,142,Union curto,9,9,9,27,TOP - Uniao perfeita
+Baseado_Union,Unyon,unyon.com.br,union,142,Union com Y,8,8,8,24,Moderno
+Baseado_Union,Uniyo,uniyo.com.br,union,142,Union + yo,8,8,8,24,Jovem
+Baseado_Union,Unnio,unnio.com.br,union,142,Union duplicado N,8,8,8,24,Forte
+Baseado_Union,Unikko,unikko.com.br,union,142,Unico + ko,8,8,9,25,Unicidade
+Baseado_Slug,Sluggo,sluggo.com.br,slug,SEO,Slug duplicado,8,9,8,25,Divertido e unico
+Baseado_Slug,Slugzy,slugzy.com.br,slug,SEO,Slug + Z,8,9,8,25,Tech SEO
+Baseado_Slug,Sluggr,sluggr.com.br,slug,SEO,Slug sem vogal,7,7,8,22,Estilo Tumblr
+Baseado_Slug,Sluggio,sluggio.com.br,slug,SEO,Slug italiano,8,8,8,24,Elegante
+Baseado_Confirmation,Confio,confio.com.br,confirmation,154,Confianca + io,9,9,10,28,TOP - Confianca em PT
+Baseado_Confirmation,Conffy,conffy.com.br,confirmation,154,Confirm + fy,8,8,8,24,Tech
+Baseado_Confirmation,Confiz,confiz.com.br,confirmation,154,Confirm + iz,8,8,8,24,Confirmado
+Baseado_Token,Tokko,tokko.com.br,token,137,Token duplicado K,8,9,8,25,Japones e forte
+Baseado_Token,Tokzy,tokzy.com.br,token,137,Token + Z,8,9,8,25,Seguranca tech
+Baseado_Token,Tokenio,tokenio.com.br,token,137,Token + io,7,7,8,22,Blockchain ready
+Baseado_Owner,Ownly,ownly.com.br,owner,429,Owner + ly,8,8,8,24,Propriedade exclusiva
+Baseado_Owner,Ownio,ownio.com.br,owner,429,Owner + io,8,8,8,24,Dono tech
+Baseado_Owner,Ownzy,ownzy.com.br,owner,429,Owner + Z,8,9,8,25,Proprietario moderno
+Baseado_PT_Imovel,Imovio,imovio.com.br,imovel,610,Imovel + io,9,9,9,27,TOP - BR + tech perfeito
+Baseado_PT_Imovel,Imovly,imovly.com.br,imovel,610,Imovel + ly,9,9,9,27,TOP - Adverbio de imovel
+Baseado_PT_Imovel,Imovzy,imovzy.com.br,imovel,610,Imovel + Z,9,9,8,26,Energetico BR
+Baseado_PT_Imovel,Imovix,imovix.com.br,imovel,610,Imovel + ix,9,9,9,27,TOP - Tech brasileiro
+Baseado_PT_Imovel,Imovvo,imovvo.com.br,imovel,610,Imovel duplicado V,9,9,9,27,TOP - Movimento
+Baseado_PT_Corretor,Corretly,corretly.com.br,corretor,462,Corretor + ly,8,8,8,24,Corretamente
+Baseado_PT_Corretor,Corretio,corretio.com.br,corretor,462,Corretor + io,8,8,8,24,Tech BR
+Baseado_PT_Corretor,Corretzy,corretzy.com.br,corretor,462,Corretor + Z,8,9,8,25,Moderno
+Baseado_PT_Corretor,Correto,correto.com.br,corretor,462,Palavra real PT,9,9,9,27,TOP - Certo/exato
+Baseado_PT_Proprietario,Proprio,proprio.com.br,proprietario,483,Palavra real PT,9,9,10,28,TOP - Meu proprio
+Baseado_PT_Proprietario,Propriio,propriio.com.br,proprietario,483,Proprio + io,9,9,9,27,TOP - Tech BR
+Baseado_PT_Proprietario,Proprizo,proprizo.com.br,proprietario,483,Proprio + zo,8,8,8,24,Moderno
+Hibridos_Codigo,Proplea,proplea.com.br,property+lead,2457,Property + Lead,9,9,9,27,TOP - Core do negocio
+Hibridos_Codigo,Broppy,broppy.com.br,broker+property,2027,Broker + Property,8,9,8,25,Amigavel (bro)
+Hibridos_Codigo,Leadpro,leadpro.com.br,lead+property,2457,Lead profissional,8,8,9,25,Geracao pro de leads
+Hibridos_Codigo,Listpro,listpro.com.br,listing+property,1779,Listing profissional,8,8,9,25,Listagem pro
+Hibridos_Codigo,Brolist,brolist.com.br,broker+listing,980,Broker + Listing,8,8,8,24,Rede de anuncios
+Hibridos_Codigo,Tenally,tenally.com.br,tenant+ally,509,Tenant aliado,8,8,9,25,Multi-tenant friendly
+Hibridos_Codigo,Dashpro,dashpro.com.br,dashboard+property,1771,Dashboard profissional,8,8,9,25,Gestao pro
+Hibridos_Codigo,Confirmo,confirmo.com.br,confirmation+owner,583,Eu confirmo,10,10,10,30,TOP MAX - Acao PT perfeita
+Hibridos_Codigo,Ownerpro,ownerpro.com.br,owner+property,1842,Proprietario pro,7,7,8,22,Muito longo
+Hibridos_Codigo,Imolead,imolead.com.br,imovel+lead,1654,Imovel + Lead BR,9,9,9,27,TOP - Core BR
+Hibridos_Codigo,Imopro,imopro.com.br,imovel+property,2023,Imovel profissional,9,9,10,28,TOP - Imobiliaria pro
+Hibridos_Codigo,Imobrok,imobrok.com.br,imovel+broker,1224,Imovel + Broker,8,8,8,24,Rede de corretores BR
+Hibridos_Codigo,Leadzzy,leadzzy.com.br,lead+zy,1044,Lead super Z,8,9,8,25,Energia maxima
+Compostos_Unicos,Propfio,propfio.com.br,property+confio,1567,Propriedade confiavel,9,9,9,27,TOP - Confianca
+Compostos_Unicos,Imofio,imofio.com.br,imovel+confio,764,Imovel confiavel BR,9,9,10,28,TOP - Confianca BR
+Compostos_Unicos,Veriprop,veriprop.com.br,verified+property,1413,Propriedade verificada,8,8,9,25,Autenticidade
+Compostos_Unicos,Verimo,verimo.com.br,verified+imovel,610,Imovel verificado BR,9,9,10,28,TOP - Veri(fico) + imo(vel)
+Compostos_Unicos,Authimo,authimo.com.br,authentic+imovel,610,Imovel autentico,8,8,9,25,Governanca
+Compostos_Unicos,Trueprop,trueprop.com.br,true+property,1413,Propriedade verdadeira,8,8,9,25,Autenticidade EN
+Compostos_Unicos,Oneimo,oneimo.com.br,one+imovel,610,Imovel unico BR,9,9,10,28,TOP - Conceito central
+Compostos_Unicos,Uniimo,uniimo.com.br,unique+imovel,610,Imovel unico variacao,9,9,9,27,TOP - Unicidade
+Compostos_Unicos,Soleprop,soleprop.com.br,sole+property,1413,Propriedade unica EN,7,7,8,22,Formal demais

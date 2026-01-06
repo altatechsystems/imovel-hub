@@ -1,0 +1,28 @@
+Ranking,Palavra,Ocorrencias_Backend_Go,Ocorrencias_Frontend_Public_TS,Ocorrencias_Frontend_Admin_TS,Total_Estimado,Tipo,E_Palavra_Real,Pode_Ser_Nome
+1,property,770,365,264,1399,Dominio,Sim,Sim
+2,broker,501,164,133,798,Dominio,Sim,Sim
+3,tenant,374,baixo,baixo,400+,Dominio,Sim,Nao
+4,owner,381,baixo,111,500+,Dominio,Sim,Sim
+5,lead,293,baixo,117,410+,Dominio,Sim,Sim
+6,listing,319,baixo,baixo,350+,Dominio,Sim,Sim
+7,string,1461,153,206,1820,Tipo_Dados,Sim,Nao
+8,error,692,100,176,968,Tecnico,Sim,Nao
+9,status,248,baixo,151,400+,Estado,Sim,Nao
+10,data,179,106,111,396,Generico,Sim,Nao
+11,return,1618,150,218,1986,Programacao,Sim,Nao
+12,context,779,baixo,baixo,800+,Tecnico,Sim,Nao
+13,token,138,baixo,baixo,150+,Dominio,Sim,Sim
+14,slug,172,baixo,baixo,180+,Tecnico,Sim,Nao
+15,role,251,baixo,baixo,270+,Dominio,Sim,Nao
+16,email,235,baixo,baixo,250+,Comum,Sim,Nao
+17,phone,196,baixo,baixo,210+,Comum,Sim,Nao
+18,image,baixo,60,baixo,100+,Comum,Sim,Nao
+19,time,330,baixo,baixo,350+,Comum,Sim,Nao
+20,batch,152,baixo,baixo,160+,Tecnico,Sim,Nao
+
+OBSERVACOES:
+- Palavras tecnicas de programacao (return string error const func) foram mantidas para mostrar frequencia real
+- "baixo" indica menos de 50 ocorrencias naquele contexto especifico
+- Total_Estimado considera ocorrencias em todos os arquivos do projeto
+- Apenas palavras com 4+ letras foram contabilizadas
+- Case-insensitive (todas convertidas para minusculas)

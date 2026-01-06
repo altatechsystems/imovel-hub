@@ -1,0 +1,530 @@
+=============================================================================
+PROMPT 10: SISTEMA ROBUSTO DE PERFIS DE ACESSO E SEGREGAÇÃO DE USUÁRIOS
+=============================================================================
+
+Data: 06 de Janeiro de 2025
+Versão: 1.0
+Status: ANÁLISE - AGUARDANDO APROVAÇÃO PARA IMPLEMENTAÇÃO
+
+=============================================================================
+1. CONTEXTO E PROBLEMA IDENTIFICADO
+=============================================================================
+
+SITUAÇÃO ATUAL:
+No sistema multi-tenant de gestão imobiliária, existe uma mistura conceitual entre
+"corretores" (brokers) e "usuários administrativos" da plataforma. Esta confusão
+cria problemas de UX e segurança:
+
+PROBLEMA IDENTIFICADO NA SCREENSHOT:
+- Página "Corretores" mostra 7 registros
+- Entre eles, aparece "Administrao" que NÃO é um corretor real
+- "Administrao" é apenas um usuário administrativo do sistema
+- Corretores reais têm CRECI, perfil público, estatísticas de vendas
+- Usuários administrativos não deveriam aparecer na listagem de corretores
+
+ARQUITETURA ATUAL (Análise do Código):
+
+1. MODELO DE DADOS (backend/internal/models/broker.go):
+   - Estrutura: Broker
+   - Campos obrigatórios: TenantID, FirebaseUID, Name, Email, CRECI
+   - Campo Role: "admin", "broker", "manager" (DESATUALIZADO)
+   - Coleção Firestore: /tenants/{tenantId}/brokers/{brokerId}
+
+   PROBLEMA: Todos são salvos como "brokers" independente se são corretores ou admins
+
+2. ROLES IMPLEMENTADAS (frontend-admin/types/broker.ts):
+   - Frontend usa: 'platform_admin' | 'broker_admin' | 'broker' | 'manager'
+   - Backend valida apenas: 'admin', 'broker', 'manager'
+
+   PROBLEMA: Inconsistência entre frontend e backend
+
+3. AUTENTICAÇÃO (backend/internal/middleware/auth.go):
+   - Usa Firebase Authentication
+   - Token JWT com custom claims: tenant_id, role, broker_id
+   - Middleware: AuthRequired() e OptionalAuth()
+   - Não há verificação de permissões por role
+
+4. SIGNUP FLOW (backend/internal/handlers/auth_handler.go:116-139):
+   - Cria Tenant
+   - Cria Broker com role="admin"
+   - Define custom claims: role="admin", broker_id
+
+   PROBLEMA: Primeiro usuário é criado como "broker" com role admin
+
+5. CADASTRO DE CORRETORES (backend/internal/services/broker_service.go):
+   - Valida CRECI como obrigatório
+   - Valida Email único por tenant
+   - Valida FirebaseUID único por tenant
+
+   PROBLEMA: CRECI é obrigatório mas usuários admin não têm CRECI
+
+=============================================================================
+2. ANÁLISE DE REQUISITOS E CASOS DE USO
+=============================================================================
+
+ATORES DO SISTEMA:
+
+1. CORRETOR (Broker)
+   - É um profissional registrado no CRECI
+   - Tem perfil público visível para clientes
+   - Gerencia imóveis e leads
+   - Tem estatísticas de vendas
+   - Pode ter especialidades (comercial, residencial, luxo, etc.)
+   - Pode ser Pessoa Física (CRECI-F) ou Pessoa Jurídica (CRECI-J)
+   - Precisa de CRECI válido
+
+2. USUÁRIO ADMINISTRATIVO (Admin User)
+   - Gerencia configurações do tenant
+   - Gerencia corretores
+   - Gerencia importações de dados
+   - NÃO precisa de CRECI
+   - NÃO tem perfil público
+   - NÃO aparece em listagens de corretores
+   - Pode ou não ser um corretor também
+
+3. GERENTE (Manager)
+   - Supervisiona equipe de corretores
+   - Tem acesso a relatórios e analytics
+   - Pode ou não ser um corretor também
+   - Se for corretor: tem CRECI e perfil público
+   - Se não for corretor: apenas gestão administrativa
+
+4. ADMIN DE PLATAFORMA (Platform Admin)
+   - Gerencia múltiplos tenants
+   - Acesso super-admin
+   - NÃO faz parte do tenant
+   - NÃO é um corretor
+
+=============================================================================
+3. CENÁRIOS E FLUXOS DE USO
+=============================================================================
+
+CENÁRIO 1: Corretor Puro
+- João é corretor, CRECI 12345-F/SP
+- Acessa sistema para gerenciar seus imóveis
+- Tem perfil público visível em imobiliarias.com.br/corretor/joao-silva
+- Aparece na listagem de corretores da imobiliária
+- Role: "broker"
+
+CENÁRIO 2: Corretor que também é Admin
+- Maria é corretora, CRECI 67890-J/RJ
+- É sócia da imobiliária, gerencia configurações
+- Tem perfil público E acesso administrativo
+- Aparece na listagem de corretores
+- Role: "broker_admin"
+
+CENÁRIO 3: Admin Puro (NÃO é corretor)
+- Pedro é gerente administrativo
+- Gerencia sistema, importações, configurações
+- NÃO tem CRECI
+- NÃO tem perfil público
+- NÃO aparece na listagem de corretores
+- Role: "admin"
+
+CENÁRIO 4: Primeiro Usuário (Signup)
+- Ana cria conta nova da imobiliária
+- Pode ou não ser corretora
+- Se for corretora: informa CRECI no signup
+- Se não for: deixa CRECI vazio
+- Sistema ajusta role automaticamente
+
+=============================================================================
+4. ANÁLISE DE DADOS EXISTENTES
+=============================================================================
+
+PROBLEMA DOS DADOS LEGADOS:
+Na screenshot, vemos "Administrao" com:
+- CRECI: - (vazio ou inválido)
+- Telefone: +5511988888888
+- Email: administracao@altatechmoveis.com
+- Status: Ativo
+- Perfil: Corretor
+
+ESTE É O PROBLEMA CENTRAL:
+- "Administrao" não é um corretor, é um usuário administrativo
+- Foi criado no signup inicial
+- Não tem CRECI mas está na collection "brokers"
+- Aparece na listagem de corretores
+
+=============================================================================
+5. PROPOSTA DE SOLUÇÃO ARQUITETURAL
+=============================================================================
+
+OPÇÃO 1: COLLECTIONS SEPARADAS (RECOMENDADA)
+--------------------------------------------
+
+Estrutura de Collections:
+/tenants/{tenantId}/brokers/{brokerId}      - APENAS corretores reais
+/tenants/{tenantId}/users/{userId}          - Usuários administrativos
+/tenants/{tenantId}/broker_users/{id}       - Relacionamento N:N
+
+Vantagens:
+✅ Separação clara de conceitos
+✅ CRECI obrigatório para brokers
+✅ Queries eficientes (sem filtros por role)
+✅ Perfis públicos apenas em /brokers
+✅ Escalabilidade
+
+Desvantagens:
+❌ Migração de dados existentes necessária
+❌ Complexidade no signup (decidir collection)
+❌ Usuário pode ser broker E admin (2 registros)
+
+OPÇÃO 2: SOFT SEGREGATION (ATUAL MELHORADO)
+-------------------------------------------
+
+Estrutura de Collections:
+/tenants/{tenantId}/brokers/{brokerId}      - Todos (brokers + admins)
+  - Campo "is_broker": true/false
+  - Campo "is_admin_user": true/false
+  - CRECI: obrigatório se is_broker=true
+
+Vantagens:
+✅ Menos migração de dados
+✅ Signup mais simples
+✅ Usuário pode ter múltiplos papéis facilmente
+
+Desvantagens:
+❌ Confusão conceitual persiste
+❌ Queries precisam de filtros
+❌ Validações complexas (CRECI condicional)
+
+OPÇÃO 3: COLLECTION ÚNICA COM TYPES
+------------------------------------
+
+Estrutura de Collections:
+/tenants/{tenantId}/team_members/{id}
+  - type: "broker" | "admin" | "manager"
+  - broker_profile: { creci, bio, stats... } (se type=broker)
+  - admin_permissions: [...] (se type=admin)
+
+Vantagens:
+✅ Nome genérico "team_members"
+✅ Flexível para adicionar novos tipos
+✅ Signup pode escolher tipo
+
+Desvantagens:
+❌ Mudança grande de nomenclatura
+❌ Migração significativa
+❌ Complexidade na validação condicional
+
+=============================================================================
+6. MATRIZ DE PERMISSÕES PROPOSTA
+=============================================================================
+
+RECURSO                    | platform_admin | broker_admin | broker | manager | admin_user
+---------------------------|----------------|--------------|--------|---------|------------
+Ver próprios imóveis       |       ✅       |      ✅      |   ✅   |   ✅    |     ❌
+Ver todos imóveis tenant   |       ✅       |      ✅      |   ❌   |   ✅    |     ❌
+Criar imóvel               |       ✅       |      ✅      |   ✅   |   ❌    |     ❌
+Editar próprio imóvel      |       ✅       |      ✅      |   ✅   |   ❌    |     ❌
+Editar qualquer imóvel     |       ✅       |      ✅      |   ❌   |   ✅    |     ❌
+Excluir imóvel             |       ✅       |      ✅      |   ❌   |   ✅    |     ❌
+---------------------------|----------------|--------------|--------|---------|------------
+Ver corretores             |       ✅       |      ✅      |   ✅   |   ✅    |     ✅
+Criar corretor             |       ✅       |      ✅      |   ❌   |   ❌    |     ✅
+Editar corretor            |       ✅       |      ✅      |  Próprio|  ❌   |     ✅
+Desativar corretor         |       ✅       |      ✅      |   ❌   |   ❌    |     ✅
+---------------------------|----------------|--------------|--------|---------|------------
+Ver configurações tenant   |       ✅       |      ✅      |   ❌   |   ❌    |     ✅
+Editar configurações       |       ✅       |      ✅      |   ❌   |   ❌    |     ✅
+Ver usuários admin         |       ✅       |      ✅      |   ❌   |   ❌    |     ✅
+Criar usuários admin       |       ✅       |      ✅      |   ❌   |   ❌    |     ❌
+---------------------------|----------------|--------------|--------|---------|------------
+Ver todos tenants          |       ✅       |      ❌      |   ❌   |   ❌    |     ❌
+Criar tenant               |       ✅       |      ❌      |   ❌   |   ❌    |     ❌
+---------------------------|----------------|--------------|--------|---------|------------
+
+LEGENDA:
+- platform_admin: Super admin da plataforma (multi-tenant)
+- broker_admin: Corretor que também é admin do tenant
+- broker: Corretor comum
+- manager: Gerente (pode ou não ser corretor)
+- admin_user: Usuário administrativo sem CRECI
+
+=============================================================================
+7. PLANO DE MIGRAÇÃO DE DADOS
+=============================================================================
+
+FASE 1: ANÁLISE DOS DADOS EXISTENTES
+- Query em /tenants/{}/brokers onde CRECI vazio ou "PENDENTE"
+- Identificar registros que são admins puros
+- Exportar CSV para revisão manual
+
+FASE 2: ADICIONAR CAMPOS TRANSITÓRIOS (se Opção 1)
+- Adicionar campo "is_broker": boolean
+- Adicionar campo "is_admin_user": boolean
+- Marcar registros existentes baseado em:
+  - Tem CRECI válido → is_broker=true
+  - Role contém "admin" → is_admin_user=true
+
+FASE 3: CRIAR COLLECTION /users (se Opção 1)
+- Copiar registros com is_admin_user=true para /users
+- Remover campos de broker (creci, bio, stats)
+- Adicionar campos de admin (permissions)
+
+FASE 4: LIMPAR /brokers (se Opção 1)
+- Remover registros que NÃO são brokers reais
+- Tornar CRECI obrigatório
+- Atualizar queries do frontend
+
+FASE 5: ATUALIZAR SIGNUP FLOW
+- Adicionar pergunta: "Você é corretor registrado no CRECI?"
+- Se SIM → cria em /brokers com role apropriado
+- Se NÃO → cria em /users como admin_user
+
+FASE 6: ATUALIZAR UI
+- Página "Corretores" → lista apenas /brokers
+- Nova página "Equipe" ou "Usuários" → lista /users
+- Dashboard mostra ambos mas separados
+
+=============================================================================
+8. MUDANÇAS NECESSÁRIAS NO CÓDIGO
+=============================================================================
+
+BACKEND:
+
+1. models/user.go (NOVO - se Opção 1)
+   - Struct User
+   - Campos: ID, TenantID, FirebaseUID, Name, Email, Phone, Role, Permissions
+   - SEM campos de broker (CRECI, bio, stats)
+
+2. models/broker.go (ATUALIZAR)
+   - Tornar CRECI obrigatório
+   - Remover roles administrativos do enum
+   - Manter apenas: "broker", "broker_admin"
+
+3. repositories/user_repository.go (NOVO - se Opção 1)
+   - CRUD para /tenants/{}/users
+   - GetByFirebaseUID
+   - GetByEmail
+
+4. services/user_service.go (NOVO - se Opção 1)
+   - CreateUser (sem validação de CRECI)
+   - UpdateUser
+   - ListUsers
+   - Validações de permissões
+
+5. services/broker_service.go (ATUALIZAR)
+   - CRECI obrigatório (remover "omitempty")
+   - Remover criação de "admin" puro
+   - Validar que role é apenas broker ou broker_admin
+
+6. handlers/auth_handler.go (ATUALIZAR - Signup)
+   - Adicionar campo: "is_broker" no request
+   - Se is_broker=true → criar em /brokers (requer CRECI)
+   - Se is_broker=false → criar em /users como admin_user
+   - Custom claims: diferenciar broker_id vs user_id
+
+7. middleware/auth.go (ADICIONAR)
+   - RequireRole(roles ...string)
+   - RequirePermission(permission string)
+   - CanAccessTenant(tenantId string)
+   - IsBroker() / IsAdminUser()
+
+8. handlers/user_handler.go (NOVO - se Opção 1)
+   - ListUsers
+   - GetUser
+   - CreateUser
+   - UpdateUser
+   - DeleteUser
+
+FRONTEND:
+
+1. types/user.ts (NOVO - se Opção 1)
+   - Interface User
+   - Interface UserPermissions
+   - Enum UserRole
+
+2. app/dashboard/corretores/page.tsx (ATUALIZAR)
+   - Filtrar apenas is_broker=true OU query /brokers
+   - Remover admins da listagem
+   - Adicionar filtro "Apenas Corretores Ativos"
+
+3. app/dashboard/equipe/page.tsx (NOVO - se Opção 1)
+   - Listar /users
+   - CRUD de usuários administrativos
+   - Gestão de permissões
+
+4. app/dashboard/corretores/novo/page.tsx (ATUALIZAR)
+   - Reforçar que CRECI é obrigatório
+   - Validação de CRECI no frontend
+
+5. app/signup/page.tsx (ATUALIZAR)
+   - Adicionar pergunta: "Você é corretor?"
+   - Se SIM: mostrar campo CRECI (obrigatório)
+   - Se NÃO: esconder campo CRECI
+
+6. components/role-badge.tsx (NOVO)
+   - Componente reutilizável para badges de role
+   - Cores consistentes
+   - Tooltips explicativos
+
+7. hooks/usePermissions.ts (NOVO)
+   - Hook para verificar permissões
+   - canView, canCreate, canEdit, canDelete
+   - Baseado no role e resource
+
+=============================================================================
+9. TESTES NECESSÁRIOS
+=============================================================================
+
+1. UNIT TESTS:
+   - Validação de CRECI
+   - Criação de broker vs user
+   - Permissões por role
+
+2. INTEGRATION TESTS:
+   - Signup flow (broker vs admin user)
+   - Login e custom claims
+   - Queries filtradas
+
+3. E2E TESTS:
+   - Criar tenant → criar admin → criar corretor
+   - Listar corretores (não mostra admins)
+   - Listar equipe (mostra todos)
+
+=============================================================================
+10. DECISÕES A TOMAR
+=============================================================================
+
+DECISÕES CRÍTICAS:
+
+1. ✅ ESCOLHER ARQUITETURA:
+   [ ] Opção 1: Collections Separadas (/brokers + /users)
+   [ ] Opção 2: Soft Segregation (campo is_broker)
+   [ ] Opção 3: Rename para team_members
+
+2. ✅ ROLES FINAIS:
+   Definir lista definitiva de roles:
+   [ ] platform_admin, broker_admin, broker, manager, admin_user
+   [ ] admin, broker, manager (simplificado)
+   [ ] Outro:
+
+3. ✅ SIGNUP FLOW:
+   [ ] Sempre criar como admin no primeiro signup
+   [ ] Perguntar "Você é corretor?" no signup
+   [ ] Criar como admin, depois migrar para corretor
+
+4. ✅ MIGRAÇÃO:
+   [ ] Migrar dados automaticamente (script)
+   [ ] Migrar manualmente (revisão caso a caso)
+   [ ] Manter compatibilidade (soft delete de admins em /brokers)
+
+5. ✅ NOMENCLATURA:
+   Collection de usuários admin:
+   [ ] /users
+   [ ] /admin_users
+   [ ] /team_members
+   [ ] /staff
+
+6. ✅ CRECI:
+   [ ] CRECI obrigatório para todos em /brokers
+   [ ] CRECI opcional em /brokers, obrigatório se is_broker=true
+   [ ] CRECI sempre opcional
+
+=============================================================================
+11. CRONOGRAMA SUGERIDO
+=============================================================================
+
+SPRINT 1 (3-5 dias): Análise e Decisões
+- [ ] Revisar este documento com stakeholders
+- [ ] Tomar decisões críticas (seção 10)
+- [ ] Definir arquitetura final
+- [ ] Criar épicos e stories no backlog
+
+SPRINT 2 (5-7 dias): Backend Foundation
+- [ ] Criar models (User ou atualizar Broker)
+- [ ] Criar repositories
+- [ ] Criar services com validações
+- [ ] Testes unitários
+
+SPRINT 3 (5-7 dias): Backend Auth & Migration
+- [ ] Atualizar signup flow
+- [ ] Implementar middleware de permissões
+- [ ] Criar script de migração de dados
+- [ ] Executar migração em staging
+
+SPRINT 4 (5-7 dias): Frontend - Core
+- [ ] Atualizar página de corretores
+- [ ] Criar página de equipe/usuários
+- [ ] Atualizar signup
+- [ ] Componentes de role/permissions
+
+SPRINT 5 (3-5 dias): Testing & Polish
+- [ ] Testes E2E
+- [ ] Correção de bugs
+- [ ] Ajustes de UX
+- [ ] Documentação
+
+SPRINT 6 (2-3 dias): Deploy & Monitoring
+- [ ] Deploy em produção
+- [ ] Migração de dados prod
+- [ ] Monitoramento
+- [ ] Suporte pós-deploy
+
+TOTAL: 23-34 dias (4-7 semanas)
+
+=============================================================================
+12. RISCOS E MITIGAÇÕES
+=============================================================================
+
+RISCO 1: Perda de dados na migração
+Mitigação: Backup completo antes de migrar, rollback plan
+
+RISCO 2: Usuários existentes sem CRECI
+Mitigação: Identificar manualmente, solicitar CRECI ou mover para /users
+
+RISCO 3: Quebra de autenticação existente
+Mitigação: Manter custom claims compatíveis, testar em staging
+
+RISCO 4: Inconsistência frontend-backend
+Mitigação: Sincronizar roles, criar type guards no TS
+
+RISCO 5: Complexidade excessiva
+Mitigação: Começar com Opção 2 (soft segregation), evoluir depois
+
+=============================================================================
+13. MÉTRICAS DE SUCESSO
+=============================================================================
+
+- ✅ 0 usuários não-corretores aparecendo em /corretores
+- ✅ 100% dos brokers têm CRECI válido
+- ✅ Tempo de signup < 60 segundos
+- ✅ 0 erros de permissão em 1 semana pós-deploy
+- ✅ 95% satisfação do usuário com nova UX
+
+=============================================================================
+14. RECOMENDAÇÃO FINAL
+=============================================================================
+
+RECOMENDAÇÃO: Implementar OPÇÃO 1 (Collections Separadas) com migração gradual
+
+JUSTIFICATIVA:
+1. Separação clara de conceitos (corretor vs admin)
+2. CRECI obrigatório para brokers
+3. Queries mais eficientes
+4. Escalabilidade futura
+5. Melhor UX (listagens corretas)
+
+ABORDAGEM:
+1. Fase 1: Soft migration (adicionar campos is_broker/is_admin_user)
+2. Fase 2: Dual-write (escrever em ambas collections)
+3. Fase 3: Migração de dados históricos
+4. Fase 4: Deprecar campos antigos
+5. Fase 5: Hard cutover (apenas novas collections)
+
+=============================================================================
+15. PRÓXIMOS PASSOS
+=============================================================================
+
+1. ✅ REVISAR DOCUMENTO com equipe técnica e product owner
+2. ✅ TOMAR DECISÕES da seção 10
+3. ✅ CRIAR TASKS detalhadas no backlog
+4. ✅ DEFINIR MVP (mínimo viável) vs features futuras
+5. ✅ APROVAR CRONOGRAMA e recursos necessários
+6. ⏸️  AGUARDAR APROVAÇÃO antes de implementar
+
+=============================================================================
+FIM DO DOCUMENTO - Versão 1.0
+=============================================================================

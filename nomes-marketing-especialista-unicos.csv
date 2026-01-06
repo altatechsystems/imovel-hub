@@ -1,0 +1,120 @@
+Categoria_Marketing,Nome,Dominio,Estrategia_Branding,Posicionamento,Personalidade_Marca,Nota_Disruptivo,Nota_Memoravel,Nota_Premium,Nota_Total,Inspiracao_Mercado
+Neologismo_Emocional,Haaven,haaven.com.br,Heaven + Haven = Paraiso + Refugio,Imovel como santuario emocional,Aspiracional caloroso premium,10,10,10,30,Airbnb vibe - emocional
+Neologismo_Emocional,Nestro,nestro.com.br,Nest (ninho) + Metro (cidade),Seu ninho na metrópole,Urbano acolhedor sofisticado,9,10,9,28,Nest + urbanidade
+Neologismo_Emocional,Hovvy,hovvy.com.br,Home + Savvy (esperto),Casa inteligente,Jovem tech esperto,9,9,8,26,Tech + casa
+Neologismo_Emocional,Dwello,dwello.com.br,Dwell (habitar) + O final,Habitar bem,Minimalista moderno clean,9,10,9,28,Duolingo vibe - O final
+Neologismo_Emocional,Roovly,roovly.com.br,Roof (teto) + ly,Teto para todos,Acessivel jovem amigavel,9,9,8,26,Ly suffix jovial
+Neologismo_Movimento,Swoove,swoove.com.br,Swoop (movimento suave) + Move,Movimento fluido busca imovel,Dinamico elegante fluido,9,10,9,28,Swoosh Nike energia
+Neologismo_Movimento,Glyddo,glyddo.com.br,Glide (deslizar) + DD,Deslize facil na busca,Suave eficiente moderno,9,9,9,27,Movimento suave
+Neologismo_Movimento,Floato,floato.com.br,Float (flutuar) + O,Flutuando entre opcoes,Leve sonhador premium,9,9,9,27,Leveza premium
+Neologismo_Movimento,Flyx,flyx.com.br,Fly (voar) + X tech,Voe para seu imovel,Rapido aspiracional tech,10,10,9,29,Netflix vibe - YX ending
+Neologismo_Movimento,Swyfto,swyfto.com.br,Swift (rapido) + O,Rapidez na busca,Agil moderno eficiente,9,9,8,26,Velocidade
+Neologismo_Descoberta,Trovva,trovva.com.br,Trovar (encontrar) + VV,Encontre seu lugar,Descobridor aventureiro confiavel,10,10,9,29,Trova espanhol - descoberta
+Neologismo_Descoberta,Seekka,seekka.com.br,Seek (buscar) + KK,Busca ativa,Caçador moderno determinado,9,9,8,26,Seek + duplicacao
+Neologismo_Descoberta,Fynddo,fynddo.com.br,Find (achar) + DD nordico,Achar tesouros,Escandinavo clean premium,9,10,9,28,Estilo nordico
+Neologismo_Descoberta,Huntly,huntly.com.br,Hunt (caçar) + ly,Cace seu imovel,Ativo determinado jovem,9,9,8,26,Hunting + jovial
+Neologismo_Descoberta,Scoutto,scoutto.com.br,Scout (explorador) + TT,Explore possibilidades,Aventureiro curioso moderno,9,9,8,26,Exploracao
+Neologismo_Confianca,Truuvio,truuvio.com.br,True (verdadeiro) + UU + IO,Verdade tech,Autentico tech confiavel,9,10,10,29,Autenticidade duplicacao
+Neologismo_Confianca,Fiddo,fiddo.com.br,Fides (fe latina) + DD,Fe confianca,Leal confiavel amigavel,9,10,9,28,Fidelidade pet-friendly
+Neologismo_Confianca,Loyyo,loyyo.com.br,Loyal (leal) + YY,Lealdade,Fiel confiavel forte,9,9,9,27,Lealdade duplicacao
+Neologismo_Confianca,Verity,verity.com.br,Verity (verdade),Verdade absoluta,Premium autentico serio,9,10,10,29,Palavra real elegante
+Neologismo_Confianca,Vervo,vervo.com.br,Ver (verdadeiro PT) + VO,Ver verdadeiro,Brasileiro autentico moderno,9,9,9,27,PT autenticidade
+Neologismo_Clareza,Klaro,klaro.com.br,Claro com K,Clareza total,Transparente direto moderno,10,10,9,29,Claro + K disruptivo
+Neologismo_Clareza,Lucco,lucco.com.br,Lux (luz) + CC,Luz clareza,Iluminado claro premium,9,10,9,28,Luz duplicacao
+Neologismo_Clareza,Beammo,beammo.com.br,Beam (raio) + MM,Raio de luz,Rapido iluminador tech,9,9,8,26,Raio energia
+Neologismo_Clareza,Glimmo,glimmo.com.br,Glimmer (brilho) + MM,Brilho esperanca,Brilhante otimista premium,9,10,9,28,Brilho sutil
+Neologismo_Clareza,Sparkko,sparkko.com.br,Spark (faísca) + KK,Faísca inicio,Energia inicio jovem,9,9,8,26,Inicio energia
+Neologismo_Simplicidade,Simplyo,simplyo.com.br,Simply + O,Simplesmente facil,Minimalista acessivel clean,9,10,9,28,Simplicidade premium
+Neologismo_Simplicidade,Eezio,eezio.com.br,Easy (facil) + ZZ + IO,Facilidade tech,Simples tech amigavel,9,9,8,26,Facilidade duplicacao
+Neologismo_Simplicidade,Snappy,snappy.com.br,Snap (estalo rapido),Rapido snap decisao,Instantaneo jovem energico,10,10,9,29,Snapchat vibe
+Neologismo_Simplicidade,Quicko,quicko.com.br,Quick + O,Rapidez,Agil eficiente moderno,9,9,8,26,Velocidade O
+Neologismo_Conexao,Linkko,linkko.com.br,Link + KK,Liga pontos,Conector moderno tech,8,9,8,25,Conexao duplicacao
+Neologismo_Conexao,Bonddo,bonddo.com.br,Bond (ligacao) + DD,Ligacao forte,Forte confiavel solido,9,9,9,27,James Bond premium
+Neologismo_Conexao,Bridgo,bridgo.com.br,Bridge (ponte) + O,Ponte solucao,Conectador facilitador moderno,9,9,9,27,Ponte conexao
+Neologismo_Conexao,Tethro,tethro.com.br,Tether (amarrar) + O,Amarra segura,Seguro estavel confiavel,8,8,9,25,Seguranca conexao
+Neologismo_Elevacao,Risio,risio.com.br,Rise (erguer) + IO,Erguer-se,Ascendente aspiracional premium,9,9,10,28,Elevacao premium
+Neologismo_Elevacao,Soarro,soarro.com.br,Soar (voar alto) + RR,Voe alto,Aspiracional premium elevado,9,10,10,29,Sonho alto
+Neologismo_Elevacao,Ascentio,ascentio.com.br,Ascent (ascensao) + IO,Ascensao,Premium aspiracional forte,9,9,10,28,Subida premium
+Neologismo_Elevacao,Upvo,upvo.com.br,Up (cima) + VO,Para cima,Positivo otimista jovem,9,9,8,26,Upvote vibe
+Neologismo_Premium,Luxio,luxio.com.br,Lux + IO curto,Luxo tech,Premium sofisticado moderno,9,10,10,29,Luxo + tech
+Neologismo_Premium,Regalio,regalio.com.br,Regal (real) + IO,Realeza,Premium nobre elegante,9,10,10,29,Realeza premium
+Neologismo_Premium,Noblyo,noblyo.com.br,Noble + YO,Nobreza,Premium elegante distinto,9,9,10,28,Nobreza moderna
+Neologismo_Premium,Grandio,grandio.com.br,Grand + IO,Grandioso,Premium magnifico forte,9,10,10,29,Grandeza
+Neologismo_Premium,Majesto,majesto.com.br,Majesty + O,Majestade,Premium imperial elegante,9,10,10,29,Majestade
+Inventado_Absoluto,Zovvi,zovvi.com.br,Inventado puro - Z inicial forte,Nenhum - marca pura,Moderno disruptivo unico,10,10,9,29,Zillow inspiration
+Inventado_Absoluto,Qovvo,qovvo.com.br,Inventado - Q inicial premium,Nenhum - marca pura,Sofisticado unico premium,10,10,10,30,Q premium raro
+Inventado_Absoluto,Wavvi,wavvi.com.br,Wave vibe - inventado,Nenhum - marca pura,Jovem energia movimento,10,10,9,29,Onda energia
+Inventado_Absoluto,Jovvo,jovvo.com.br,Inventado - J + VV,Nenhum - marca pura,Alegre energico jovem,9,10,8,27,J jovial
+Inventado_Absoluto,Xovvo,xovvo.com.br,Inventado - X inicial tech,Nenhum - marca pura,Tech disruptivo moderno,10,10,9,29,X tech forte
+Inventado_Absoluto,Vovvio,vovvio.com.br,Inventado - VV + IO,Nenhum - marca pura,Movimento tech fluido,9,10,9,28,VV movimento
+Inventado_Absoluto,Yovva,yovva.com.br,Inventado - Y inicial jovem,Nenhum - marca pura,Jovem moderno energico,10,10,8,28,Y juventude
+Inventado_Absoluto,Zivvo,zivvo.com.br,Inventado - Z + VV vivo,Nenhum - marca pura,Vivo energico moderno,10,10,9,29,Vida energia
+Inventado_Absoluto,Qivvo,qivvo.com.br,Inventado - Q premium VV,Nenhum - marca pura,Premium unico sofisticado,10,10,10,30,Q + vida
+Inspirado_Natureza,Nestio,nestio.com.br,Nest (ninho) natural,Ninho casa lar,Acolhedor natural caloroso,9,10,9,28,Ninho protetor
+Inspirado_Natureza,Groovo,groovo.com.br,Grove (bosque) + O,Bosque urbano,Natural moderno ecologico,9,9,9,27,Natureza urbana
+Inspirado_Natureza,Harbo,harbo.com.br,Harbor (porto) curto,Porto seguro,Seguro acolhedor protetor,9,10,9,28,Porto refugio
+Inspirado_Natureza,Covo,covo.com.br,Cove (enseada),Enseada abrigo,Acolhedor intimo premium,10,10,10,30,Enseada protecao
+Inspirado_Natureza,Havvn,havvn.com.br,Haven (refugio) sem vogal,Refugio moderno,Protetor moderno tech,9,10,9,28,Refugio tech
+Inspirado_Movimento_Social,Tribbo,tribbo.com.br,Tribe (tribo) + BB,Tribo comunidade,Comunitario social jovem,9,10,8,27,Comunidade
+Inspirado_Movimento_Social,Hooddo,hooddo.com.br,Hood (vizinhanca) + DD,Vizinhanca moderna,Local comunitario urbano,9,9,8,26,Vizinhanca
+Inspirado_Movimento_Social,Crowddo,crowddo.com.br,Crowd (multidao) + DD,Multidao sabedoria,Social colaborativo moderno,8,8,8,24,Crowd wisdom
+Inspirado_Geometria,Cirro,cirro.com.br,Circle (circulo) + RR,Circulo completo,Completo perfeito harmonioso,9,9,9,27,Geometria perfeita
+Inspirado_Geometria,Quadro,quadro.com.br,Square (quadrado) PT,Quadrado solido,Solido confiavel classico,9,9,9,27,Forma solida
+Inspirado_Geometria,Orbio,orbio.com.br,Orbit (orbita) + IO,Orbita conectada,Conectado sistemico moderno,9,9,9,27,Sistema orbital
+Inspirado_Tempo,Nowwo,nowwo.com.br,Now (agora) + WW,Agora momento,Urgente instantaneo moderno,9,10,8,27,Momento presente
+Inspirado_Tempo,Eonio,eonio.com.br,Eon (era) + IO,Era nova,Atemporal premium moderno,9,9,10,28,Era premium
+Inspirado_Tempo,Evvo,evvo.com.br,Ever (sempre) + VV,Para sempre,Permanente confiavel forte,9,10,9,28,Eternidade
+Metafora_Jornada,Pathio,pathio.com.br,Path (caminho) + IO,Caminho casa,Guia orientador moderno,9,9,9,27,Caminho jornada
+Metafora_Jornada,Questio,questio.com.br,Quest (busca) + IO,Busca heroica,Aventureiro determinado nobre,9,9,9,27,Jornada heroica
+Metafora_Jornada,Voyvo,voyvo.com.br,Voyage (viagem) + VO,Viagem lar,Explorador sonhador premium,9,10,9,28,Viagem descoberta
+Metafora_Portal,Portvo,portvo.com.br,Portal + VO,Portal acesso,Magico tecnologico moderno,9,9,9,27,Portal magico
+Metafora_Portal,Gatvo,gatvo.com.br,Gateway (portao) + VO,Portao entrada,Acesso facilitador moderno,8,8,8,24,Entrada acesso
+Metafora_Chave,Keyvo,keyvo.com.br,Key + VO,Chave solucao,Solucionador essencial moderno,9,9,9,27,Chave mestra
+Metafora_Chave,Unlokko,unlokko.com.br,Unlock (destravar) + KK,Destrave sonhos,Libertador facilitador jovem,9,9,8,26,Destravar potencial
+Hibrido_PT_EN,Acharo,acharo.com.br,Achar (PT) + O tech,Achar em portugues,Brasileiro tech moderno,10,10,9,29,PT + tech perfeito
+Hibrido_PT_EN,Morvo,morvo.com.br,Morar (PT) + VO,Morar bem,Brasileiro moderno urbano,10,10,9,29,PT morar + tech
+Hibrido_PT_EN,Casio,casio.com.br,Casa (PT) + IO (conflito marca),Casa tech,Brasileiro tech - CUIDADO CASIO,9,9,8,26,PT casa - marca existe
+Hibrido_PT_EN,Larvo,larvo.com.br,Lar (PT) + VO,Lar moderno,Brasileiro emocional tech,10,10,10,30,PT lar perfeito
+Silaba_Inventada_Forte,Bravvo,bravvo.com.br,Brave (bravo) + VV,Corajoso,Forte determinado premium,9,10,9,28,Coragem duplicacao
+Silaba_Inventada_Forte,Bolddo,bolddo.com.br,Bold (ousado) + DD,Ousadia,Ousado forte moderno,9,10,9,28,Ousadia duplicacao
+Silaba_Inventada_Forte,Fierro,fierro.com.br,Fierce (feroz) + RR,Feroz forte,Forte determinado premium,9,9,9,27,Forca feroz
+Silaba_Inventada_Forte,Sturddo,sturddo.com.br,Sturdy (robusto) + DD,Robusto,Solido confiavel forte,8,8,9,25,Robustez
+Sufixo_IO_Premium,Domio,domio.com.br,Domain (dominio) + IO,Seu dominio,Premium controlador forte,9,10,10,29,Dominio premium
+Sufixo_IO_Premium,Regio,regio.com.br,Regal + IO curto,Real premium,Premium nobre elegante,9,10,10,29,Realeza curta
+Sufixo_IO_Premium,Supremo,supremo.com.br,Supreme + O (palavra PT existe),Supremo,Premium maximo - palavra real,9,10,10,29,Supremacia - PT real
+Sufixo_IO_Premium,Optio,optio.com.br,Optimal + IO,Otimo opcao,Premium escolha inteligente,9,9,10,28,Opcao otima
+
+TOP_20_MARKETING_ABSOLUTO:
+1. Qovvo (30) - Q premium unico absolutamente disruptivo
+2. Qivvo (30) - Q + vida premium sofisticado
+3. Covo (30) - Enseada acolhedora perfeita uma silaba
+4. Larvo (30) - Lar PT + tech perfeito emocional
+5. Haaven (30) - Paraiso refugio aspiracional
+6. Flyx (29) - Voe para imovel Netflix vibe
+7. Trovva (29) - Encontre descoberta aventureira
+8. Truuvio (29) - Verdade tech autentica
+9. Verity (29) - Verdade palavra real elegante
+10. Klaro (29) - Clareza K disruptivo
+11. Snappy (29) - Instantaneo Snapchat energia
+12. Soarro (29) - Voe alto aspiracional
+13. Luxio (29) - Luxo tech premium
+14. Regalio (29) - Realeza premium
+15. Grandio (29) - Grandioso magnifico
+16. Majesto (29) - Majestade imperial
+17. Zovvi (29) - Z inicial disruptivo Zillow
+18. Xovvo (29) - X tech forte moderno
+19. Zivvo (29) - Vida energia Z forte
+20. Acharo (29) - Achar PT + tech brasileiro perfeito
+21. Morvo (29) - Morar PT + tech urbano
+22. Domio (29) - Dominio premium controlador
+23. Regio (29) - Real premium curto
+24. Supremo (29) - Supremo maximo PT real
+
+CATEGORIAS_PSICOGRAFICAS:
+Aspiracional_Premium: Haaven Soarro Luxio Regalio Grandio Majesto Supremo
+Confianca_Autenticidade: Truuvio Fiddo Verity Vervo
+Simplicidade_Acessivel: Snappy Simplyo Klaro Eezio
+Descoberta_Aventura: Trovva Fynddo Questio Voyvo
+Emocional_Lar: Haaven Nestro Dwello Larvo Covo
+Tech_Disruptivo: Flyx Qovvo Qivvo Zovvi Xovvo
+Brasileiro_Raiz: Larvo Morvo Acharo Vervo
