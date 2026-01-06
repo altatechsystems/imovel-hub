@@ -1,0 +1,9 @@
+Tenant ID,Tenant Name,Broker ID,Name,Email,CRECI,Role,Type,Action,Status,Notes
+391b12f8-ebe4-426a-8c99-ec5a10b1f361,ALTATECH Systems,73f624cc-2db1-4a2f-9a95-8b21abffc8d7,Daniel Garcia,daniel.garcia@altatechsystems.com,,admin,Admin User (No CRECI),Migrate to /users,MIGRATED,
+bd71c02b-5fa5-43df-8b46-a1df2206f1ef,ALTATECH Imóveis,BYYV8MjmXtjiB20PTTBg,Alex Reis,alex.reis@pendente.com.br,48.346,broker,Real Broker,Keep in /brokers,OK,
+bd71c02b-5fa5-43df-8b46-a1df2206f1ef,ALTATECH Imóveis,CifbkWdJYelWvbijHI7Q,Daniel Garcia,daniel.garcia@altatechimoveis.com,34.134,broker,Real Broker,Keep in /brokers,OK,
+bd71c02b-5fa5-43df-8b46-a1df2206f1ef,ALTATECH Imóveis,E68JsxlHDrTSCVHLWrus,Pablo Silva,pablo.silva@pendente.com.br,PENDENTE,broker,Invalid Broker (No CRECI),Migrate to /users,MIGRATED,
+bd71c02b-5fa5-43df-8b46-a1df2206f1ef,ALTATECH Imóveis,P5riuIqoCv3IYP7VY0IA,Suzana Costa,suzana.costa@pendente.com.br,52.648,broker,Real Broker,Keep in /brokers,OK,
+bd71c02b-5fa5-43df-8b46-a1df2206f1ef,ALTATECH Imóveis,QZm6iPxGy93GF6ZeeabY,Franco Barroso,franco.barroso@pendente.com.br,PENDENTE,broker,Invalid Broker (No CRECI),Migrate to /users,MIGRATED,
+bd71c02b-5fa5-43df-8b46-a1df2206f1ef,ALTATECH Imóveis,ZmZcy8VlXBBrTeSkyi5n,Fernanda Reis,fernanda.reis@pendente.com.br,34.166,broker,Real Broker,Keep in /brokers,OK,
+bd71c02b-5fa5-43df-8b46-a1df2206f1ef,ALTATECH Imóveis,f39046f1-c833-4c11-bd92-2c6420830979,Administrao,administracao@altatechimoveis.com,,admin,Admin User (No CRECI),Migrate to /users,MIGRATED,

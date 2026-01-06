@@ -8,6 +8,20 @@ import {
   PaginationOptions,
 } from '@/types/property';
 import { Lead, LeadListResponse, CreateLeadRequest, CreateLeadResponse } from '@/types/lead';
+import { Broker } from '@/types/broker';
+import {
+  User,
+  CreateUserRequest,
+  UpdateUserRequest,
+  GrantPermissionRequest,
+} from '@/types/user';
+import {
+  Tenant,
+  TenantListResponse,
+  TenantResponse,
+  CreateTenantRequest,
+  UpdateTenantRequest,
+} from '@/types/tenant';
 import type {
   ConfirmPropertyStatusPriceRequest,
   GenerateOwnerConfirmationLinkRequest,
@@ -210,29 +224,145 @@ class AdminApiClient {
     return response.data.data;
   }
 
-  // ========== BROKERS ==========
+  // ========== TENANTS ==========
 
-  async getBrokers(pagination?: PaginationOptions): Promise<any> {
+  async getTenants(pagination?: PaginationOptions): Promise<TenantListResponse> {
     const params = new URLSearchParams();
     if (pagination?.limit) params.append('limit', String(pagination.limit));
+    if (pagination?.order_by) params.append('order_by', pagination.order_by);
+    if (pagination?.order_direction) params.append('order_direction', pagination.order_direction);
 
-    const response = await this.client.get(`/brokers?${params.toString()}`);
+    const response = await this.client.get<TenantListResponse>(`/tenants?${params.toString()}`);
     return response.data;
   }
 
-  async getBroker(id: string): Promise<any> {
-    const response = await this.client.get(`/brokers/${id}`);
+  async getTenant(id: string): Promise<Tenant> {
+    const response = await this.client.get<TenantResponse>(`/tenants/${id}`);
     return response.data.data;
   }
 
-  async createBroker(data: any): Promise<any> {
-    const response = await this.client.post('/brokers', data);
+  async getTenantBySlug(slug: string): Promise<Tenant> {
+    const response = await this.client.get<TenantResponse>(`/tenants/slug/${slug}`);
     return response.data.data;
   }
 
-  async updateBroker(id: string, data: any): Promise<any> {
-    const response = await this.client.put(`/brokers/${id}`, data);
+  async createTenant(data: CreateTenantRequest): Promise<Tenant> {
+    const response = await this.client.post<TenantResponse>('/tenants', data);
     return response.data.data;
+  }
+
+  async updateTenant(id: string, data: UpdateTenantRequest): Promise<Tenant> {
+    const response = await this.client.put<TenantResponse>(`/tenants/${id}`, data);
+    return response.data.data;
+  }
+
+  async deleteTenant(id: string): Promise<void> {
+    await this.client.delete(`/tenants/${id}`);
+  }
+
+  async activateTenant(id: string): Promise<void> {
+    await this.client.post(`/tenants/${id}/activate`);
+  }
+
+  async deactivateTenant(id: string): Promise<void> {
+    await this.client.post(`/tenants/${id}/deactivate`);
+  }
+
+  // ========== BROKERS ==========
+
+  async getBrokers(pagination?: PaginationOptions): Promise<{ success: boolean; data: Broker[]; count: number }> {
+    const params = new URLSearchParams();
+    if (pagination?.limit) params.append('limit', String(pagination.limit));
+    if (pagination?.order_by) params.append('order_by', pagination.order_by);
+    if (pagination?.order_direction) params.append('order_direction', pagination.order_direction);
+
+    const response = await this.client.get<{ success: boolean; data: Broker[]; count: number }>(`/brokers?${params.toString()}`);
+    return response.data;
+  }
+
+  async getBroker(id: string): Promise<Broker> {
+    const response = await this.client.get<{ success: boolean; data: Broker }>(`/brokers/${id}`);
+    return response.data.data;
+  }
+
+  async createBroker(data: Partial<Broker>): Promise<Broker> {
+    const response = await this.client.post<{ success: boolean; data: Broker }>('/brokers', data);
+    return response.data.data;
+  }
+
+  async updateBroker(id: string, data: Partial<Broker>): Promise<Broker> {
+    const response = await this.client.put<{ success: boolean; data: Broker }>(`/brokers/${id}`, data);
+    return response.data.data;
+  }
+
+  async deleteBroker(id: string): Promise<void> {
+    await this.client.delete(`/brokers/${id}`);
+  }
+
+  async activateBroker(id: string): Promise<void> {
+    await this.client.post(`/brokers/${id}/activate`);
+  }
+
+  async deactivateBroker(id: string): Promise<void> {
+    await this.client.post(`/brokers/${id}/deactivate`);
+  }
+
+  async uploadBrokerPhoto(id: string, file: File): Promise<{ photo_url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.client.post<{ success: boolean; data: { photo_url: string } }>(
+      `/brokers/${id}/photo`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data;
+  }
+
+  async deleteBrokerPhoto(id: string): Promise<void> {
+    await this.client.delete(`/brokers/${id}/photo`);
+  }
+
+  // ========== USERS (Administrative Users - NOT Brokers) ==========
+
+  async getUsers(activeOnly?: boolean): Promise<User[]> {
+    const params = new URLSearchParams();
+    if (activeOnly) params.append('active', 'true');
+
+    const response = await this.client.get<User[]>(`/users?${params.toString()}`);
+    return response.data;
+  }
+
+  async getUser(id: string): Promise<User> {
+    const response = await this.client.get<User>(`/users/${id}`);
+    return response.data;
+  }
+
+  async createUser(data: CreateUserRequest): Promise<User> {
+    const response = await this.client.post<User>('/users', data);
+    return response.data;
+  }
+
+  async updateUser(id: string, data: UpdateUserRequest): Promise<User> {
+    const response = await this.client.put<User>(`/users/${id}`, data);
+    return response.data;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await this.client.delete(`/users/${id}`);
+  }
+
+  async grantPermission(userId: string, permission: string): Promise<void> {
+    const data: GrantPermissionRequest = { permission };
+    await this.client.post(`/users/${userId}/permissions`, data);
+  }
+
+  async revokePermission(userId: string, permission: string): Promise<void> {
+    await this.client.delete(`/users/${userId}/permissions/${permission}`);
   }
 
   // ========== IMPORTS ==========

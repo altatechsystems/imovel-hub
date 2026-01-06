@@ -154,7 +154,7 @@ export default function BrokersPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Corretores</h1>
             <p className="text-sm md:text-base text-gray-600 mt-1">
-              Gerencie os corretores da sua imobiliária
+              Gerencie os corretores da sua imobiliária (CRECI obrigatório)
             </p>
           </div>
           <button
@@ -164,6 +164,33 @@ export default function BrokersPage() {
             <Plus className="w-5 h-5" />
             <span>Novo Corretor</span>
           </button>
+        </div>
+
+        {/* Info Box */}
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Shield className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 mb-2">
+                Sobre os Corretores
+              </h3>
+              <p className="text-sm text-blue-800 mb-3">
+                Esta página lista apenas <strong>corretores credenciados</strong> com CRECI obrigatório.
+              </p>
+              <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-lg p-3">
+                <Shield className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                <p className="text-sm text-blue-900">
+                  Para gerenciar <strong>usuários administrativos</strong> (sem CRECI), acesse{' '}
+                  <a
+                    href="/dashboard/equipe"
+                    className="inline-flex items-center gap-1 font-bold text-blue-700 hover:text-blue-900 underline"
+                  >
+                    Equipe no menu lateral
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

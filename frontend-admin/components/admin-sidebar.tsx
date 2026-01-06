@@ -9,6 +9,7 @@ import {
   Building2,
   Users,
   UserCog,
+  Shield,
   MessageSquare,
   Upload,
   BarChart3,
@@ -44,6 +45,11 @@ const menuItems = [
     title: 'Corretores',
     href: '/dashboard/corretores',
     icon: UserCog,
+  },
+  {
+    title: 'Equipe',
+    href: '/dashboard/equipe',
+    icon: Shield,
   },
   {
     title: 'Confirmações',

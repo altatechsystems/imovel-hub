@@ -132,6 +132,7 @@ func initializeFirebase(ctx context.Context, cfg *config.Config) (*firebase.App,
 type Repositories struct {
 	TenantRepo                    *repositories.TenantRepository
 	BrokerRepo                    *repositories.BrokerRepository
+	UserRepo                      *repositories.UserRepository                      // Administrative users (PROMPT 10)
 	OwnerRepo                     *repositories.OwnerRepository
 	PropertyRepo                  *repositories.PropertyRepository
 	ListingRepo                   *repositories.ListingRepository
@@ -147,6 +148,7 @@ func initializeRepositories(client *firestore.Client) *Repositories {
 	return &Repositories{
 		TenantRepo:                 repositories.NewTenantRepository(client),
 		BrokerRepo:                 repositories.NewBrokerRepository(client),
+		UserRepo:                   repositories.NewUserRepository(client),                    // PROMPT 10
 		OwnerRepo:                  repositories.NewOwnerRepository(client),
 		PropertyRepo:               repositories.NewPropertyRepository(client),
 		ListingRepo:                repositories.NewListingRepository(client),
@@ -162,6 +164,7 @@ func initializeRepositories(client *firestore.Client) *Repositories {
 type Services struct {
 	TenantService                 *services.TenantService
 	BrokerService                 *services.BrokerService
+	UserService                   *services.UserService                   // Administrative users (PROMPT 10)
 	OwnerService                  *services.OwnerService
 	PropertyService               *services.PropertyService
 	ListingService                *services.ListingService
@@ -248,6 +251,11 @@ func initializeServices(ctx context.Context, cfg *config.Config, repos *Reposito
 			repos.PropertyRepo,
 			repos.ListingRepo,
 		),
+		UserService: services.NewUserService( // PROMPT 10
+			repos.UserRepo,
+			repos.TenantRepo,
+			repos.ActivityLogRepo,
+		),
 		OwnerService: services.NewOwnerService(
 			repos.OwnerRepo,
 			repos.TenantRepo,
@@ -292,6 +300,7 @@ type Handlers struct {
 	AuthHandler                  *handlers.AuthHandler
 	TenantHandler                *handlers.TenantHandler
 	BrokerHandler                *handlers.BrokerHandler
+	UserHandler                  *handlers.UserHandler                  // Administrative users (PROMPT 10)
 	OwnerHandler                 *handlers.OwnerHandler
 	PropertyHandler              *handlers.PropertyHandler
 	ListingHandler               *handlers.ListingHandler
@@ -315,6 +324,7 @@ func initializeHandlers(authClient *auth.Client, firestoreClient *firestore.Clie
 		AuthHandler:                  handlers.NewAuthHandler(authClient, firestoreClient),
 		TenantHandler:                handlers.NewTenantHandler(services.TenantService),
 		BrokerHandler:                handlers.NewBrokerHandler(services.BrokerService, services.StorageService),
+		UserHandler:                  handlers.NewUserHandler(services.UserService),                               // PROMPT 10
 		OwnerHandler:                 handlers.NewOwnerHandler(services.OwnerService),
 		PropertyHandler:              handlers.NewPropertyHandler(services.PropertyService),
 		ListingHandler:               handlers.NewListingHandler(services.ListingService),
@@ -417,6 +427,7 @@ func setupRouter(cfg *config.Config, handlers *Handlers, authMiddleware *middlew
 			// Admin-only routes
 			handlers.PropertyHandler.RegisterRoutes(tenantScoped)
 			handlers.BrokerHandler.RegisterRoutes(tenantScoped)
+			handlers.UserHandler.RegisterRoutes(tenantScoped) // PROMPT 10
 			handlers.OwnerHandler.RegisterRoutes(tenantScoped)
 			handlers.ListingHandler.RegisterRoutes(tenantScoped)
 			handlers.PropertyBrokerRoleHandler.RegisterRoutes(tenantScoped)
