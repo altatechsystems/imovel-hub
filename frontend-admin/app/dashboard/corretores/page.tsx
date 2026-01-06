@@ -20,6 +20,7 @@ export default function BrokersPage() {
     },
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
@@ -61,7 +62,11 @@ export default function BrokersPage() {
 
       const data = await response.json();
 
-      const brokersData = data.data || [];
+      // Filter only brokers with CRECI (real estate agents)
+      // Administrative users without CRECI should be managed in the "Equipe" page
+      const brokersData = (data.data || []).filter((broker: Broker) =>
+        broker.creci && broker.creci.trim() !== ''
+      );
 
       setBrokers(brokersData);
       calculateStats(brokersData);
