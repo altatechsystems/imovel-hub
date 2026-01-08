@@ -147,10 +147,8 @@ export default function BrokerProfilePage() {
         ]}
       />
 
-      {/* Main Content */}
-      <div>
-        {/* Header */}
-        <header className="bg-white border-b sticky top-0 z-50">
+      {/* Header */}
+      <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2">
@@ -397,6 +395,5 @@ export default function BrokerProfilePage() {
           </div>
         </div>
       </div>
-    </div>
   );
 }
