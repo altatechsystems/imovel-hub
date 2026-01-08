@@ -52,16 +52,20 @@ jobs:
           mkdir -p config
           echo '${{ secrets.FIREBASE_ADMIN_SDK_DEV }}' > config/firebase-adminsdk.json
 
-      - name: Build and deploy to Cloud Run
+      - name: Configure Docker for GCR
+        run: |
+          gcloud auth configure-docker --quiet
+
+      - name: Build and push Docker image
         working-directory: ./backend
         run: |
-          gcloud builds submit \
-            --tag gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api \
-            --project=${{ secrets.GCP_PROJECT_ID_DEV }} \
-            --suppress-logs
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api:latest .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api:latest
 
+      - name: Deploy to Cloud Run
+        run: |
           gcloud run deploy backend-api \
-            --image gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api:latest \
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
@@ -116,16 +120,20 @@ jobs:
           mkdir -p config
           echo '${{ secrets.FIREBASE_ADMIN_SDK_PROD }}' > config/firebase-adminsdk.json
 
-      - name: Build and deploy to Cloud Run
+      - name: Configure Docker for GCR
+        run: |
+          gcloud auth configure-docker --quiet
+
+      - name: Build and push Docker image
         working-directory: ./backend
         run: |
-          gcloud builds submit \
-            --tag gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api \
-            --project=${{ secrets.GCP_PROJECT_ID_PROD }} \
-            --suppress-logs
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api:latest .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api:latest
 
+      - name: Deploy to Cloud Run
+        run: |
           gcloud run deploy backend-api \
-            --image gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api:latest \
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
