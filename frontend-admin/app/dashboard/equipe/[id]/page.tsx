@@ -181,8 +181,8 @@ export default function EditUserPage() {
       title: 'Leads',
       permissions: [
         { key: STANDARD_PERMISSIONS.LEAD_VIEW, label: 'Visualizar leads' },
-        { key: STANDARD_PERMISSIONS.LEAD_MANAGE, label: 'Gerenciar leads' },
-        { key: STANDARD_PERMISSIONS.LEAD_ASSIGN, label: 'Atribuir leads' },
+        { key: STANDARD_PERMISSIONS.LEAD_CREATE, label: 'Criar leads' },
+        { key: STANDARD_PERMISSIONS.LEAD_UPDATE, label: 'Atualizar leads' },
         { key: STANDARD_PERMISSIONS.LEAD_DELETE, label: 'Excluir leads' },
       ],
     },
