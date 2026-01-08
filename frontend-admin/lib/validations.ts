@@ -15,8 +15,8 @@ export const userSchema = z.object({
   email: z.string().email('Email inválido'),
   phone: z.string().optional(),
   document: z.string().optional(),
-  document_type: z.enum(['cpf', 'cnpj']).optional(),
-  role: z.enum(['admin', 'manager'], {
+  document_type: z.enum(['cpf', 'cnpj'] as const).optional(),
+  role: z.enum(['admin', 'manager'] as const, {
     errorMap: () => ({ message: 'Perfil inválido' })
   }),
   is_active: z.boolean().default(true),
@@ -43,7 +43,7 @@ export type SignupFormData = z.infer<typeof signupSchema>;
 
 // Property import validation
 export const importSchema = z.object({
-  source: z.enum(['union', 'other']),
+  source: z.enum(['union', 'other'] as const),
   xml: z.instanceof(File).optional(),
   xls: z.instanceof(File).optional(),
 }).refine(
