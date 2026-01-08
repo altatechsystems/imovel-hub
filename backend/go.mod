@@ -1,6 +1,6 @@
 module github.com/altatech/ecosistema-imob/backend
 
-go 1.25.0
+go 1.23
 
 require (
 	cloud.google.com/go/firestore v1.20.0
