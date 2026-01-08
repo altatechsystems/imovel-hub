@@ -1,0 +1,138 @@
+name: Backend Deploy
+
+on:
+  push:
+    branches:
+      - develop  # Deploy automático para DEV
+      - main     # Deploy para PROD (requer aprovação)
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-deploy.yml'
+
+  workflow_dispatch:  # Permite deploy manual
+
+env:
+  GO_VERSION: '1.21'
+  REGION: 'southamerica-east1'
+
+jobs:
+  # Job para ambiente DEV
+  deploy-dev:
+    name: Deploy Backend to DEV
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run tests
+        working-directory: ./backend
+        run: |
+          go test -v ./...
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_DEV }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Create Firebase config
+        working-directory: ./backend
+        run: |
+          mkdir -p config
+          echo '${{ secrets.FIREBASE_ADMIN_SDK_DEV }}' > config/firebase-adminsdk.json
+
+      - name: Build and deploy to Cloud Run
+        working-directory: ./backend
+        run: |
+          gcloud builds submit \
+            --tag gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api \
+            --project=${{ secrets.GCP_PROJECT_ID_DEV }}
+
+          gcloud run deploy backend-api \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars "ENVIRONMENT=development,FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID_DEV }},GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME_DEV }},PORT=8080,GIN_MODE=debug" \
+            --project=${{ secrets.GCP_PROJECT_ID_DEV }}
+
+      - name: Get service URL
+        run: |
+          URL=$(gcloud run services describe backend-api \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --format 'value(status.url)' \
+            --project=${{ secrets.GCP_PROJECT_ID_DEV }})
+          echo "Backend DEV deployed to: $URL"
+          echo "::notice title=Deployment Success::Backend DEV deployed to $URL"
+
+  # Job para ambiente PROD (requer aprovação manual)
+  deploy-prod:
+    name: Deploy Backend to PROD
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://api.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run tests
+        working-directory: ./backend
+        run: |
+          go test -v ./...
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Create Firebase config
+        working-directory: ./backend
+        run: |
+          mkdir -p config
+          echo '${{ secrets.FIREBASE_ADMIN_SDK_PROD }}' > config/firebase-adminsdk.json
+
+      - name: Build and deploy to Cloud Run
+        working-directory: ./backend
+        run: |
+          gcloud builds submit \
+            --tag gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api \
+            --project=${{ secrets.GCP_PROJECT_ID_PROD }}
+
+          gcloud run deploy backend-api \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars "ENVIRONMENT=production,FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID_PROD }},GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME_PROD }},PORT=8080,GIN_MODE=release" \
+            --project=${{ secrets.GCP_PROJECT_ID_PROD }}
+
+      - name: Get service URL
+        run: |
+          URL=$(gcloud run services describe backend-api \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --format 'value(status.url)' \
+            --project=${{ secrets.GCP_PROJECT_ID_PROD }})
+          echo "Backend PROD deployed to: $URL"
+          echo "::notice title=Deployment Success::Backend PROD deployed to $URL"

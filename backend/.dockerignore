@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+
+# Binários
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+server
+server.exe
+
+# Testes
+*_test.go
+tests/
+
+# Logs
+*.log
+*.log.*
+
+# Dados temporários
+*.tmp
+*.temp
+temp/
+tmp/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentação
+*.md
+docs/
+
+# Scripts
+scripts/
+
+# Configurações locais
+.env
+.env.*
+config/firebase-adminsdk.json
+
+# Dados de teste
+*.csv
+*.xml
+*.xlsx
+*.xls
+*.json
+!go.json
+
+# Build artifacts
+bin/

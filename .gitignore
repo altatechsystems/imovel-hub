@@ -29,6 +29,10 @@ backend/config/firebase-adminsdk.json
 .gcp/
 gcloud/
 
+# GCP Keys (CI/CD setup)
+.gcp-keys/
+*-key.json
+
 # Node.js
 node_modules/
 npm-debug.log*
