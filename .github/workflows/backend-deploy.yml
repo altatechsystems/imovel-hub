@@ -57,7 +57,8 @@ jobs:
         run: |
           gcloud builds submit \
             --tag gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api \
-            --project=${{ secrets.GCP_PROJECT_ID_DEV }}
+            --project=${{ secrets.GCP_PROJECT_ID_DEV }} \
+            --suppress-logs
 
           gcloud run deploy backend-api \
             --image gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api \
@@ -120,7 +121,8 @@ jobs:
         run: |
           gcloud builds submit \
             --tag gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api \
-            --project=${{ secrets.GCP_PROJECT_ID_PROD }}
+            --project=${{ secrets.GCP_PROJECT_ID_PROD }} \
+            --suppress-logs
 
           gcloud run deploy backend-api \
             --image gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api \
