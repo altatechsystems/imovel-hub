@@ -232,7 +232,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                 flexWrap: 'wrap',
               }}
             >
-              {specialtiesList.map((specialty, index) => (
+              {specialtiesList.map((specialty: string, index: number) => (
                 <div
                   key={index}
                   style={{
