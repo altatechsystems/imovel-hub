@@ -137,7 +137,7 @@ export default function BrokerProfilePage() {
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-white">
       {/* SEO Structured Data */}
       <BreadcrumbStructuredData
         items={[
@@ -147,7 +147,8 @@ export default function BrokerProfilePage() {
         ]}
       />
 
-      <div className="min-h-screen bg-white">
+      {/* Main Content */}
+      <div>
         {/* Header */}
         <header className="bg-white border-b sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3">
@@ -396,6 +397,6 @@ export default function BrokerProfilePage() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
