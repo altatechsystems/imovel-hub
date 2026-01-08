@@ -199,7 +199,27 @@ export default function EditUserPage() {
       title: 'Corretores',
       permissions: [
         { key: STANDARD_PERMISSIONS.BROKER_VIEW, label: 'Visualizar corretores' },
-        { key: STANDARD_PERMISSIONS.BROKER_MANAGE, label: 'Gerenciar corretores' },
+        { key: STANDARD_PERMISSIONS.BROKER_CREATE, label: 'Criar corretores' },
+        { key: STANDARD_PERMISSIONS.BROKER_UPDATE, label: 'Editar corretores' },
+        { key: STANDARD_PERMISSIONS.BROKER_DELETE, label: 'Excluir corretores' },
+      ],
+    },
+    {
+      title: 'Anúncios',
+      permissions: [
+        { key: STANDARD_PERMISSIONS.LISTING_VIEW, label: 'Visualizar anúncios' },
+        { key: STANDARD_PERMISSIONS.LISTING_CREATE, label: 'Criar anúncios' },
+        { key: STANDARD_PERMISSIONS.LISTING_UPDATE, label: 'Editar anúncios' },
+        { key: STANDARD_PERMISSIONS.LISTING_DELETE, label: 'Excluir anúncios' },
+      ],
+    },
+    {
+      title: 'Usuários',
+      permissions: [
+        { key: STANDARD_PERMISSIONS.USER_VIEW, label: 'Visualizar usuários' },
+        { key: STANDARD_PERMISSIONS.USER_CREATE, label: 'Criar usuários' },
+        { key: STANDARD_PERMISSIONS.USER_UPDATE, label: 'Editar usuários' },
+        { key: STANDARD_PERMISSIONS.USER_DELETE, label: 'Excluir usuários' },
       ],
     },
     {
@@ -210,12 +230,10 @@ export default function EditUserPage() {
       ],
     },
     {
-      title: 'Sistema',
+      title: 'Configurações',
       permissions: [
         { key: STANDARD_PERMISSIONS.SETTINGS_VIEW, label: 'Visualizar configurações' },
-        { key: STANDARD_PERMISSIONS.SETTINGS_EDIT, label: 'Editar configurações' },
-        { key: STANDARD_PERMISSIONS.USER_MANAGE, label: 'Gerenciar usuários' },
-        { key: STANDARD_PERMISSIONS.IMPORT_DATA, label: 'Importar dados' },
+        { key: STANDARD_PERMISSIONS.SETTINGS_UPDATE, label: 'Editar configurações' },
       ],
     },
   ];
