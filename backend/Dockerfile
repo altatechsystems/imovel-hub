@@ -1,6 +1,9 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
+# Permitir download automático de toolchain
+ENV GOTOOLCHAIN=auto
+
 # Instalar certificados SSL e outras dependências
 RUN apk add --no-cache ca-certificates git
 
