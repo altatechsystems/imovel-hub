@@ -40,7 +40,14 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   console.log('[AuthProvider] Initializing...');
 
-  const router = useRouter();
+  let router;
+  try {
+    router = useRouter();
+    console.log('[AuthProvider] useRouter initialized');
+  } catch (error) {
+    console.error('[AuthProvider] ❌ useRouter failed:', error);
+    throw error;
+  }
 
   // Firebase user state
   const [user, setUser] = useState<FirebaseUser | null>(null);
