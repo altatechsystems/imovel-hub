@@ -45,8 +45,8 @@ scripts/
 
 # Configurações locais
 .env
-.env.*
-config/firebase-adminsdk.json
+.env.local
+.env.*.local
 
 # Dados de teste
 *.csv
