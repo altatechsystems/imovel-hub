@@ -38,6 +38,8 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  console.log('[AuthProvider] Initializing...');
+
   const router = useRouter();
 
   // Firebase user state
@@ -51,24 +53,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Tenant management (for future)
   const [availableTenants, setAvailableTenants] = useState<Tenant[]>([]);
 
+  console.log('[AuthProvider] State initialized', { loading, user: !!user, tenantId });
+
   // Extract tenant_id and user profile from Firebase custom claims
   const extractUserInfoFromToken = async (firebaseUser: FirebaseUser) => {
+    console.log('[AuthProvider] Extracting user info from token...', { uid: firebaseUser.uid });
+
     try {
       const tokenResult = await firebaseUser.getIdTokenResult();
       const claims = tokenResult.claims;
+      console.log('[AuthProvider] Token claims:', claims);
 
       // Extract tenant_id from custom claims
       const extractedTenantId = claims.tenant_id as string | undefined;
+      console.log('[AuthProvider] Extracted tenant_id:', extractedTenantId);
 
       if (extractedTenantId) {
         setTenantId(extractedTenantId);
 
         // Update API client with tenant
         api.setTenant(extractedTenantId);
+        console.log('[AuthProvider] API client tenant set to:', extractedTenantId);
 
         // Store in sessionStorage as backup for UX (only in browser)
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('tenant_id', extractedTenantId);
+          console.log('[AuthProvider] Stored tenant_id in sessionStorage');
         }
 
         // Build user profile from claims and localStorage (legacy)
@@ -90,14 +100,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         setUserProfile(profile);
+        console.log('[AuthProvider] User profile set:', profile);
       } else {
-        console.error('No tenant_id found in custom claims');
+        console.error('[AuthProvider] ❌ No tenant_id found in custom claims');
         // Clear state if no tenant
         setTenantId(null);
         setUserProfile(null);
       }
     } catch (error) {
-      console.error('Error extracting user info from token:', error);
+      console.error('[AuthProvider] ❌ Error extracting user info from token:', error);
       setTenantId(null);
       setUserProfile(null);
     }
@@ -105,24 +116,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Listen to Firebase auth state changes
   useEffect(() => {
+    console.log('[AuthProvider] useEffect running...');
+
     // Only run on client side
     if (typeof window === 'undefined') {
+      console.log('[AuthProvider] ⚠️ Not on client side, skipping auth setup');
       setLoading(false);
       return;
     }
 
     if (!auth) {
+      console.log('[AuthProvider] ⚠️ Firebase Auth not initialized');
       setLoading(false);
       return;
     }
 
+    console.log('[AuthProvider] ✅ Setting up Firebase Auth listener...');
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('[AuthProvider] Auth state changed:', firebaseUser ? `User: ${firebaseUser.email}` : 'No user');
       setUser(firebaseUser);
 
       if (firebaseUser) {
         // Extract tenant and user info from custom claims
         await extractUserInfoFromToken(firebaseUser);
       } else {
+        console.log('[AuthProvider] Clearing auth state...');
         // Clear state on logout
         setUserProfile(null);
         setTenantId(null);
@@ -132,24 +151,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setLoading(false);
+      console.log('[AuthProvider] Loading complete');
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('[AuthProvider] Cleaning up auth listener');
+      unsubscribe();
+    };
   }, []);
 
   // Login function
   const login = async (email: string, password: string) => {
+    console.log('[AuthProvider] Login attempt:', email);
+
     // Ensure we're on client side
     if (typeof window === 'undefined') {
+      console.error('[AuthProvider] ❌ Login called on server side');
       throw new Error('Login can only be called on client side');
     }
 
     if (!auth) {
+      console.error('[AuthProvider] ❌ Firebase Auth not initialized');
       throw new Error('Firebase Auth not initialized');
     }
 
     try {
       setLoading(true);
+      console.log('[AuthProvider] Calling backend login API...');
 
       // Call backend API login endpoint
       const response = await fetch(`${API_URL}/auth/login`, {
@@ -160,16 +188,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
+      console.log('[AuthProvider] Backend response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('[AuthProvider] ❌ Backend login failed:', errorData);
         throw new Error(errorData.error || 'Erro ao fazer login');
       }
 
       const data = await response.json();
+      console.log('[AuthProvider] ✅ Backend login successful:', { tenant_id: data.tenant_id, broker: data.broker });
 
       // Sign in with custom token from backend
       // This will trigger onAuthStateChanged above
+      console.log('[AuthProvider] Signing in with custom token...');
       await signInWithCustomToken(auth, data.firebase_token);
+      console.log('[AuthProvider] ✅ Firebase sign-in successful');
 
       // Store additional data in localStorage (legacy support)
       // TODO: Remove once we fetch full profile from backend
@@ -177,11 +211,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('broker_role', data.broker.role);
       localStorage.setItem('broker_name', data.broker.name);
       localStorage.setItem('is_platform_admin', data.is_platform_admin ? 'true' : 'false');
+      console.log('[AuthProvider] Stored broker data in localStorage');
 
       // Redirect to dashboard
+      console.log('[AuthProvider] Redirecting to dashboard...');
       router.push('/dashboard');
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('[AuthProvider] ❌ Login error:', error);
       throw error;
     } finally {
       setLoading(false);
