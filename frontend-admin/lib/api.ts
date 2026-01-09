@@ -87,8 +87,8 @@ class AdminApiClient {
     this.currentTenantId = tenantId;
   }
 
-  // Get current tenant
-  getTenant(): string | null {
+  // Get current tenant ID from memory (not from API)
+  getCurrentTenantId(): string | null {
     return this.currentTenantId;
   }
 
