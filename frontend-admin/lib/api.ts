@@ -387,7 +387,7 @@ class AdminApiClient {
     }
 
     const response = await this.client.post(
-      `/tenants/${this.tenantId}/import`,
+      `/tenants/${this.currentTenantId}/import`,
       formData,
       {
         headers: {
@@ -509,5 +509,10 @@ class AdminApiClient {
   }
 }
 
-export const adminApi = new AdminApiClient();
-export default adminApi;
+// Export singleton instance
+const adminApiInstance = new AdminApiClient();
+
+// Export with both names for compatibility
+export const api = adminApiInstance;
+export const adminApi = adminApiInstance;
+export default adminApiInstance;
