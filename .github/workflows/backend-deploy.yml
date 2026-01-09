@@ -52,20 +52,28 @@ jobs:
           mkdir -p config
           echo '${{ secrets.FIREBASE_ADMIN_SDK_DEV }}' > config/firebase-adminsdk.json
 
-      - name: Configure Docker for GCR
+      - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker gcr.io --quiet
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Create Artifact Registry repository if not exists
+        run: |
+          gcloud artifacts repositories create backend \
+            --repository-format=docker \
+            --location=${{ env.REGION }} \
+            --description="Backend API Docker images" \
+            --project=${{ secrets.GCP_PROJECT_ID_DEV }} || true
 
       - name: Build and push Docker image
         working-directory: ./backend
         run: |
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api:latest .
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api:latest
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/backend/backend-api:latest .
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/backend/backend-api:latest
 
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy backend-api \
-            --image gcr.io/${{ secrets.GCP_PROJECT_ID_DEV }}/backend-api:latest \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_DEV }}/backend/backend-api:latest \
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
@@ -120,20 +128,28 @@ jobs:
           mkdir -p config
           echo '${{ secrets.FIREBASE_ADMIN_SDK_PROD }}' > config/firebase-adminsdk.json
 
-      - name: Configure Docker for GCR
+      - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker gcr.io --quiet
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Create Artifact Registry repository if not exists
+        run: |
+          gcloud artifacts repositories create backend \
+            --repository-format=docker \
+            --location=${{ env.REGION }} \
+            --description="Backend API Docker images" \
+            --project=${{ secrets.GCP_PROJECT_ID_PROD }} || true
 
       - name: Build and push Docker image
         working-directory: ./backend
         run: |
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api:latest .
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api:latest
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_PROD }}/backend/backend-api:latest .
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_PROD }}/backend/backend-api:latest
 
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy backend-api \
-            --image gcr.io/${{ secrets.GCP_PROJECT_ID_PROD }}/backend-api:latest \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID_PROD }}/backend/backend-api:latest \
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
