@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/altatech/ecosistema-imob/backend/internal/models"
 	"github.com/altatech/ecosistema-imob/backend/internal/repositories"
 	"github.com/altatech/ecosistema-imob/backend/internal/services"
 	"github.com/gin-gonic/gin"
@@ -48,12 +49,13 @@ func (h *PublicPropertyHandler) ListPublicProperties(c *gin.Context) {
 	filters := &repositories.PropertyFilters{}
 
 	if propertyType := c.Query("property_type"); propertyType != "" {
-		// Type conversion handled at service layer
-		filters.PropertyType = (*repositories.PropertyType)(&propertyType)
+		propType := models.PropertyType(propertyType)
+		filters.PropertyType = &propType
 	}
 
 	if transactionType := c.Query("transaction_type"); transactionType != "" {
-		filters.TransactionType = (*repositories.TransactionType)(&transactionType)
+		transType := models.TransactionType(transactionType)
+		filters.TransactionType = &transType
 	}
 
 	if city := c.Query("city"); city != "" {
