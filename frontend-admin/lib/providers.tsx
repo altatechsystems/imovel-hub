@@ -2,7 +2,7 @@
 
 import { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/contexts/auth-context';
+import { ClientOnlyAuthProvider } from '@/components/client-only-auth-provider';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -21,10 +21,10 @@ export interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <AuthProvider>
+    <ClientOnlyAuthProvider>
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>
-    </AuthProvider>
+    </ClientOnlyAuthProvider>
   );
 }
