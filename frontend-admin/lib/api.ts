@@ -30,32 +30,34 @@ import type {
 
 class AdminApiClient {
   private client: AxiosInstance;
-  private tenantId: string;
+  private currentTenantId: string | null = null;
 
   constructor() {
-    this.tenantId = process.env.NEXT_PUBLIC_TENANT_ID || '';
-
-    // Add tenant_id to base URL for admin routes
-    const baseURL = process.env.NEXT_PUBLIC_ADMIN_API_URL;
-    const adminBaseURL = baseURL?.endsWith('/admin')
-      ? `${baseURL}/${this.tenantId}`
-      : baseURL;
+    // Base URL WITHOUT tenant_id - tenant will be injected dynamically
+    const baseURL = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:8080/api/v1/admin';
 
     this.client = axios.create({
-      baseURL: adminBaseURL,
+      baseURL,
       headers: {
         'Content-Type': 'application/json',
       },
       timeout: 30000, // 30s for admin operations
     });
 
-    // Request interceptor - add auth token
+    // Request interceptor - add auth token AND inject tenant_id into URL
     this.client.interceptors.request.use(
       async (config) => {
+        // Add auth token
         if (auth?.currentUser) {
           const token = await auth.currentUser.getIdToken();
           config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // Inject tenant_id into URL dynamically
+        if (this.currentTenantId && config.url) {
+          config.url = `/${this.currentTenantId}${config.url}`;
+        }
+
         return config;
       },
       (error) => Promise.reject(error)
@@ -78,6 +80,16 @@ class AdminApiClient {
         return Promise.reject(error);
       }
     );
+  }
+
+  // Called by AuthContext when tenant changes
+  setTenant(tenantId: string) {
+    this.currentTenantId = tenantId;
+  }
+
+  // Get current tenant
+  getTenant(): string | null {
+    return this.currentTenantId;
   }
 
   // ========== PROPERTIES ==========
