@@ -281,83 +281,42 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 2. Try to find in /brokers collection first (real estate agents with CRECI)
-	log.Printf("Looking for broker with firebase_uid: %s", userRecord.UID)
-	brokersQuery := h.firestoreDB.CollectionGroup("brokers").
+	// 2. Find user in /users collection (includes both brokers and admin users)
+	log.Printf("Looking for user with firebase_uid: %s", userRecord.UID)
+	usersQuery := h.firestoreDB.CollectionGroup("users").
 		Where("firebase_uid", "==", userRecord.UID).
 		Limit(1)
 
-	brokerDocs, err := brokersQuery.Documents(ctx).GetAll()
+	userDocs, err := usersQuery.Documents(ctx).GetAll()
 	if err != nil {
-		log.Printf("Error querying brokers: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query brokers"})
+		log.Printf("Error querying users: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query users"})
 		return
 	}
 
-	// 3. If not found in /brokers, try /users collection (administrative users without CRECI)
-	var tenantID string
-	var role string
-	var entityID string
-	var entityName string
-	var entityEmail string
-	var isActive bool
-
-	if len(brokerDocs) > 0 {
-		// Found as Broker
-		brokerDoc := brokerDocs[0]
-		var broker models.Broker
-		if err := brokerDoc.DataTo(&broker); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load broker data"})
-			return
-		}
-		broker.ID = brokerDoc.Ref.ID
-
-		tenantID = broker.TenantID
-		role = broker.Role
-		entityID = broker.ID
-		entityName = broker.Name
-		entityEmail = broker.Email
-		isActive = broker.IsActive
-
-		log.Printf("✅ Found as Broker: %s (tenant: %s, role: %s)", broker.ID, broker.TenantID, broker.Role)
-	} else {
-		// Not found in brokers, search in users
-		log.Printf("Not found in brokers, searching in users...")
-		usersQuery := h.firestoreDB.CollectionGroup("users").
-			Where("firebase_uid", "==", userRecord.UID).
-			Limit(1)
-
-		userDocs, err := usersQuery.Documents(ctx).GetAll()
-		if err != nil {
-			log.Printf("Error querying users: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query users"})
-			return
-		}
-
-		if len(userDocs) == 0 {
-			log.Printf("❌ User not found in brokers or users for firebase_uid: %s (email: %s)", userRecord.UID, userRecord.Email)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found. Please contact your administrator."})
-			return
-		}
-
-		// Found as User
-		userDoc := userDocs[0]
-		var user models.User
-		if err := userDoc.DataTo(&user); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load user data"})
-			return
-		}
-		user.ID = userDoc.Ref.ID
-
-		tenantID = user.TenantID
-		role = user.Role
-		entityID = user.ID
-		entityName = user.Name
-		entityEmail = user.Email
-		isActive = user.IsActive
-
-		log.Printf("✅ Found as User: %s (tenant: %s, role: %s)", user.ID, user.TenantID, user.Role)
+	if len(userDocs) == 0 {
+		log.Printf("❌ User not found for firebase_uid: %s (email: %s)", userRecord.UID, userRecord.Email)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found. Please contact your administrator."})
+		return
 	}
+
+	// 3. Load user data
+	userDoc := userDocs[0]
+	var user models.User
+	if err := userDoc.DataTo(&user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load user data"})
+		return
+	}
+	user.ID = userDoc.Ref.ID
+
+	tenantID := user.TenantID
+	role := user.Role
+	entityID := user.ID
+	entityName := user.Name
+	entityEmail := user.Email
+	isActive := user.IsActive
+
+	log.Printf("✅ Found user: %s (tenant: %s, role: %s)", user.ID, user.TenantID, user.Role)
 
 	// 4. Check if account is active
 	if !isActive {
