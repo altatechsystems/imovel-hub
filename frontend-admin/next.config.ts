@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Force rebuild with correct environment variables
+  generateBuildId: async () => {
+    return `build-${Date.now()}`;
+  },
   images: {
     remotePatterns: [
       {
