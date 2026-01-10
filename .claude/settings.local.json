@@ -456,7 +456,8 @@
       "Bash(node check_leads.js:*)",
       "Bash(gcloud run services list:*)",
       "Bash(export NEXT_PUBLIC_API_URL=\"https://backend-api-333057134750.southamerica-east1.run.app/api/v1\")",
-      "Bash(gcloud run services update:*)"
+      "Bash(gcloud run services update:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": [],
     "ask": []
