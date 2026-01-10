@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, Users, UserCheck, UserX, Shield } from 'lucide-react';
 import { Broker, BrokerStats } from '@/types/broker';
+import { useTenant } from '@/contexts/tenant-context';
 
 export default function BrokersPage() {
   const router = useRouter();
+  const { effectiveTenantId } = useTenant();
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [stats, setStats] = useState<BrokerStats>({
     total: 0,
@@ -26,15 +28,16 @@ export default function BrokersPage() {
   const [filterRole, setFilterRole] = useState<string>('all');
 
   useEffect(() => {
-    fetchBrokers();
-  }, []);
+    if (effectiveTenantId) {
+      fetchBrokers();
+    }
+  }, [effectiveTenantId]);
 
   const fetchBrokers = async () => {
     try {
       setLoading(true);
-      const tenantId = localStorage.getItem('tenant_id');
 
-      if (!tenantId) {
+      if (!effectiveTenantId) {
         return;
       }
 
@@ -47,7 +50,7 @@ export default function BrokersPage() {
       }
 
       const token = await user.getIdToken(true);
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/brokers`;
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/admin/${effectiveTenantId}/users`;
 
       const response = await fetch(url, {
         headers: {
@@ -61,13 +64,17 @@ export default function BrokersPage() {
       }
 
       const data = await response.json();
+      console.log('📊 API Response:', data);
+      console.log('📊 Data type:', Array.isArray(data) ? 'Array' : typeof data);
 
-      // Filter only brokers with CRECI (real estate agents)
-      // Administrative users without CRECI should be managed in the "Equipe" page
-      const brokersData = (data.data || []).filter((broker: Broker) =>
-        broker.creci && broker.creci.trim() !== ''
-      );
+      // Filter only users with role "broker"
+      // Other roles (admin, manager, etc.) should be managed in the "Equipe" page
+      const brokersData = (data || []).filter((broker: Broker) => {
+        console.log('🔍 Checking user:', broker.name, 'Role:', broker.role);
+        return broker.role === 'broker' || broker.role === 'broker_admin';
+      });
 
+      console.log('✅ Filtered brokers:', brokersData.length, 'brokers found');
       setBrokers(brokersData);
       calculateStats(brokersData);
     } catch (err: any) {
@@ -147,7 +154,7 @@ export default function BrokersPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Corretores</h1>
             <p className="text-sm md:text-base text-gray-600 mt-1">
-              Gerencie os corretores da sua imobiliária (CRECI obrigatório)
+              Gerencie os corretores da sua imobiliária
             </p>
           </div>
           <button
@@ -168,12 +175,12 @@ export default function BrokersPage() {
                 Sobre os Corretores
               </h3>
               <p className="text-sm text-blue-800 mb-3">
-                Esta página lista apenas <strong>corretores credenciados</strong> com CRECI obrigatório.
+                Esta página lista apenas usuários com perfil de <strong>Corretor</strong>.
               </p>
               <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-lg p-3">
                 <Shield className="w-4 h-4 text-blue-600 flex-shrink-0" />
                 <p className="text-sm text-blue-900">
-                  Para gerenciar <strong>usuários administrativos</strong> (sem CRECI), acesse{' '}
+                  Para gerenciar <strong>usuários administrativos</strong> (Admins e Gerentes), acesse{' '}
                   <a
                     href="/dashboard/equipe"
                     className="inline-flex items-center gap-1 font-bold text-blue-700 hover:text-blue-900 underline"
@@ -249,7 +256,7 @@ export default function BrokersPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Buscar por nome, email ou CRECI..."
+                placeholder="Buscar por nome ou email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"

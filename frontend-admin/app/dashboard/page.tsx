@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { adminApi } from '@/lib/api';
+import { useAuth } from '@/hooks/use-auth';
+import { useTenant } from '@/contexts/tenant-context';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import {
   Building2,
@@ -27,72 +29,93 @@ interface DashboardMetrics {
 }
 
 export default function DashboardPage() {
+  const { effectiveTenantId, selectedTenantId } = useTenant();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadMetrics();
-  }, []);
+  // Use ref to track loading state to prevent race conditions
+  const isLoadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const loadMetrics = async () => {
+  const loadMetrics = useCallback(async () => {
+    if (!effectiveTenantId) {
+      console.error('Tenant ID não encontrado no contexto');
+      setLoading(false);
+      return;
+    }
+
+    // Se for tenant_master e não tiver tenant selecionado, não buscar métricas
+    // (tenant_master não tem imóveis próprios)
+    if (effectiveTenantId === 'tenant_master' && !selectedTenantId) {
+      console.log('[Dashboard] tenant_master selected but no specific tenant chosen, skipping metrics load');
+      setMetrics({
+        total_properties: 0,
+        available_properties: 0,
+        sold_properties: 0,
+        rented_properties: 0,
+        total_leads: 0,
+        new_leads: 0,
+        converted_leads: 0,
+        total_owners: 0,
+        total_brokers: 0,
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Evitar múltiplas chamadas simultâneas usando ref
+    if (isLoadingRef.current) {
+      console.log('[Dashboard] Already loading metrics, skipping...');
+      return;
+    }
+
+    // Cancelar requisição anterior se existir
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Criar novo AbortController
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
+      isLoadingRef.current = true;
       setLoading(true);
+      console.log('[Dashboard] Using tenant_id:', effectiveTenantId);
 
-      // Buscar dados diretamente das APIs existentes
-      const tenantId = localStorage.getItem('tenant_id');
+      // Fazer todas as requests em PARALELO para evitar erro 429
+      const [propertiesData, availableData, soldData, rentedData] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/${effectiveTenantId}/properties?limit=1`, {
+          signal: abortController.signal
+        }).then(r => r.ok ? r.json() : { total: 0 }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/${effectiveTenantId}/properties?status=available&limit=1`, {
+          signal: abortController.signal
+        }).then(r => r.ok ? r.json() : { total: 0 }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/${effectiveTenantId}/properties?status=sold&limit=1`, {
+          signal: abortController.signal
+        }).then(r => r.ok ? r.json() : { total: 0 }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/${effectiveTenantId}/properties?status=rented&limit=1`, {
+          signal: abortController.signal
+        }).then(r => r.ok ? r.json() : { total: 0 }),
+      ]);
 
-      if (!tenantId) {
-        console.error('Tenant ID não encontrado');
-        setLoading(false);
+      // Verificar se não foi abortado
+      if (abortController.signal.aborted) {
         return;
       }
 
-      // Buscar total de imóveis (usando o novo campo total da API)
-      const propertiesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/${tenantId}/properties?limit=1`);
-      if (!propertiesResponse.ok) {
-        throw new Error(`Failed to fetch properties: ${propertiesResponse.status}`);
-      }
-      const propertiesData = await propertiesResponse.json();
-      const totalProperties = propertiesData.total || 0;
-
-      // Delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Buscar imóveis disponíveis
-      const availableResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/${tenantId}/properties?status=available&limit=1`);
-      if (!availableResponse.ok) {
-        throw new Error(`Failed to fetch available properties: ${availableResponse.status}`);
-      }
-      const availableData = await availableResponse.json();
-      const availableProperties = availableData.total || 0;
-
-      // Delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Buscar imóveis vendidos
-      const soldResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/${tenantId}/properties?status=sold&limit=1`);
-      if (!soldResponse.ok) {
-        throw new Error(`Failed to fetch sold properties: ${soldResponse.status}`);
-      }
-      const soldData = await soldResponse.json();
-      const soldProperties = soldData.total || 0;
-
-      // Delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Buscar imóveis alugados
-      const rentedResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/${tenantId}/properties?status=rented&limit=1`);
-      if (!rentedResponse.ok) {
-        throw new Error(`Failed to fetch rented properties: ${rentedResponse.status}`);
-      }
-      const rentedData = await rentedResponse.json();
-      const rentedProperties = rentedData.total || 0;
+      console.log('[Dashboard] Received data:', {
+        properties: propertiesData.total,
+        available: availableData.total,
+        sold: soldData.total,
+        rented: rentedData.total
+      });
 
       setMetrics({
-        total_properties: totalProperties,
-        available_properties: availableProperties,
-        sold_properties: soldProperties,
-        rented_properties: rentedProperties,
+        total_properties: propertiesData.total || 0,
+        available_properties: availableData.total || 0,
+        sold_properties: soldData.total || 0,
+        rented_properties: rentedData.total || 0,
         total_leads: 0, // TODO: Implementar quando tiver endpoint de leads
         new_leads: 0,
         converted_leads: 0,
@@ -100,11 +123,33 @@ export default function DashboardPage() {
         total_brokers: 0,
       });
     } catch (error) {
+      // Ignorar erros de abort
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('[Dashboard] Request aborted');
+        return;
+      }
       console.error('Failed to load metrics:', error);
     } finally {
+      isLoadingRef.current = false;
       setLoading(false);
+      abortControllerRef.current = null;
     }
-  };
+  }, [effectiveTenantId]);
+
+  useEffect(() => {
+    if (effectiveTenantId) {
+      loadMetrics();
+    }
+
+    // Cleanup: cancelar requisições pendentes quando o componente for desmontado ou tenant mudar
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      isLoadingRef.current = false;
+    };
+  }, [effectiveTenantId, loadMetrics]);
 
   if (loading) {
     return (

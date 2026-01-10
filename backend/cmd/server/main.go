@@ -328,7 +328,7 @@ func initializeHandlers(authClient *auth.Client, firestoreClient *firestore.Clie
 		AuthHandler:                  handlers.NewAuthHandler(authClient, firestoreClient),
 		TenantHandler:                handlers.NewTenantHandler(services.TenantService),
 		BrokerHandler:                handlers.NewBrokerHandler(services.BrokerService, services.StorageService),
-		UserHandler:                  handlers.NewUserHandler(services.UserService),                               // PROMPT 10
+		UserHandler:                  handlers.NewUserHandler(services.UserService, services.StorageService),      // PROMPT 10
 		OwnerHandler:                 handlers.NewOwnerHandler(services.OwnerService),
 		PropertyHandler:              handlers.NewPropertyHandler(services.PropertyService),
 		ListingHandler:               handlers.NewListingHandler(services.ListingService),

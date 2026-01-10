@@ -2,7 +2,7 @@
 // Administrative users do NOT have CRECI and are stored in /tenants/{id}/users/
 // For brokers (with CRECI), see broker.ts
 
-export type UserRole = 'admin' | 'manager';
+export type UserRole = 'admin' | 'manager' | 'broker' | 'broker_admin';
 
 export interface User {
   id: string;
@@ -120,12 +120,16 @@ export function isManager(user: User): boolean {
 }
 
 // Helper function to get role display name
-export function getRoleDisplayName(role: UserRole): string {
+export function getRoleDisplayName(role: UserRole | string): string {
   switch (role) {
     case 'admin':
       return 'Administrador';
     case 'manager':
       return 'Gerente';
+    case 'broker':
+      return 'Corretor';
+    case 'broker_admin':
+      return 'Admin Imobiliária';
     default:
       return role;
   }

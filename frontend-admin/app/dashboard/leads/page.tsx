@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Users, Search, Filter, MessageSquare, Phone, Mail, UserCheck, ChevronDown } from 'lucide-react';
 import { adminApi } from '@/lib/api';
 import { Lead, LeadStatus, LeadChannel } from '@/types/lead';
+import { useTenant } from '@/contexts/tenant-context';
 
 type LeadStatusFilter = 'all' | LeadStatus;
 
 export default function LeadsPage() {
   const router = useRouter();
+  const { effectiveTenantId } = useTenant();
   const [searchTerm, setSearchTerm] = useState('');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,18 +24,26 @@ export default function LeadsPage() {
   const itemsPerPage = 20;
 
   const fetchLeads = useCallback(async () => {
+    if (!effectiveTenantId) {
+      console.log('⏳ Aguardando tenant_id...');
+      return;
+    }
+
     try {
       setLoading(true);
+      console.log('🔍 Buscando leads para tenant:', effectiveTenantId);
 
       const response = await adminApi.getLeads({}, { limit: 1000 });
 
+      console.log('✅ Leads carregados:', response.data?.length || 0);
       setLeads(response.data || []);
     } catch (err: any) {
+      console.error('❌ Erro ao buscar leads:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [effectiveTenantId]);
 
   const handleStatusChange = async (leadId: string, newStatus: LeadStatus) => {
     try {

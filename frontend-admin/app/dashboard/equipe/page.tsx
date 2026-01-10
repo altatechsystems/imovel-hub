@@ -56,7 +56,13 @@ export default function EquipePage() {
       }
 
       const data = await response.json();
-      setUsers(data || []);
+
+      // Filter out brokers - they should be managed in the "Corretores" page
+      const teamUsers = (data || []).filter((user: User) =>
+        user.role !== 'broker' && user.role !== 'broker_admin'
+      );
+
+      setUsers(teamUsers);
     } catch (err: any) {
       console.error('Error loading users:', err);
       setError(err.message || 'Erro ao carregar equipe');
@@ -147,8 +153,8 @@ export default function EquipePage() {
                 Sobre os Usuários Administrativos
               </h3>
               <p className="text-xs md:text-sm text-blue-800">
-                Esta página lista apenas <strong>usuários administrativos</strong> (sem CRECI).
-                Para gerenciar <strong>corretores</strong> (com CRECI obrigatório), acesse a página{' '}
+                Esta página lista apenas <strong>usuários administrativos</strong> (Admins e Gerentes).
+                Para gerenciar <strong>corretores</strong>, acesse a página{' '}
                 <a href="/dashboard/corretores" className="underline hover:text-blue-900 font-semibold">
                   Corretores
                 </a>.

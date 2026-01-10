@@ -49,7 +49,7 @@ export default function BrokerDetailPage() {
       const token = await user.getIdToken(true);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/brokers/${brokerId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/users/${brokerId}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -62,7 +62,7 @@ export default function BrokerDetailPage() {
       }
 
       const data = await response.json();
-      setBroker(data.data);
+      setBroker(data);
     } catch (err: any) {
       console.error('Erro ao buscar detalhes:', err);
       setError(err.message);
@@ -106,7 +106,7 @@ export default function BrokerDetailPage() {
       } = broker;
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/brokers/${brokerId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/users/${brokerId}`,
         {
           method: 'PUT',
           headers: {
@@ -182,7 +182,7 @@ export default function BrokerDetailPage() {
       formData.append('file', croppedFile);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/brokers/${brokerId}/photo`,
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/users/${brokerId}/photo`,
         {
           method: 'POST',
           headers: {
@@ -202,7 +202,8 @@ export default function BrokerDetailPage() {
       // Update broker with new photo URL
       // Add cache-busting parameter to force browser to reload the image
       if (broker) {
-        const photoUrl = data.data.photo_url;
+        // Backend returns { success: true, data: { photo_url: "...", message: "..." } }
+        const photoUrl = data.data?.photo_url || data.photo_url;
         // Check if URL already has query parameters
         const separator = photoUrl.includes('?') ? '&' : '?';
         const cacheBuster = `${separator}t=${Date.now()}`;
@@ -246,7 +247,7 @@ export default function BrokerDetailPage() {
       const token = await user.getIdToken(true);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/brokers/${brokerId}/photo`,
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/${tenantId}/users/${brokerId}/photo`,
         {
           method: 'DELETE',
           headers: {
