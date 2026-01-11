@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -226,39 +227,76 @@ func (h *ImportHandler) processImport(ctx context.Context, batch *models.ImportB
 		}
 	}
 
-	// Import properties
-	for i, xmlImovel := range xmlData.Imoveis {
-		// Find matching XLS record
-		var xlsRecord *union.XLSRecord
-		if len(xlsRecords) > 0 {
-			xlsRecord = union.FindXLSRecordByCode(xlsRecords, &xmlImovel)
+	// Import properties in batches with concurrency control
+	const batchSize = 50  // Process 50 properties at a time
+	const maxWorkers = 3  // Limit concurrent goroutines to reduce memory usage
+
+	totalProperties := len(xmlData.Imoveis)
+	semaphore := make(chan struct{}, maxWorkers)
+
+	for i := 0; i < totalProperties; i += batchSize {
+		end := i + batchSize
+		if end > totalProperties {
+			end = totalProperties
 		}
 
-		// Normalize to PropertyPayload
-		payload := union.NormalizeProperty(&xmlImovel, xlsRecord, batch.TenantID)
+		batchProperties := xmlData.Imoveis[i:end]
+		log.Printf("📦 Processing batch %d-%d of %d properties", i+1, end, totalProperties)
 
-		// Debug: Log photo count
-		if i < 3 { // Only log first 3 properties to avoid spam
-			log.Printf("🖼️  Property %s has %d photos in payload", xmlImovel.Referencia, len(payload.Photos))
-			if len(payload.Photos) > 0 {
-				log.Printf("   First photo URL: %s", payload.Photos[0])
-			}
+		// Process each property in this batch
+		for idx, xmlImovel := range batchProperties {
+			globalIdx := i + idx
+
+			// Acquire semaphore (block if maxWorkers goroutines are running)
+			semaphore <- struct{}{}
+
+			// Process property (synchronously for now to avoid overwhelming Firestore)
+			func(imovel union.XMLImovel, propertyIdx int) {
+				defer func() { <-semaphore }() // Release semaphore
+
+				// Find matching XLS record
+				var xlsRecord *union.XLSRecord
+				if len(xlsRecords) > 0 {
+					xlsRecord = union.FindXLSRecordByCode(xlsRecords, &imovel)
+				}
+
+				// Normalize to PropertyPayload
+				payload := union.NormalizeProperty(&imovel, xlsRecord, batch.TenantID)
+
+				// Debug: Log photo count
+				if propertyIdx < 3 {
+					log.Printf("🖼️  Property %s has %d photos in payload", imovel.Referencia, len(payload.Photos))
+					if len(payload.Photos) > 0 {
+						log.Printf("   First photo URL: %s", payload.Photos[0])
+					}
+				}
+
+				// Import property
+				if err := h.importService.ImportProperty(ctx, batch, payload); err != nil {
+					log.Printf("❌ Error importing property %s: %v", imovel.Referencia, err)
+					_ = h.importService.LogError(ctx, batch, "import_failed", err.Error(), map[string]interface{}{
+						"reference":    imovel.Referencia,
+						"external_id":  imovel.Codigoimovel,
+						"property_idx": propertyIdx,
+					})
+				}
+			}(xmlImovel, globalIdx)
 		}
 
-		// Import property
-		if err := h.importService.ImportProperty(ctx, batch, payload); err != nil {
-			log.Printf("❌ Error importing property %s: %v", xmlImovel.Referencia, err)
-			_ = h.importService.LogError(ctx, batch, "import_failed", err.Error(), map[string]interface{}{
-				"reference":    xmlImovel.Referencia,
-				"external_id":  xmlImovel.Codigoimovel,
-				"property_idx": i,
-			})
-			continue
+		// Wait for all goroutines in this batch to complete
+		for j := 0; j < maxWorkers; j++ {
+			semaphore <- struct{}{}
+		}
+		for j := 0; j < maxWorkers; j++ {
+			<-semaphore
 		}
 
-		// Progress log every 50 properties
-		if (i+1)%50 == 0 {
-			log.Printf("📥 Import progress: %d/%d properties", i+1, len(xmlData.Imoveis))
+		log.Printf("✅ Batch complete: %d/%d properties processed", end, totalProperties)
+
+		// Optional: Add small delay between batches to allow GC to run
+		if end < totalProperties {
+			log.Printf("⏸️  Pausing 2s between batches to allow memory cleanup...")
+			time.Sleep(2 * time.Second)
 		}
 	}
 

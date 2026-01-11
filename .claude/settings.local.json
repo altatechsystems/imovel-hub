@@ -459,7 +459,8 @@
       "Bash(gcloud run services update:*)",
       "Bash(npm run lint:*)",
       "Bash(timeout 15 cmd:*)",
-      "Bash(timeout 180 npm run build:*)"
+      "Bash(timeout 180 npm run build:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: implement complete user invitation system with email workflow\n\nImplements PROMPT 11 - replaces manual Firebase user creation with modern\nemail-based invitation flow \\(similar to Slack/GitHub\\).\n\nBackend \\(Go\\):\n- Add UserInvitation model with secure token generation\n- Create 5 invitation endpoints \\(send, verify, accept, list, cancel\\)\n- Implement SMTP email service with Gmail support\n- Add automatic Firebase user creation on invite acceptance\n- Fix auth middleware context key mismatch \\(user_id vs firebase_uid\\)\n\nFrontend \\(Next.js\\):\n- Create invitation form with multi-level permission controls\n- Add accept invitation page with password creation\n- Implement invitations management tab with list/cancel actions\n- Fix array parsing for backend response format\n- Add responsive UI for mobile and desktop\n\nEmail & Configuration:\n- Gmail SMTP integration with app password support\n- Professional HTML email template with branding\n- Auto-detection of SMTP configuration\n- Complete Gmail setup guide \\(CONFIG_EMAIL_GMAIL.md\\)\n\nDocumentation:\n- DEPLOYMENT.md - comprehensive production deployment guide\n- PROMPT_11_SUMMARY.md - complete implementation documentation\n\nSecurity:\n- Cryptographic secure tokens \\(64 chars hex\\)\n- 7-day expiration on invitations\n- Email duplicate validation\n- Token-based authentication for invite acceptance\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ],
     "deny": [],
     "ask": []

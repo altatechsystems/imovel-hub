@@ -116,16 +116,63 @@ type XMLImovel struct {
 	AnoConstrucao string `xml:"AnoConstrucao"`
 }
 
-// ParseXML parses Union XML file
+// ParseXML parses Union XML file using streaming to reduce memory usage
 func ParseXML(reader io.Reader) (*XMLUnion, error) {
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
+	decoder := xml.NewDecoder(reader)
 
 	var union XMLUnion
-	if err := xml.Unmarshal(data, &union); err != nil {
-		return nil, err
+	union.Imoveis = make([]XMLImovel, 0, 100) // Pre-allocate with reasonable capacity
+
+	var current *XMLImovel
+	var inFotos bool
+	var currentFoto *XMLFoto
+
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		switch elem := token.(type) {
+		case xml.StartElement:
+			switch elem.Name.Local {
+			case "Imovel":
+				current = &XMLImovel{}
+			case "Fotos":
+				inFotos = true
+			case "Foto":
+				if inFotos {
+					currentFoto = &XMLFoto{}
+				}
+			}
+
+			// Decode current element if we're inside an Imovel
+			if current != nil {
+				switch elem.Name.Local {
+				case "Imovel":
+					// Decode the entire Imovel element at once for simplicity
+					if err := decoder.DecodeElement(current, &elem); err != nil {
+						return nil, err
+					}
+					union.Imoveis = append(union.Imoveis, *current)
+					current = nil
+				}
+			}
+
+		case xml.EndElement:
+			switch elem.Name.Local {
+			case "Fotos":
+				inFotos = false
+			case "Foto":
+				if currentFoto != nil && current != nil {
+					current.Fotos = append(current.Fotos, *currentFoto)
+					currentFoto = nil
+				}
+			}
+		}
 	}
 
 	return &union, nil
