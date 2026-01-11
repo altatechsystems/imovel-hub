@@ -121,17 +121,7 @@ export default function ImoveisPage() {
 
   useEffect(() => {
     fetchProperties(0, false);
-  }, []);
-
-  // Auto-fetch next pages in background
-  useEffect(() => {
-    if (!loading && !loadingMore && hasMoreToFetch && properties.length > 0) {
-      const timer = setTimeout(() => {
-        fetchProperties(currentPage + 1, true);
-      }, 500); // Wait 500ms before fetching next page
-      return () => clearTimeout(timer);
-    }
-  }, [loading, loadingMore, hasMoreToFetch, properties.length, currentPage, fetchProperties]);
+  }, [fetchProperties]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -260,6 +250,13 @@ export default function ImoveisPage() {
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
           setDisplayCount(prev => Math.min(prev + itemsPerPage, filteredProperties.length));
+
+          // If we're showing almost all filtered properties and there's more to fetch from API
+          const remainingToShow = filteredProperties.length - displayCount;
+          if (remainingToShow < itemsPerPage * 2 && hasMoreToFetch && !loadingMore) {
+            // Fetch next page from API
+            fetchProperties(currentPage + 1, true);
+          }
         }
       },
       { threshold: 0.1 }
@@ -275,7 +272,7 @@ export default function ImoveisPage() {
         observer.unobserve(currentTarget);
       }
     };
-  }, [hasMore, loading, loadingMore, itemsPerPage, displayCount, filteredProperties.length]);
+  }, [hasMore, loading, loadingMore, itemsPerPage, displayCount, filteredProperties.length, hasMoreToFetch, currentPage, fetchProperties]);
 
   return (
     <div className="p-3 sm:p-4 md:p-6">
